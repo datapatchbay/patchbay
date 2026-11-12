@@ -14,7 +14,7 @@ from datapatchbay.builtin.kubernetes import KubernetesRuntime
 from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.builtin.worker import WorkerRuntime
 from datapatchbay.cli import app
-from datapatchbay.generate import GenerationError, generate_repo
+from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (

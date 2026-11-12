@@ -17,7 +17,7 @@ from datapatchbay.builtin.kubernetes import KubernetesRuntime
 from datapatchbay.builtin.local import LocalOrchestrator, connection_variable
 from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.builtin.worker import WorkerRuntime
-from datapatchbay.generate import GenerationError, generate_repo
+from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import DataProductPlan, GenerationContext, UnsupportedCombinationError
@@ -421,7 +421,9 @@ def test_the_docker_runtime_is_refused_when_generating(tmp_path: Path):
         },
     )
     result = generate_repo(root)
-    assert any("the docker runtime cannot render tasks for orchestrator 'local'" in p.message for p in result.report.problems)
+    assert any(
+        "the docker runtime cannot render tasks for orchestrator 'local'" in p.message for p in result.report.problems
+    )
     assert not (root / "generated").exists()
 
 
@@ -434,7 +436,10 @@ def test_the_kubernetes_runtime_is_refused_when_generating(tmp_path: Path):
         },
     )
     result = generate_repo(root)
-    assert any("the kubernetes runtime cannot render tasks for orchestrator 'local'" in p.message for p in result.report.problems)
+    assert any(
+        "the kubernetes runtime cannot render tasks for orchestrator 'local'" in p.message
+        for p in result.report.problems
+    )
 
 
 def plan_of(root: Path, folder: str) -> DataProductPlan:
