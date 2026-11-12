@@ -91,7 +91,9 @@ datapatchbay has four extension points:
 | Orchestrator | Airflow 3 |
 | Executor | Python, dbt |
 | Runtime | Worker, Docker, Kubernetes |
-| Warehouse | Postgres |
+| Warehouse | Postgres, DuckDB |
+
+The `duckdb` warehouse writes the audit tasks of quality rules, the same as Postgres. It does not generate views for output ports yet (they follow, with the access rules of [ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)), so a repo with `warehouse: duckdb` gets no `apply_access` task. It is the warehouse that the unit tests of datapatchbay run against (ADR-0020).
 
 Plugins are found through Python entry points, so plugin support adds no dependency. The built-in support is written against the same interfaces and registered the same way. A plugin package registers a class, or a function without arguments that returns the plugin, in one of four groups, and the entry point name is the name used in the settings:
 
