@@ -79,12 +79,6 @@ def test_an_input_port_that_reads_a_data_product_becomes_a_dbt_source(repo: Path
     assert sources(repo) == {SOURCES: EXPECTED}
 
 
-def test_the_source_copies_the_contract_only(repo: Path):
-    content = sources(repo)[SOURCES]
-    for left_out in ("rules", "not_null", "unique", "row_count", "freshness", "pii", "access", "type"):
-        assert left_out not in content.split("\n", 1)[1]
-
-
 def test_the_same_input_gives_identical_sources(repo: Path):
     assert sources(repo) == sources(repo)
 

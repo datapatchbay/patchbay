@@ -50,7 +50,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
 
     When tables are built by dbt, the `model-paths` of `dbt_project.yml` at the repo root (not in `output_dir`, because
     the file is committed) are also brought in step, after all other files are written, and only if that is needed.
-    The dbt properties files, also committed, are written just before it, next to the models.
+    The dbt properties and sources files, also committed, are written just before it, next to the models.
 
     Args:
         root: The repo root.
@@ -77,8 +77,8 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
                 raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
             files[generated.path] = generated.content
 
-    # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
-    properties = generate_dbt_files(plans, settings)
+    # The dbt properties and sources are committed source files, not build output, so they go next to the models.
+    dbt_files = generate_dbt_files(plans, settings)
 
     try:
         dbt_project = synced_dbt_project(repo, settings)
@@ -89,7 +89,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
         destination = target / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(content.encode("utf-8"))
-    for generated in properties:
+    for generated in dbt_files:
         destination = root / generated.path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(generated.content.encode("utf-8"))
