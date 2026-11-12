@@ -192,6 +192,8 @@ def _table_lines(table: Json) -> list[str]:
     lines.append(
         f"        build: {table['entrypoint']}" + (f"  needs: {', '.join(table['needs'])}" if table["needs"] else "")
     )
+    if table["params"]:
+        lines.append(f"        params: {table['params']}")
     lines.extend(_settings_lines(table["settings"], "        "))
     lines.append("        columns:")
     for column in table["columns"]:

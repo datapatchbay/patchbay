@@ -35,7 +35,7 @@ build:
   image: registry.example.com/orders:2   # this table only
 ```
 
-`executor` and `runtime` name plugins, so the files accept any name; `dpb generate` reports a name no plugin provides.
+`executor` and `runtime` name plugins, so the files accept any name. Whether a plugin of that name exists is checked once plugins are loaded, not by `dpb validate`.
 
 `orchestrator` can be set at root or data product level only, because one data product is one DAG. On a port or a table, `dpb validate` fails.
 

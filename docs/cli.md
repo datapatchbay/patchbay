@@ -78,7 +78,7 @@ sa_ilab_orders  (dataproducts/sa_ilab_orders/dataproduct.yaml)
     orchestrator: prefect  (dataproduct, dataproducts/sa_ilab_orders/dataproduct.yaml)
 ```
 
-With `--json`, stdout holds one object with the same content; each setting is `{"value", "level", "file"}`. An unknown name fails with exit code 2 and a message naming the data products that exist.
+With `--json`, stdout holds one object with the same content. Its keys are `folder`, `name`, `file`, `kind`, `domain`, `owner`, `technical_owner`, `description`, `settings`, `inputs` and `outputs`. Each port has `name`, `file`, `settings` and `tables`, plus `from` or `kind`; output ports add `freshness`, `readers`, `pii_readers` and `read_by`. Each table has `name`, `file`, `description`, `freshness_column`, `columns`, `rules`, `entrypoint`, `params`, `needs` and `settings`. Each setting is `{"value", "level", "file"}`, where `level` is `table`, `port`, `dataproduct`, `root`, `defaults` or `unset`. Each rule carries its own fields, its resolved `severity` and `severity_from`, which is `rule` when the rule sets the severity itself and otherwise the level the default came from. An unknown name fails with exit code 2 and a message naming the data products that exist.
 
 ## `dpb generate`
 

@@ -1,8 +1,8 @@
 """Resolving a setting over the levels it can be set at: defaults, root, data product, port and table (ADR-0008).
 
 The nearest level wins, and every resolved setting records the level and the file it came from. Settings are looked
-up by name, so a setting that cascades the same way, such as a container setting, needs no new code here: add the
-field to `CascadingSettings` and ask for it by name.
+up by name, so a setting that cascades the same way, such as a container setting, needs one new field on
+`CascadingSettings` and one new entry in `SettingName` and `CASCADING_SETTINGS`.
 """
 
 from dataclasses import dataclass
@@ -15,7 +15,9 @@ from datapatchbay.settings import EffectiveSettings
 
 type Level = Literal["table", "port", "dataproduct", "root", "defaults", "unset"]
 
-CASCADING_SETTINGS = ("executor", "runtime", "image", "severity")
+type SettingName = Literal["executor", "runtime", "image", "severity", "orchestrator"]
+
+CASCADING_SETTINGS: tuple[SettingName, ...] = ("executor", "runtime", "image", "severity")
 """The settings that can be set at every level."""
 
 
@@ -31,7 +33,7 @@ class ResolvedSetting:
             a setting that is not set.
     """
 
-    name: str
+    name: SettingName
     value: Any
     level: Level
     file: PurePosixPath | None
@@ -42,7 +44,7 @@ class ResolvedSetting:
 
 
 def resolve_setting(
-    name: str,
+    name: SettingName,
     settings: EffectiveSettings,
     *,
     dataproduct: DataProduct | None = None,
