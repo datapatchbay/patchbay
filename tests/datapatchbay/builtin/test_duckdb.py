@@ -49,14 +49,8 @@ def test_a_table_built_by_dbt_gets_no_audit_task_on_duckdb(lab_dbt_repo: Path):
     assert DuckDbWarehouse().audit_tasks(table) == ()
 
 
-def test_duckdb_returns_no_apply_tasks_because_views_are_not_generated_yet(lab_repo: Path):
-    repo, _ = load_repo(lab_repo)
-    plan = next(p for p in plan_dataproducts(repo, load_settings(lab_repo)) if p.folder == "sa_ilab_orders")
-    assert DuckDbWarehouse().apply_tasks(plan) == ()
-
-
 @pytest.mark.parametrize("name", ["duckdb", "postgres"])
-def test_generate_writes_the_audit_task_of_each_table_with_rules_and_no_access_task_on_duckdb(
+def test_generate_writes_the_audit_task_of_each_table_with_rules_and_the_access_task_on_both_warehouses(
     lab_repo: Path, name: str
 ):
     (lab_repo / "datapatchbay.yaml").write_text(f"schema_version: 1\nwarehouse: {name}\n")
@@ -64,4 +58,4 @@ def test_generate_writes_the_audit_task_of_each_table_with_rules_and_no_access_t
     assert result.report.ok
     dag = (lab_repo / "generated/sa_ilab_orders.py").read_text()
     assert '_audit_task("audit_orders"' in dag
-    assert ("apply_access" in dag) == (name == "postgres")
+    assert '"apply_access"' in dag
