@@ -1,0 +1,9 @@
+schema_version: 1
+name: ilab_orders
+kind: source-aligned
+domain: operations
+owner: Jane Doe
+technical_owner: John Roe
+description: Lab orders as received from the lab system
+inputs: [sa_ilab_orders_private]
+outputs: [sa_ilab_orders]
