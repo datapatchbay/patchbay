@@ -108,6 +108,17 @@ The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatc
 
 The plugin interface is not declared stable yet. [Writing a plugin](plugins.md) shows the extension points and the SQL and codegen toolkits.
 
+## Settings that a plugin declares
+
+A plugin of any of the four extension points may add settings of its own, so that its configuration lives in `datapatchbay.yaml` next to the rest and is validated, documented and shown like it ([ADR-0025](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0025-plugins-declare-their-own-settings.md)):
+
+- A **section** at the root of `datapatchbay.yaml`, named after the plugin (its entry point name). The plugin owns the model of the section, with a description for every key, and its defaults. A section is read at the root only and does not cascade. The `dbt:` block is the section of the `dbt` plugin.
+- **Naming templates** under `conventions.names`, with placeholders of their own. `dbt_model` is a naming template of the `dbt` plugin.
+
+Both are merged over the plugin's defaults like any setting: maps merge key by key, and a value in `datapatchbay.yaml` replaces the default. `dpb config` lists them, and says where each value comes from: `(defaults of plugin dbt)` or `(datapatchbay.yaml)`. `dpb schema root` includes the sections and templates of the installed plugins, so an editor completes them.
+
+A section is valid only when an installed plugin declares it. Any other root key fails `dpb validate` as an unknown key, and says that no installed plugin declares a settings section of that name; install the plugin or fix the typo. A plugin whose name is also a setting of datapatchbay (`runtime`, `conventions`, ...), or whose section or template another plugin declares too, is refused with an error. Existing repos are not affected: the file format and the schema version stay as they were. [Writing a plugin](plugins.md#declare-settings-and-naming-templates) shows how a plugin declares them.
+
 ## The connection for DuckDB
 
 The audit and apply tasks of the `duckdb` warehouse run through the Airflow connection that the `connection` setting names (`warehouse` by default), like the tasks of any warehouse. Install the official `apache-airflow-providers-duckdb` package on the workers and create a connection of type `duckdb` with that id. Its **Host** field is the path of the DuckDB file, for example `/data/shop.duckdb`; with no path, the hook opens an in-memory database that is gone when the task ends, so the views would never persist. As an environment variable:

@@ -14,3 +14,4 @@ The version goes up only for breaking changes. A new optional key does not count
 
 - An older `dpb` rejects a file that uses a newer optional key. The error must say that the key may come from a newer release.
 - `dpb` refuses files with a `schema_version` newer than it knows.
+- The root keys that are valid depend on the installed plugins: a plugin may declare a section named after itself (ADR-0025). A root key that no installed plugin declares is an unknown key, and the message says so. Adding a section to a plugin is a new optional key, so it does not bump the version.

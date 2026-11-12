@@ -1,6 +1,7 @@
 """The `dbt` executor: a table is built by a dbt model in the data product's `models/` folder (ADR-0015).
 
-Besides the build call, the executor has the capabilities of `datapatchbay.plugins` that dbt needs, so the core names
+Besides the build call, the executor declares the `dbt:` settings and the `dbt_model` naming template
+(ADR-0025) and has the capabilities of `datapatchbay.plugins` that dbt needs, so the core names
 no dbt: it checks the model files, produces and checks the committed dbt files, builds its tables in one `dbt build`
 per data product, runs the quality rules itself as dbt data tests, and scaffolds the stub model for `dpb new`.
 """
@@ -9,16 +10,17 @@ from collections.abc import Sequence
 from pathlib import PurePosixPath
 
 from datapatchbay.files.repomodel import DataProduct, Repo, Table
-from datapatchbay.integrations.dbt.layout import check_dbt_dataproduct, check_dbt_table, new_model_name
+from datapatchbay.integrations.dbt.layout import check_dbt_dataproduct, check_dbt_table, dbt_location, new_model_name
 from datapatchbay.integrations.dbt.manifest import check_dbt_reads
 from datapatchbay.integrations.dbt.output import DbtOutput, build_dbt_output
+from datapatchbay.integrations.dbt.settings import DBT_DECLARED_SETTINGS
 from datapatchbay.plugins import (
     CommandCall,
+    DeclaredSettings,
     NewTable,
     PlannedRepo,
     ScaffoldedTable,
     TablePlan,
-    UnsupportedCombinationError,
 )
 from datapatchbay.problems import Problem
 from datapatchbay.settings.effective import EffectiveSettings
@@ -29,6 +31,7 @@ class DbtExecutor:
 
     batch_key = "dbt"
     call_type = CommandCall
+    declared_settings: DeclaredSettings = DBT_DECLARED_SETTINGS
 
     def __init__(self) -> None:
         self._model_names: dict[str, PurePosixPath] = {}
@@ -39,12 +42,8 @@ class DbtExecutor:
         The command runs with the project as its working directory, so the project is `.`; the profiles folder is
         passed as set, and the runtime expands its leading `~`.
 
-        Raises:
-            UnsupportedCombinationError: If the plan holds no dbt location.
         """
-        location = table.dbt
-        if location is None:
-            raise UnsupportedCombinationError(f"table '{table.name}' has no dbt location to build from")
+        location = dbt_location(table)
         argv = (
             "dbt",
             "build",

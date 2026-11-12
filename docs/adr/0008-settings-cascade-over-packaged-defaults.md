@@ -12,3 +12,4 @@ Orchestrator can be set at root or data product level only. One data product is 
 ## Consequences
 
 - A change to a packaged default changes the behaviour of every repo that did not set that value. Such a change is a breaking change and needs a schema version bump (see ADR-0011).
+- The packaged defaults of a plugin that declares settings ship with that plugin and are merged under the repo's file in the same way, with the origin `defaults of plugin <name>`. They do not cascade below the root (ADR-0025).

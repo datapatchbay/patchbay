@@ -4,8 +4,11 @@ import pytest
 
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.files.loading import load_file
+from datapatchbay.integrations.dbt.settings import dbt_settings
 from datapatchbay.models import RootFile
 from datapatchbay.settings.effective import DEFAULTS_ORIGIN, ROOT_ORIGIN, defaults_path, load_settings
+
+DBT_DEFAULTS_ORIGIN = "defaults of plugin dbt"
 
 
 def write_root(root: Path, text: str) -> None:
@@ -36,9 +39,9 @@ def test_schema_version_only_file_yields_the_defaults_from_product_md(tmp_path: 
         "output_port": "{kind.prefix}_{name}",
         "private_port": "{kind.prefix}_{name}_private",
         "role": "dp_{kind.prefix}_{name}",
-        "dbt_model": "{dataproduct}__{table}",
     }
-    assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN}
+    assert values.conventions.plugin_names == {"dbt_model": "{dataproduct}__{table}"}
+    assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN, DBT_DEFAULTS_ORIGIN}
 
 
 def test_single_values_in_repo_file_replace_defaults_and_record_origin(tmp_path: Path):
@@ -82,26 +85,29 @@ def test_invalid_repo_file_raises_with_file_and_line(tmp_path: Path):
 def test_empty_key_in_repo_file_keeps_the_default(tmp_path: Path, text: str):
     write_root(tmp_path, "schema_version: 1\n" + text)
     settings = load_settings(tmp_path)
-    assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN}
+    assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN, DBT_DEFAULTS_ORIGIN}
     assert settings.values.runtime == "worker"
     assert settings.values.conventions.domains == []
 
 
 def test_dbt_project_and_profiles_locations_have_defaults_and_can_be_set(tmp_path: Path):
     write_root(tmp_path, "schema_version: 1\n")
-    defaults = load_settings(tmp_path).values.dbt
+    defaults = dbt_settings(load_settings(tmp_path).plugins)
     assert (defaults.project_dir, defaults.profiles_dir) == (".", "~/.dbt")
     write_root(tmp_path, "schema_version: 1\ndbt:\n  profiles_dir: /etc/dbt\n")
     settings = load_settings(tmp_path)
-    assert (settings.values.dbt.project_dir, settings.values.dbt.profiles_dir) == (".", "/etc/dbt")
+    assert (dbt_settings(settings.plugins).project_dir, dbt_settings(settings.plugins).profiles_dir) == (
+        ".",
+        "/etc/dbt",
+    )
     assert settings.origin_of("dbt.profiles_dir") == ROOT_ORIGIN
-    assert settings.origin_of("dbt.project_dir") == DEFAULTS_ORIGIN
+    assert settings.origin_of("dbt.project_dir") == DBT_DEFAULTS_ORIGIN
 
 
 def test_dbt_manifest_location_defaults_to_the_target_folder_and_can_be_set(tmp_path: Path):
     write_root(tmp_path, "schema_version: 1\n")
-    assert load_settings(tmp_path).values.dbt.manifest == "target/manifest.json"
+    assert dbt_settings(load_settings(tmp_path).plugins).manifest == "target/manifest.json"
     write_root(tmp_path, "schema_version: 1\ndbt:\n  manifest: build/manifest.json\n")
     settings = load_settings(tmp_path)
-    assert settings.values.dbt.manifest == "build/manifest.json"
+    assert dbt_settings(settings.plugins).manifest == "build/manifest.json"
     assert settings.origin_of("dbt.manifest") == ROOT_ORIGIN

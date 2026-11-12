@@ -6,12 +6,15 @@ SQL is a dbt model in the `models/` folder of its data product, and dbt takes th
 Nothing here imports or runs dbt (ADR-0004).
 """
 
+import os
 import re
 from collections.abc import Iterator
-from pathlib import PurePosixPath
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 
 from datapatchbay.files.repomodel import DataProduct, Repo, Table
-from datapatchbay.plugins.plan import MODELS_FOLDER, NewTable
+from datapatchbay.integrations.dbt.settings import dbt_model_template, dbt_settings
+from datapatchbay.plugins import NewTable, TablePlan
 from datapatchbay.problems import Problem
 from datapatchbay.settings.effective import EffectiveSettings
 from datapatchbay.settings.naming import NamingTemplateError, derive_names, render_name
@@ -20,8 +23,10 @@ __all__ = [
     "DBT_EXECUTOR",
     "MODELS_FOLDER",
     "TESTS_FOLDER",
+    "DbtLocation",
     "check_dbt_dataproduct",
     "check_dbt_table",
+    "dbt_location",
     "model_name",
     "new_model_name",
 ]
@@ -29,11 +34,47 @@ __all__ = [
 DBT_EXECUTOR = "dbt"
 """The name of the dbt executor."""
 
+MODELS_FOLDER = "models"
+"""The folder of a data product that holds its dbt models."""
+
 TESTS_FOLDER = "tests"
 """The folder of a data product that holds its generated singular dbt tests (ADR-0019)."""
 
 _BUILD_KEYS = ("entrypoint", "params", "needs")
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+@dataclass(frozen=True, slots=True)
+class DbtLocation:
+    """Where dbt finds a data product's models, project and profile, as the `dbt` settings and the folders give it.
+
+    Attributes:
+        models: The `models/` folder of the data product, relative to the dbt project, for `dbt build --select`.
+        project_dir: The dbt project on the worker: an absolute path as set, or the path from the data product folder
+            to the project.
+        profiles_dir: The folder with `profiles.yml` on the worker, as set.
+    """
+
+    models: PurePosixPath
+    project_dir: str
+    profiles_dir: str
+
+
+def dbt_location(table: TablePlan) -> DbtLocation:
+    """Place the models of a table's data product in the project that the `dbt:` settings block locates."""
+    dbt = dbt_settings(table.plugin_settings)
+    models = table.directory / MODELS_FOLDER
+    if PurePosixPath(dbt.project_dir).is_absolute():
+        # The project is a copy of the repo's layout somewhere else on the worker: select by the path in the repo.
+        project_dir = dbt.project_dir
+        select = os.path.relpath(models, table.root)
+    else:
+        project = Path(os.path.normpath(table.root / dbt.project_dir))
+        project_dir = Path(os.path.relpath(project, table.directory)).as_posix()
+        select = os.path.relpath(models, project)
+    return DbtLocation(
+        models=PurePosixPath(Path(select).as_posix()), project_dir=project_dir, profiles_dir=dbt.profiles_dir
+    )
 
 
 def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Table) -> str | None:
@@ -56,7 +97,7 @@ def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Tab
     try:
         derived = derive_names(conventions, name=dataproduct.file.model.name, kind_name=kind_name)
         return render_name(
-            conventions.names.dbt_model,
+            dbt_model_template(conventions),
             name=dataproduct.file.model.name,
             kind_name=kind_name,
             kind=conventions.kinds[kind_name],
@@ -70,7 +111,7 @@ def new_model_name(new: NewTable, table: str) -> str:
     """Return the dbt model name of a table of a data product `dpb new` is writing, from the `dbt_model` template."""
     conventions = new.conventions
     return render_name(
-        conventions.names.dbt_model,
+        dbt_model_template(conventions),
         name=new.dataproduct_name,
         kind_name=new.kind,
         kind=conventions.kinds[new.kind],

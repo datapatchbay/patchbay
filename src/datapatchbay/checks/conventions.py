@@ -12,15 +12,12 @@ from datapatchbay.models import DataProductInputPortFile
 from datapatchbay.problems import Problem
 from datapatchbay.settings.effective import EffectiveSettings
 from datapatchbay.settings.naming import (
-    DBT_MODEL_PLACEHOLDERS,
     DerivedNames,
     NamingTemplateError,
     check_template,
     derive_names,
     is_snake_case,
 )
-
-_TEMPLATE_KEYS = ("dataproduct", "output_port", "private_port", "role", "dbt_model")
 
 
 def check_conventions(repo: Repo, settings: EffectiveSettings, root_data: CommentedMap) -> list[Problem]:
@@ -55,10 +52,11 @@ def check_conventions(repo: Repo, settings: EffectiveSettings, root_data: Commen
 
 
 def _check_templates(settings: EffectiveSettings, root_data: CommentedMap) -> Iterator[Problem]:
-    for key in _TEMPLATE_KEYS:
-        template: str = getattr(settings.values.conventions.names, key)
+    conventions = settings.values.conventions
+    templates = {**conventions.names.model_dump(), **conventions.plugin_names}
+    for key, template in templates.items():
         try:
-            check_template(template, DBT_MODEL_PLACEHOLDERS if key == "dbt_model" else ())
+            check_template(template, settings.template_placeholders.get(key, ()))
         except NamingTemplateError as error:
             line = line_of(root_data, ("conventions", "names", key))
             yield Problem(PurePosixPath(ROOT_FILE), line, f"conventions.names.{key}: {error}")

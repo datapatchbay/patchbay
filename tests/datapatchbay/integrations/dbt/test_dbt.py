@@ -149,7 +149,7 @@ def test_a_python_table_still_needs_an_entrypoint(jaffle_repo: Path):
 
 
 def test_the_dbt_model_template_defaults_and_is_in_the_schema(jaffle_repo: Path):
-    assert load_settings(jaffle_repo).values.conventions.names.dbt_model == "{dataproduct}__{table}"
+    assert load_settings(jaffle_repo).values.conventions.plugin_names["dbt_model"] == "{dataproduct}__{table}"
     assert "dbt_model" in schemas.json_schema("root")["$defs"]["NamesConvention"]["properties"]
 
 

@@ -1,13 +1,11 @@
 """Turning the loaded repo into the plans that plugins generate from, with settings resolved over the cascade."""
 
-import os
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.files.repomodel import DataProduct, Repo
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
-from datapatchbay.plugins import DataProductPlan, DbtLocation, SourceSchedule, TablePlan
-from datapatchbay.plugins.plan import MODELS_FOLDER
+from datapatchbay.plugins import DataProductPlan, SourceSchedule, TablePlan
 from datapatchbay.settings.cascade import ResolvedCascade
 from datapatchbay.settings.effective import EffectiveSettings
 from datapatchbay.settings.naming import DerivedNames, derive_names
@@ -50,7 +48,6 @@ def _plan(
     roles: Mapping[str, str],
     root: Path,
 ) -> DataProductPlan:
-    dbt = _dbt_location(dataproduct, settings, root)
     tables = []
     for port in dataproduct.ports:
         for table in port.tables:
@@ -74,7 +71,9 @@ def _plan(
                     port_source=port,
                     source=table,
                     container={} if container is None else container,
-                    dbt=dbt,
+                    directory=dataproduct.directory,
+                    root=root,
+                    plugin_settings=settings.plugins,
                 )
             )
 
@@ -103,23 +102,7 @@ def _plan(
         source=dataproduct,
         names=names,
         roles=roles,
-    )
-
-
-def _dbt_location(dataproduct: DataProduct, settings: EffectiveSettings, root: Path) -> DbtLocation:
-    """Place the models of a data product in the project that the `dbt:` settings block locates."""
-    dbt = settings.values.dbt
-    models = dataproduct.directory / MODELS_FOLDER
-    if PurePosixPath(dbt.project_dir).is_absolute():
-        # The project is a copy of the repo's layout somewhere else on the worker: select by the path in the repo.
-        project_dir = dbt.project_dir
-        select = os.path.relpath(models, root)
-    else:
-        project = Path(os.path.normpath(root / dbt.project_dir))
-        project_dir = Path(os.path.relpath(project, dataproduct.directory)).as_posix()
-        select = os.path.relpath(models, project)
-    return DbtLocation(
-        models=PurePosixPath(Path(select).as_posix()), project_dir=project_dir, profiles_dir=dbt.profiles_dir
+        plugin_settings=settings.plugins,
     )
 
 

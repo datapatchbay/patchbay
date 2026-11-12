@@ -26,6 +26,7 @@ from datapatchbay.models import (
     TableFile,
 )
 from datapatchbay.problems import Problem
+from datapatchbay.settings.pluginsettings import installed_declarations, root_model
 
 PORT_FILE = "port.yaml"
 type Direction = Literal["inputs", "outputs"]
@@ -103,9 +104,26 @@ def _problem(file: PurePosixPath, data: CommentedMap, error: ErrorDetails, key_h
     return Problem(file, line_of(data, location), message)
 
 
+def _root_key_hint(model: type[RootFile]) -> KeyHint:
+    def hint(data: Mapping[str, object], key: str) -> str | None:
+        """Explain an unknown key at the root: only an installed plugin can declare a section (ADR-0025)."""
+        if key in data and key not in model.model_fields:
+            return f"unknown key '{key}'; no installed plugin declares a settings section '{key}'"
+        return None
+
+    return hint
+
+
 def load_root_file(root: Path) -> tuple[LoadedFile[RootFile] | None, list[Problem]]:
-    """Read `datapatchbay.yaml` against the root file schema; see `load_file`."""
-    return load_file(root / ROOT_FILE, root, RootFile)
+    """Read `datapatchbay.yaml` against the root file schema, extended with what installed plugins declare.
+
+    See `load_file`.
+
+    Raises:
+        PluginSettingsError: If installed plugins declare settings that collide (ADR-0025).
+    """
+    model = root_model(installed_declarations())
+    return load_file(root / ROOT_FILE, root, model, key_hint=_root_key_hint(model))
 
 
 def _port_model(direction: Direction, data: Mapping[str, object]) -> type[PortFile]:

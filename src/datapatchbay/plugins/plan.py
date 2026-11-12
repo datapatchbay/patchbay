@@ -7,34 +7,19 @@ tasks the plugins hand back are in `tasks`, the interfaces in `interfaces`.
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel
 
 from datapatchbay.files.repomodel import DataProduct, Port, Repo, Table
 from datapatchbay.models.base import Severity
 from datapatchbay.problems import Report
-from datapatchbay.settings.effective import EffectiveSettings, ResolvedConventions
-from datapatchbay.settings.naming import DerivedNames
 
-__all__ = ["DataProductPlan", "DbtLocation", "NewTable", "PlannedRepo", "SourceSchedule", "TablePlan"]
+if TYPE_CHECKING:
+    from datapatchbay.settings.effective import EffectiveSettings, ResolvedConventions
+    from datapatchbay.settings.naming import DerivedNames
 
-MODELS_FOLDER = "models"
-"""The folder of a data product that holds the models of the `dbt:` settings block."""
-
-
-@dataclass(frozen=True, slots=True)
-class DbtLocation:
-    """Where dbt finds a data product's models, project and profile, as the `dbt` settings and the folders give it.
-
-    Attributes:
-        models: The `models/` folder of the data product, relative to the dbt project, for `dbt build --select`.
-        project_dir: The dbt project on the worker: an absolute path as set, or the path from the data product folder
-            to the project.
-        profiles_dir: The folder with `profiles.yml` on the worker, as set.
-    """
-
-    models: PurePosixPath
-    project_dir: str
-    profiles_dir: str
+__all__ = ["DataProductPlan", "NewTable", "PlannedRepo", "SourceSchedule", "TablePlan"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,8 +32,8 @@ class TablePlan:
         name: Name of the table.
         schema: Schema in the warehouse that holds the built table: the private port of the data product, named by
             its naming template. Output ports only hold views over it.
-        entrypoint: The file of the build function, relative to the data product folder; `None` for a table that
-            a dbt model builds.
+        entrypoint: The file of the build function, relative to the data product folder; `None` for a table whose
+            executor needs no build function.
         function: Name of the build function; `None` when there is no entrypoint.
         params: Parameters passed to the function.
         needs: Names of the tables of the same data product that are built first.
@@ -59,7 +44,9 @@ class TablePlan:
         severity: Default severity of the table's quality rules.
         port_source: The loaded port, for plugins that need its contract or access policy.
         source: The loaded table, for plugins that need its columns and quality rules.
-        dbt: Where dbt finds the data product's models, project and profile; used by the dbt executor.
+        directory: Absolute path of the data product folder the table belongs to.
+        root: Absolute path of the repo root.
+        plugin_settings: The resolved settings section of each plugin that declares one, by plugin name (ADR-0025).
     """
 
     dataproduct: str
@@ -77,7 +64,9 @@ class TablePlan:
     port_source: Port
     source: Table
     container: Mapping[str, Any] = field(default_factory=dict)
-    dbt: DbtLocation | None = None
+    directory: Path = Path()
+    root: Path = Path()
+    plugin_settings: Mapping[str, BaseModel] = field(default_factory=dict)
 
     def severity_of(self, rule_severity: Severity | None) -> Severity:
         """Return the severity of a rule: its own, or the table's default when the rule sets none."""
@@ -111,6 +100,7 @@ class DataProductPlan:
         source: The loaded data product, for plugins that need its files.
         names: The names the naming templates produce for this data product, such as its private port and role.
         roles: The role of every data product in the repo, by folder name, for `product:` readers.
+        plugin_settings: The resolved settings section of each plugin that declares one, by plugin name (ADR-0025).
     """
 
     folder: str
@@ -125,8 +115,9 @@ class DataProductPlan:
     reads: tuple[str, ...]
     outputs: tuple[str, ...]
     source: DataProduct
-    names: DerivedNames
+    names: "DerivedNames"
     roles: Mapping[str, str]
+    plugin_settings: Mapping[str, BaseModel] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +134,7 @@ class PlannedRepo:
     """
 
     repo: Repo
-    settings: EffectiveSettings
+    settings: "EffectiveSettings"
     plans: list[DataProductPlan]
 
     @property
@@ -170,4 +161,4 @@ class NewTable:
     dataproduct: str
     dataproduct_name: str
     kind: str
-    conventions: ResolvedConventions
+    conventions: "ResolvedConventions"

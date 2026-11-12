@@ -1,12 +1,12 @@
 """Effective settings: the packaged defaults merged with the repo's `datapatchbay.yaml`, with the origin of each."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import as_file, files
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.files.loading import load_root_file
@@ -16,11 +16,13 @@ from datapatchbay.files.yamlio import load_mapping
 from datapatchbay.models import RootFile
 from datapatchbay.models.base import Severity
 from datapatchbay.models.root import KindConvention
+from datapatchbay.settings.pluginsettings import NO_DECLARATIONS, Declarations, installed_declarations
 
 DEFAULTS_ORIGIN = "defaults"
 ROOT_ORIGIN = ROOT_FILE
 
-type Origin = Literal["defaults", "datapatchbay.yaml"]
+type Origin = str
+"""Where a setting comes from: `defaults`, `datapatchbay.yaml`, or `defaults of plugin <name>` (ADR-0025)."""
 
 # Keys of the root file that are not settings.
 _NOT_SETTINGS = frozenset({"schema_version", "meta"})
@@ -45,7 +47,6 @@ class ResolvedNames(_Resolved):
     output_port: str
     private_port: str
     role: str
-    dbt_model: str
 
 
 class ResolvedConventions(_Resolved):
@@ -54,14 +55,8 @@ class ResolvedConventions(_Resolved):
     kinds: dict[str, KindConvention]
     domains: list[str]
     names: ResolvedNames
-
-
-class ResolvedDbt(_Resolved):
-    """Where dbt finds its project and profile on the worker, and the manifest that `dpb validate` reads."""
-
-    project_dir: str
-    profiles_dir: str
-    manifest: str
+    plugin_names: dict[str, str] = Field(default_factory=dict)
+    """The naming templates that plugins declare under `conventions.names`, by name (ADR-0025)."""
 
 
 class ResolvedSettings(_Resolved):
@@ -77,7 +72,6 @@ class ResolvedSettings(_Resolved):
     connection: str
     output_dir: str
     conventions: ResolvedConventions
-    dbt: ResolvedDbt
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +100,10 @@ class EffectiveSettings:
 
     values: ResolvedSettings
     entries: tuple[SettingEntry, ...]
+    plugins: Mapping[str, BaseModel] = field(default_factory=dict)
+    """The resolved settings section of each plugin that declares one, by plugin name (ADR-0025)."""
+    template_placeholders: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    """The extra placeholders of each naming template that a plugin declares, by template name."""
 
     def origin_of(self, name: str) -> Origin:
         """Return the origin of a setting given by its dotted path, such as `conventions.domains`.
@@ -158,15 +156,65 @@ def _nest(leaves: Mapping[tuple[str, ...], Any]) -> dict[str, Any]:
     return nested
 
 
-def merge_settings(defaults: Mapping[str, Any], overrides: Mapping[str, Any]) -> EffectiveSettings:
-    """Merge a repo's settings over the defaults: maps merge key by key, lists and single values replace."""
+def _with_plugin_defaults(defaults: Mapping[str, Any], declarations: Declarations) -> dict[str, Any]:
+    """Add the defaults of plugins: sections come before `conventions`, templates last in `names`."""
+    combined: dict[str, Any] = {}
+    sections = {section.plugin: dict(section.defaults) for section in declarations.sections}
+    templates = {template.name: template.template.default for template in declarations.templates}
+    for key, value in defaults.items():
+        if key == "conventions":
+            combined.update(sections)
+            sections = {}
+            conventions = dict(value)
+            conventions["names"] = {**conventions.get("names", {}), **templates}
+            templates = {}
+            value = conventions
+        combined[key] = value
+    combined.update(sections)
+    if templates:
+        combined["conventions"] = {"names": templates}
+    return combined
+
+
+def _default_origins(declarations: Declarations) -> dict[tuple[str, ...], Origin]:
+    """The origin of every default that a plugin declares: the leaves of its section and its naming templates."""
+    origins: dict[tuple[str, ...], Origin] = {}
+    for section in declarations.sections:
+        for path in _leaves(section.defaults, (section.plugin,)):
+            origins[path] = f"defaults of plugin {section.plugin}"
+    for template in declarations.templates:
+        origins[("conventions", "names", template.name)] = f"defaults of plugin {template.plugin}"
+    return origins
+
+
+def merge_settings(
+    defaults: Mapping[str, Any], overrides: Mapping[str, Any], declarations: Declarations = NO_DECLARATIONS
+) -> EffectiveSettings:
+    """Merge a repo's settings over the defaults: maps merge key by key, lists and single values replace.
+
+    Args:
+        defaults: The packaged defaults.
+        overrides: The repo's `datapatchbay.yaml`.
+        declarations: The sections and naming templates that installed plugins declare, with their defaults.
+    """
+    origins = _default_origins(declarations)
     merged: dict[tuple[str, ...], tuple[Any, Origin]] = {
-        path: (value, "defaults") for path, value in _leaves(defaults).items()
+        path: (value, origins.get(path, "defaults"))
+        for path, value in _leaves(_with_plugin_defaults(defaults, declarations)).items()
     }
-    merged.update({path: (value, "datapatchbay.yaml") for path, value in _leaves(overrides).items()})
-    values = ResolvedSettings.model_validate(_nest({path: value for path, (value, _) in merged.items()}))
+    merged.update({path: (value, ROOT_ORIGIN) for path, value in _leaves(overrides).items()})
+    nested = _nest({path: value for path, (value, _) in merged.items()})
+    plugins: dict[str, BaseModel] = {
+        section.plugin: section.model.model_validate(nested.pop(section.plugin, {}))
+        for section in declarations.sections
+    }
+    names = nested.get("conventions", {}).get("names", {})
+    plugin_names = {template.name: names.pop(template.name) for template in declarations.templates}
+    nested.setdefault("conventions", {})["plugin_names"] = plugin_names
+    values = ResolvedSettings.model_validate(nested)
     entries = tuple(SettingEntry(path, value, origin) for path, (value, origin) in merged.items())
-    return EffectiveSettings(values=values, entries=entries)
+    placeholders = {template.name: template.template.placeholders for template in declarations.templates}
+    return EffectiveSettings(values=values, entries=entries, plugins=plugins, template_placeholders=placeholders)
 
 
 def load_settings(root: Path) -> EffectiveSettings:
@@ -183,4 +231,4 @@ def load_settings(root: Path) -> EffectiveSettings:
 
 def resolve_settings(root_file: LoadedFile[RootFile]) -> EffectiveSettings:
     """Resolve the effective settings from a `datapatchbay.yaml` that is already read and valid."""
-    return merge_settings(load_mapping(defaults_path()), root_file.data)
+    return merge_settings(load_mapping(defaults_path()), root_file.data, installed_declarations())
