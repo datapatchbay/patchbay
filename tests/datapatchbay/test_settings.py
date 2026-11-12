@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 
 from datapatchbay.errors import DatapatchbayError
+from datapatchbay.loading import load_file
 from datapatchbay.models import RootFile
 from datapatchbay.settings import DEFAULTS_ORIGIN, ROOT_ORIGIN, defaults_path, load_settings
-from datapatchbay.validation import validate_file
 
 
 def write_root(root: Path, text: str) -> None:
@@ -14,7 +14,7 @@ def write_root(root: Path, text: str) -> None:
 
 def test_packaged_defaults_file_passes_the_root_file_schema():
     path = defaults_path()
-    model, problems = validate_file(path, path.parent, RootFile)
+    model, problems = load_file(path, path.parent, RootFile)
     assert problems == []
     assert model is not None
 

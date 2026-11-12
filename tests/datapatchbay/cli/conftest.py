@@ -27,5 +27,18 @@ def write_dataproduct(repo: Path) -> Callable[[str, str], Path]:
 
 
 @pytest.fixture
+def write_file(repo: Path) -> Callable[[str, str], Path]:
+    """Return a factory that writes any file below the repo root, creating folders as needed."""
+
+    def write(relative: str, text: str) -> Path:
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        return path
+
+    return write
+
+
+@pytest.fixture
 def runner() -> CliRunner:
     return CliRunner()

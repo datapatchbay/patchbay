@@ -86,7 +86,7 @@ An output port:
 ```yaml
 schema_version: 1
 kind: schema               # schema | table
-freshness: 24h
+freshness: 24h             # optional; without it the port makes no freshness promise
 access:
   readers:
     - grp-lab-reporting
@@ -110,6 +110,7 @@ schema_version: 1
 from: sa_ilab_orders
 ```
 
+- A data product is identified in `product:` readers by its folder name, such as `agg_lab_turnaround`.
 - A port of kind `schema` holds any number of table files. A port of kind `table` has the same folder shape with exactly one table file.
 - A reader is either a plain string, used as the warehouse role name as written, or `product: <data product>`, which maps to that data product's role.
 - `schedule` is a declared expectation in cron form. The orchestrator runs it, not `dpb`.
@@ -150,7 +151,10 @@ build:
 - Column types are free text, written as the warehouse spells them, and are not validated.
 - Quality rules on a column: `not_null`, `unique`, `accepted_values`. On a table: `primary_key`, `row_count`, `sql`. A bare rule name uses the default severity.
 - Severity is `error` (the run fails), `warning` (the run continues and reports) or `none` (the rule is ignored).
-- `needs` lists the tables of the same data product that must be built first.
+- A bare rule name is the short form and only works for `not_null` and `unique`. The long form is a mapping with `rule`, the rule's own keys and an optional `severity`: `values` for `accepted_values`, `columns` for `primary_key`, `min` and `max` for `row_count` and `sql` for `sql`.
+- `build.executor` is required and must be `python`. `entrypoint` is `path/to/file.py:function`, relative to the data product folder.
+- `needs` lists the tables of the same data product that must be built first, in any of its ports. It must not contain a cycle.
+- Table names are unique within a data product.
 
 ## JSON Schema
 

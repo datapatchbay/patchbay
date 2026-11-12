@@ -9,10 +9,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 from datapatchbay.errors import DatapatchbayError
+from datapatchbay.loading import load_file
 from datapatchbay.models import RootFile
 from datapatchbay.models.root import KindConvention
 from datapatchbay.repo import ROOT_FILE
-from datapatchbay.validation import validate_file
 from datapatchbay.yamlio import load_mapping
 
 DEFAULTS_ORIGIN = "defaults"
@@ -154,7 +154,7 @@ def load_settings(root: Path) -> EffectiveSettings:
     Raises:
         InvalidSettingsError: If `datapatchbay.yaml` is invalid; the message lists every problem with file and line.
     """
-    repo_file, problems = validate_file(root / ROOT_FILE, root, RootFile)
+    repo_file, problems = load_file(root / ROOT_FILE, root, RootFile)
     if repo_file is None:
         raise InvalidSettingsError("\n".join(problem.render() for problem in problems))
     return merge_settings(load_mapping(defaults_path()), load_mapping(root / ROOT_FILE))
