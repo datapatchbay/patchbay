@@ -41,6 +41,23 @@ class Conventions(_Strict):
     names: NamesConvention | None = Field(default=None, description="Naming templates for derived names.")
 
 
+class DbtSettings(_Strict):
+    """Where dbt finds its project and its profile on the worker."""
+
+    project_dir: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The dbt project on the worker. A relative path is relative to the repo root as deployed with the "
+        "DAG files.",
+    )
+    profiles_dir: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The folder with the dbt `profiles.yml` on the worker. `~` is the worker user's home; a relative "
+        "path is relative to the dbt project.",
+    )
+
+
 class RootFile(FileModel, CascadingSettings):
     """The repo's `datapatchbay.yaml`: settings that apply to all data products.
 
@@ -56,3 +73,6 @@ class RootFile(FileModel, CascadingSettings):
         description="Folder that `dpb generate` writes to, relative to the repo root. `--output` overrides it.",
     )
     conventions: Conventions | None = Field(default=None, description="Platform-wide conventions.")
+    dbt: DbtSettings | None = Field(
+        default=None, description="Where the dbt project and profile are on the worker, for tables built by dbt."
+    )

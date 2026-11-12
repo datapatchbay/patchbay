@@ -305,3 +305,43 @@ def test_docker_and_kubernetes_tables_sit_in_one_dag_with_other_runtimes(lab_rep
     assert "build_orders = KubernetesPodOperator(" in dag
     assert 'namespace="data"' in dag
     assert "build_ingested_orders >> build_orders" in dag
+
+
+def test_the_dbt_tables_of_a_data_product_build_in_one_dbt_build_task_after_its_python_tables(lab_dbt_repo: Path):
+    generate_repo(lab_dbt_repo)
+    dag = generated(lab_dbt_repo, "agg_lab_weekly.py")
+    assert dag.count("_dbt_build_task(") == 2  # the helper and the one task
+    assert (
+        '    build_dbt = _dbt_build_task("build_dbt", "../..", "~/.dbt", "dataproducts/agg_lab_weekly/models")\n' in dag
+    )
+    assert "    build_weekly_pod >> build_dbt\n" in dag
+    assert "    build_dbt >> apply_access\n" in dag
+    assert "build_weekly_summary" not in dag
+    assert "audit_weekly_summary" not in dag
+    assert "    build_weekly_pod >> apply_access\n" not in dag
+
+
+def test_the_dbt_settings_reach_the_dbt_build_task(lab_dbt_repo: Path):
+    (lab_dbt_repo / "datapatchbay.yaml").write_text(
+        "schema_version: 1\nruntime: docker\nimage: registry/root:1\ndbt:\n  project_dir: /opt/lab\n  profiles_dir: /etc/dbt\n"
+    )
+    table = lab_dbt_repo / "dataproducts/agg_lab_weekly/outputs/agg_lab_weekly/weekly_summary.yaml"
+    table.write_text(table.read_text().replace("build:\n", "build:\n  runtime: worker\n"))
+    generate_repo(lab_dbt_repo)
+    dag = generated(lab_dbt_repo, "agg_lab_weekly.py")
+    assert '_dbt_build_task("build_dbt", "/opt/lab", "/etc/dbt", "dataproducts/agg_lab_weekly/models")' in dag
+
+
+def test_a_dbt_table_on_a_container_runtime_fails_naming_the_data_product(lab_dbt_repo: Path):
+    table = lab_dbt_repo / "dataproducts/agg_lab_weekly/outputs/agg_lab_weekly/weekly_summary.yaml"
+    table.write_text(table.read_text().replace("build:\n", "build:\n  runtime: docker\n  image: lab:1\n"))
+    with pytest.raises(GenerationError, match=r"data product 'agg_lab_weekly': .*docker runtime cannot run dbt"):
+        generate_repo(lab_dbt_repo)
+
+
+def test_the_dag_with_a_dbt_task_is_byte_identical_and_does_not_import_datapatchbay(lab_dbt_repo: Path):
+    generate_repo(lab_dbt_repo)
+    dag = generated(lab_dbt_repo, "agg_lab_weekly.py")
+    generate_repo(lab_dbt_repo)
+    assert dag == generated(lab_dbt_repo, "agg_lab_weekly.py")
+    assert "datapatchbay" not in dag.split("\n", 1)[1]

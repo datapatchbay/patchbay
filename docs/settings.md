@@ -57,6 +57,22 @@ A runtime that runs an image needs one: `dpb validate` fails when `runtime` is `
 
 `dpb config` prints the effective settings and where each one comes from. `dpb describe` does the same for one data product, with the level (`table`, `port`, `dataproduct`, `root` or `defaults`) each resolved value came from.
 
+## dbt on the worker
+
+A data product with tables built by dbt gets one task in its DAG, `build_dbt`, which runs `dbt build --select path:<its models folder>` on the Airflow worker. It runs after the data product's Python tables, so the dbt models can read their output, and before the views and grants. dbt builds the models and runs their data tests in dependency order, so a broken rule with severity `error` fails the task, and dpb generates no audit task for these tables. dpb uses the dbt profile the team already has and manages no connection (ADR-0001).
+
+Two settings, in `datapatchbay.yaml` only, say where dbt is on the worker:
+
+```yaml
+dbt:
+  project_dir: .        # the dbt project; a relative path is relative to the repo root as deployed with the DAG files
+  profiles_dir: ~/.dbt  # the folder with profiles.yml; `~` is the home of the worker's user, a relative path is relative to the dbt project
+```
+
+The defaults assume that the repo is deployed to the worker with the DAG files (for example as the DAG bundle), that `dbt_project.yml` is at the repo root, and that dbt and the profile are installed for the worker's user. dbt is run as the `dbt` command of the worker's environment; dpb installs nothing. Authenticate through the profile, for example with environment variables on the worker. If the dbt project sits elsewhere on the worker with the layout of the repo, set an absolute `project_dir`. A relative `project_dir` other than `.` must contain the data product folders.
+
+All tables built by dbt in a data product share this one task, so they must resolve to the same `runtime`, and it must be `worker`: `docker` and `kubernetes` fail in `dpb generate` with a message that says so. A Python table cannot list a dbt table in `needs`, because the Python tables are built first.
+
 ## Plugins
 
 datapatchbay has four extension points:

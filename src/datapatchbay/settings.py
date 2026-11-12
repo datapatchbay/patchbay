@@ -55,6 +55,13 @@ class ResolvedConventions(_Resolved):
     names: ResolvedNames
 
 
+class ResolvedDbt(_Resolved):
+    """Where dbt finds its project and profile on the worker, both present."""
+
+    project_dir: str
+    profiles_dir: str
+
+
 class ResolvedSettings(_Resolved):
     """Every root setting with a value: what later tickets (naming, cascading) read."""
 
@@ -68,6 +75,7 @@ class ResolvedSettings(_Resolved):
     connection: str
     output_dir: str
     conventions: ResolvedConventions
+    dbt: ResolvedDbt
 
 
 @dataclass(frozen=True, slots=True)

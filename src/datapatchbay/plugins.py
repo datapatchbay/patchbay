@@ -25,6 +25,8 @@ __all__ = [
     "AuditTask",
     "BuildTask",
     "DataProductPlan",
+    "DbtCall",
+    "DbtLocation",
     "Executor",
     "GeneratedFile",
     "GenerationContext",
@@ -45,6 +47,22 @@ class UnsupportedCombinationError(Exception):
 
     `dpb generate` reports it as a failure that names the data product.
     """
+
+
+@dataclass(frozen=True, slots=True)
+class DbtLocation:
+    """Where dbt finds a data product's models, project and profile, as the `dbt` settings and the folders give it.
+
+    Attributes:
+        models: The `models/` folder of the data product, relative to the dbt project, for `dbt build --select`.
+        project_dir: The dbt project on the worker: an absolute path as set, or the path from the data product folder
+            to the project.
+        profiles_dir: The folder with `profiles.yml` on the worker, as set.
+    """
+
+    models: PurePosixPath
+    project_dir: str
+    profiles_dir: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +87,7 @@ class TablePlan:
         severity: Default severity of the table's quality rules.
         port_source: The loaded port, for plugins that need its contract or access policy.
         source: The loaded table, for plugins that need its columns and quality rules.
+        dbt: Where dbt finds the data product's models, project and profile; used by the dbt executor.
     """
 
     dataproduct: str
@@ -86,6 +105,7 @@ class TablePlan:
     port_source: Port
     source: Table
     container: Mapping[str, Any] = field(default_factory=dict)
+    dbt: DbtLocation | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,12 +169,33 @@ class PythonCall:
 
 
 @dataclass(frozen=True, slots=True)
+class DbtCall:
+    """Run `dbt build` on the models of a data product, as the dbt executor asks for.
+
+    The build runs the models and their data tests in dependency order; a failed test with severity `error` fails it.
+
+    Attributes:
+        select: The `models/` folder of the data product, relative to the dbt project, for `--select path:`.
+        project_dir: The dbt project on the worker: an absolute path, or the path from the data product folder.
+        profiles_dir: The folder with `profiles.yml` on the worker. `~` is the home of the worker's user.
+    """
+
+    select: PurePosixPath
+    project_dir: str
+    profiles_dir: str
+
+
+@dataclass(frozen=True, slots=True)
 class BuildTask:
-    """What a runtime renders: one table's build and how the executor wants it called."""
+    """What a runtime renders: a build and how the executor wants it called.
+
+    For a `PythonCall` the task builds one table. For a `DbtCall` it builds every dbt table of the data product at
+    once, and `table` is the first of them, which holds the settings the tables share, such as the runtime.
+    """
 
     task_id: str
     table: TablePlan
-    call: PythonCall
+    call: PythonCall | DbtCall
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,8 +301,8 @@ class GenerationContext:
 class Executor(Protocol):
     """Says what has to be called to build a table."""
 
-    def call(self, table: TablePlan) -> PythonCall:
-        """Return how to call the table's build code."""
+    def call(self, table: TablePlan) -> PythonCall | DbtCall:
+        """Return how to call the table's build: a Python function, or a dbt build of the data product's models."""
         ...
 
 

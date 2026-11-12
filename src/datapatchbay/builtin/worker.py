@@ -1,7 +1,7 @@
 """The `worker` runtime: the entrypoint is called on the orchestrator's worker, in the worker's environment."""
 
 from datapatchbay.literals import python_literal
-from datapatchbay.plugins import BuildTask, RenderedTask, UnsupportedCombinationError
+from datapatchbay.plugins import BuildTask, DbtCall, RenderedTask, UnsupportedCombinationError
 
 _AIRFLOW_HELPER = '''\
 def _build_task(task_id, path, function, params):
@@ -18,12 +18,35 @@ def _build_task(task_id, path, function, params):
 
     return build()'''
 
+_AIRFLOW_DBT_HELPER = '''\
+def _dbt_build_task(task_id, project_dir, profiles_dir, select):
+    """Create a task that runs `dbt build` on the models in a folder of the dbt project."""
+
+    @task(task_id=task_id)
+    def build():
+        project = (DATAPRODUCT_DIR / project_dir).resolve()
+        command = [
+            "dbt",
+            "build",
+            "--project-dir",
+            str(project),
+            "--profiles-dir",
+            os.path.expanduser(profiles_dir),
+            "--select",
+            f"path:{select}",
+        ]
+        subprocess.run(command, check=True, cwd=project)
+
+    return build()'''
+
 
 class WorkerRuntime:
     """Call the entrypoint inside an Airflow task, so it runs on the worker."""
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
-        """Render a task that calls the function; the module is imported inside the task, not while Airflow parses.
+        """Render a task that calls the function, or runs `dbt build` on the worker for a `DbtCall`.
+
+        The module is imported inside the task, not while Airflow parses; `dbt` is run as a command of the worker.
 
         For the `airflow` orchestrator the generated file must define `DATAPRODUCT_DIR`, the data product folder.
 
@@ -36,6 +59,15 @@ class WorkerRuntime:
                 f"the worker runtime cannot render tasks for orchestrator '{orchestrator}'"
             )
         call = task.call
+        if isinstance(call, DbtCall):
+            dbt_arguments = ", ".join(
+                python_literal(value) for value in (task.task_id, call.project_dir, call.profiles_dir, str(call.select))
+            )
+            return RenderedTask(
+                imports=("import os", "import subprocess", "from airflow.sdk import task"),
+                helpers=(_AIRFLOW_DBT_HELPER,),
+                lines=(f"{variable} = _dbt_build_task({dbt_arguments})",),
+            )
         arguments = ", ".join(
             [
                 python_literal(task.task_id),
