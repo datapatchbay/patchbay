@@ -36,8 +36,19 @@ def _audit_task(task_id, conn_id, checks):
     return audit()'''
 
 
+def check_rows(audit: AuditTask) -> list[dict[str, str | None]]:
+    """Return the checks of an audit as the plain dicts that the generated `_run_audit` reads."""
+    return [
+        {"rule": c.rule, "table": c.table, "column": c.column, "severity": c.severity, "sql": c.sql}
+        for c in audit.checks
+    ]
+
+
 def render_audit_task(audit: AuditTask, *, connection: str, variable: str) -> RenderedTask:
     """Render an audit task for an Airflow DAG file.
+
+    Args:
+        audit: The audit of one table.
 
     Keyword Args:
         connection: Name of the Airflow connection to the warehouse.
@@ -46,11 +57,9 @@ def render_audit_task(audit: AuditTask, *, connection: str, variable: str) -> Re
     Raises:
         ValueError: If a value cannot be written as a Python literal.
     """
-    checks = [
-        {"rule": c.rule, "table": c.table, "column": c.column, "severity": c.severity, "sql": c.sql}
-        for c in audit.checks
-    ]
-    arguments = ", ".join([python_literal(audit.task_id), python_literal(connection), python_literal(checks)])
+    arguments = ", ".join(
+        [python_literal(audit.task_id), python_literal(connection), python_literal(check_rows(audit))]
+    )
     return RenderedTask(
         imports=("import logging", "from airflow.sdk import BaseHook", "from airflow.sdk import task"),
         helpers=(AUDIT_HELPER,),

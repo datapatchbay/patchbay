@@ -1,11 +1,12 @@
 """Turning the loaded repo into the plans that plugins generate from, with settings resolved over the cascade."""
 
+from collections.abc import Mapping
 from pathlib import PurePosixPath
 
 from datapatchbay.cascade import resolve_setting, resolve_settings
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
-from datapatchbay.naming import derive_names
+from datapatchbay.naming import DerivedNames, derive_names
 from datapatchbay.plugins import DataProductPlan, SourceSchedule, TablePlan
 from datapatchbay.repomodel import DataProduct, Repo
 from datapatchbay.settings import EffectiveSettings
@@ -22,39 +23,53 @@ def plan_dataproducts(repo: Repo, settings: EffectiveSettings) -> list[DataProdu
         One plan per data product. Each plan holds the orchestrator, warehouse, executor and runtime names that the
         settings give, whether or not a plugin of that name exists.
     """
+    names = {dataproduct.folder: _names_of(dataproduct, settings) for dataproduct in repo.dataproducts}
+    roles = {folder: derived.role for folder, derived in names.items()}
     plans = []
     for dataproduct in repo.dataproducts:
         orchestrator = resolve_setting("orchestrator", settings, dataproduct=dataproduct)
-        plans.append(_plan(dataproduct, settings, str(orchestrator.value)))
+        plans.append(_plan(dataproduct, settings, str(orchestrator.value), names[dataproduct.folder], roles))
     return plans
 
 
-def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: str) -> DataProductPlan:
-    product = dataproduct.file.model
-    private_schema = derive_names(settings.values.conventions, name=product.name, kind_name=product.kind).private_port
+def _names_of(dataproduct: DataProduct, settings: EffectiveSettings) -> DerivedNames:
+    model = dataproduct.file.model
+    return derive_names(settings.values.conventions, name=model.name, kind_name=model.kind)
+
+
+def _plan(
+    dataproduct: DataProduct,
+    settings: EffectiveSettings,
+    orchestrator: str,
+    names: DerivedNames,
+    roles: Mapping[str, str],
+) -> DataProductPlan:
     tables = []
     for port in dataproduct.ports:
         for table in port.tables:
             resolved = resolve_settings(settings, dataproduct=dataproduct, port=port, table=table)
             build = table.file.model.build
-            path, _, function = build.entrypoint.rpartition(":")
+            entrypoint = None if build is None else build.entrypoint
+            path, _, function = (entrypoint or "").rpartition(":")
             image = resolved["image"].value
+            container = resolved["container"].value
             tables.append(
                 TablePlan(
                     dataproduct=dataproduct.folder,
                     port=port.name,
                     name=table.name,
-                    schema=port.name if port.direction == "inputs" else private_schema,
-                    entrypoint=PurePosixPath(path),
-                    function=function,
-                    params=build.params,
-                    needs=tuple(build.needs),
+                    schema=names.private_port,
+                    entrypoint=PurePosixPath(path) if entrypoint else None,
+                    function=function or None,
+                    params={} if build is None else build.params,
+                    needs=() if build is None else tuple(build.needs),
                     executor=str(resolved["executor"].value),
                     runtime=str(resolved["runtime"].value),
                     image=None if image is None else str(image),
                     severity=resolved["severity"].value,
                     port_source=port,
                     source=table,
+                    container={} if container is None else container,
                 )
             )
 
@@ -81,6 +96,8 @@ def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: s
         reads=tuple(sorted(set(reads))),
         outputs=tuple(sorted(outputs)),
         source=dataproduct,
+        names=names,
+        roles=roles,
     )
 
 

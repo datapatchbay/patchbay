@@ -51,6 +51,12 @@ class CascadingSettings(BaseModel):
         min_length=1,
         description="Container image the build code runs in, for container runtimes. The nearest level wins.",
     )
+    container: dict[str, Any] | None = Field(
+        default=None,
+        min_length=1,
+        description="Free-form settings handed as written to the container task of a container runtime, such as "
+        "environment variables or secrets. dpb does not read them. The nearest level wins, as a whole.",
+    )
     severity: Severity | None = Field(
         default=None,
         description="Default severity of quality rules: `error` fails the run, `warning` reports and continues, "

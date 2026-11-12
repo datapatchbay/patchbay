@@ -102,6 +102,7 @@ conventions:
     output_port: "{kind.prefix}_{name}"
     private_port: "{kind.prefix}_{name}_private"
     role: "dp_{kind.prefix}_{name}"
+    dbt_model: "{dataproduct}__{table}"
 ```
 
 ### dataproduct.yaml
@@ -196,7 +197,7 @@ build:
 - Severity is `error` (the run fails), `warning` (the run continues and reports) or `none` (the rule is ignored).
 - `needs` lists the tables of the same data product that must be built first.
 
-With the dbt executor, planned for milestone 2, a table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher. Its SQL is the dbt model `models/<dbt_model>.sql`, named by a `dbt_model` naming template that milestone 2 adds to `conventions.names`, by default `{dataproduct}__{table}`, and its order comes from the model's `ref()` calls instead of `needs`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand (ADR-0013).
+A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. Any other table needs a `build.entrypoint`. `dpb generate` will write the model's dbt properties from the table file; nobody writes them by hand (ADR-0013, ADR-0015).
 
 ## What `dpb validate` enforces
 
@@ -209,7 +210,7 @@ With the dbt executor, planned for milestone 2, a table built by dbt has the sam
 - A data product that reads an output port is among that port's readers.
 - `needs` refers to existing tables and contains no cycle.
 - An output port does not promise fresher data than its inputs deliver: its freshness is compared with the schedule of source input ports and the freshness of the output ports it reads.
-- `executor` is `python` or `dbt`. Other executors arrive as plugins.
+- `executor` is `python` or `dbt`. Other executors arrive as plugins. A table built by dbt has no `entrypoint`, `params` or `needs`, and its model file exists in the data product's `models/` folder.
 - Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest (ADR-0014).
 - The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds.
 
@@ -234,7 +235,7 @@ Generated files are build output of CD and are not committed, with one exception
 
 **One Airflow 3 DAG per data product.** Each table gets a build task followed by an audit task. Task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
 
-**Three runtimes.** `worker` calls the entrypoint on the Airflow worker. `docker` and `kubernetes` run it in a container from an image named in the settings.
+**Three runtimes.** `worker` calls the entrypoint on the Airflow worker. `docker` and `kubernetes` run it in a container from an image named in the settings (see ADR-0016).
 
 **No connection management.** The views, grants and audits run on the orchestrator through a connection that already exists there; the settings only name it. Build code connects by itself: on the worker it can use that same connection, and in a container it reads what the team put in the container's environment.
 
@@ -275,8 +276,6 @@ Later, as someone needs them: more orchestrators, more warehouses, more port kin
 ## Open questions
 
 - A data product with more than one source: one private input port or several?
-- How does a container runtime receive the entrypoint and its params?
-- Are warehouse roles created by the generated SQL, or expected to exist?
 - Is the thin semantic language enough, or will it grow into a second Cube?
 - Which warehouses after Postgres?
 

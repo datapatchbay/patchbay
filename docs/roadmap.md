@@ -24,6 +24,5 @@ Later, as someone needs them:
 
 - A data product with more than one source: one private input port or several?
 - How does a container runtime receive the entrypoint and its params?
-- Are warehouse roles created by the generated SQL, or expected to exist?
 - Is the thin semantic language enough, or will it grow into a second Cube?
 - Which warehouses come after Postgres?

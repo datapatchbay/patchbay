@@ -32,3 +32,9 @@ def test_config_fails_on_invalid_file_with_line(runner: CliRunner, repo: Path):
     result = runner.invoke(app, ["config"])
     assert result.exit_code == 2
     assert "datapatchbay.yaml:2" in result.output
+
+
+def test_config_shows_the_dbt_model_naming_template(runner: CliRunner, repo: Path):
+    (repo / "datapatchbay.yaml").write_text("schema_version: 1\n")
+    data = json.loads(runner.invoke(app, ["config", "--json"]).stdout)
+    assert data["conventions.names.dbt_model"] == {"value": "{dataproduct}__{table}", "origin": "defaults"}

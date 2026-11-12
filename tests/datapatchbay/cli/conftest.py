@@ -52,5 +52,5 @@ def every_plugin_installed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         pluginchecks,
         "plugin_names",
-        lambda kind: ["airflow", "prefect", "dbt", "docker", "kubernetes", "python", "worker", "postgres"],
+        lambda kind: ["airflow", "prefect", "dbt", "spark", "docker", "kubernetes", "python", "worker", "postgres"],
     )

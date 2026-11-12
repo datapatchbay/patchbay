@@ -15,9 +15,9 @@ from datapatchbay.settings import EffectiveSettings
 
 type Level = Literal["table", "port", "dataproduct", "root", "defaults", "unset"]
 
-type SettingName = Literal["executor", "runtime", "image", "severity", "orchestrator"]
+type SettingName = Literal["executor", "runtime", "image", "container", "severity", "orchestrator"]
 
-CASCADING_SETTINGS: tuple[SettingName, ...] = ("executor", "runtime", "image", "severity")
+CASCADING_SETTINGS: tuple[SettingName, ...] = ("executor", "runtime", "image", "container", "severity")
 """The settings that can be set at every level."""
 
 
@@ -70,7 +70,7 @@ def resolve_setting(
         `orchestrator`, never sets it, so the setting passes through to the next level.
     """
     layers: list[tuple[Level, PurePosixPath, object]] = []
-    if table is not None:
+    if table is not None and table.file.model.build is not None:
         layers.append(("table", table.file.path, table.file.model.build))
     if port is not None:
         layers.append(("port", port.file.path, port.file.model))

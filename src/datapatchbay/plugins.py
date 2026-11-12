@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Protocol
 
 from datapatchbay.models.base import Severity
+from datapatchbay.naming import DerivedNames
 from datapatchbay.repomodel import DataProduct, Port, Table
 
 __all__ = [
@@ -54,15 +55,17 @@ class TablePlan:
         dataproduct: Folder name of the data product the table belongs to.
         port: Name of the port the table is in.
         name: Name of the table.
-        schema: Schema in the warehouse that holds the table: the port's own for a table of a private input port, the
-            data product's private schema for a table of an output port.
-        entrypoint: The file of the build function, relative to the data product folder.
-        function: Name of the build function.
+        schema: Schema in the warehouse that holds the built table: the private port of the data product, named by
+            its naming template. Output ports only hold views over it.
+        entrypoint: The file of the build function, relative to the data product folder; `None` for a table that
+            a dbt model builds.
+        function: Name of the build function; `None` when there is no entrypoint.
         params: Parameters passed to the function.
         needs: Names of the tables of the same data product that are built first.
         executor: Name of the executor plugin.
         runtime: Name of the runtime plugin.
         image: Container image for container runtimes, or `None`.
+        container: Free-form settings for the container task, as written in the files; dpb does not read them.
         severity: Default severity of the table's quality rules.
         port_source: The loaded port, for plugins that need its contract or access policy.
         source: The loaded table, for plugins that need its columns and quality rules.
@@ -72,8 +75,8 @@ class TablePlan:
     port: str
     name: str
     schema: str
-    entrypoint: PurePosixPath
-    function: str
+    entrypoint: PurePosixPath | None
+    function: str | None
     params: Mapping[str, Any]
     needs: tuple[str, ...]
     executor: str
@@ -82,6 +85,7 @@ class TablePlan:
     severity: Severity
     port_source: Port
     source: Table
+    container: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +113,8 @@ class DataProductPlan:
         reads: Names of the output ports of other data products that this data product reads, sorted.
         outputs: Names of the output ports, sorted.
         source: The loaded data product, for plugins that need its files.
+        names: The names the naming templates produce for this data product, such as its private port and role.
+        roles: The role of every data product in the repo, by folder name, for `product:` readers.
     """
 
     folder: str
@@ -123,6 +129,8 @@ class DataProductPlan:
     reads: tuple[str, ...]
     outputs: tuple[str, ...]
     source: DataProduct
+    names: DerivedNames
+    roles: Mapping[str, str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,7 +266,11 @@ class Executor(Protocol):
 
 
 class Runtime(Protocol):
-    """Renders the build task of a table, so it runs in the place this runtime stands for."""
+    """Renders the build task of a table, so it runs in the place this runtime stands for.
+
+    A runtime that runs a container image may set the class attribute `needs_image = True`; `dpb validate` then
+    reports a table whose resolved `image` is not set.
+    """
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
         """Render the build task for an orchestrator.

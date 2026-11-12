@@ -166,9 +166,10 @@ class Column(_Strict):
 class Build(CascadingSettings):
     """How the table is made (ADR-0003)."""
 
-    entrypoint: str = Field(
+    entrypoint: str | None = Field(
+        default=None,
         description="The function that builds the table, as `path/to/file.py:function`. The path is relative to "
-        "the data product folder.",
+        "the data product folder. Required unless dbt builds the table, which takes the order from `ref()`.",
         json_schema_extra={"pattern": r"^[^:\s]+\.py:[A-Za-z_][A-Za-z0-9_]*$"},
         examples=["src/orders.py:build"],
     )
@@ -180,8 +181,8 @@ class Build(CascadingSettings):
 
     @field_validator("entrypoint")
     @classmethod
-    def _check_entrypoint(cls, value: str) -> str:
-        if not _ENTRYPOINT.fullmatch(value):
+    def _check_entrypoint(cls, value: str | None) -> str | None:
+        if value is not None and not _ENTRYPOINT.fullmatch(value):
             raise ValueError(f"'{value}' is not an entrypoint; write it as path/to/file.py:function")
         return value
 
@@ -200,7 +201,11 @@ class TableFile(FileModel):
         default_factory=list,
         description="Quality rules on the table as a whole: `primary_key`, `row_count` or `sql`.",
     )
-    build: Build = Field(description="How the table is made.")
+    build: Build | None = Field(
+        default=None,
+        description="How the table is made. A table built by dbt needs no `build` block; its SQL is a dbt model in "
+        "the `models/` folder of the data product.",
+    )
 
     @field_validator("columns")
     @classmethod

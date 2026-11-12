@@ -7,7 +7,7 @@ from typing import Any
 
 import psycopg
 
-from datapatchbay.builtin.airflow_audit import AUDIT_HELPER
+from datapatchbay.builtin.airflow_audit import AUDIT_HELPER, check_rows
 from datapatchbay.builtin.postgres import PostgresWarehouse
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
@@ -55,11 +55,7 @@ def run_audit(connection: psycopg.Connection, task: AuditTask | None) -> None:
         assert row is not None
         return row[0]
 
-    checks = [
-        {"rule": c.rule, "table": c.table, "column": c.column, "severity": c.severity, "sql": c.sql}
-        for c in task.checks
-    ]
-    namespace["_run_audit"](checks, count)
+    namespace["_run_audit"](check_rows(task), count)
 
 
 def load_orders(connection: psycopg.Connection, rows: str, columns: str = "order_id text, status text, qty integer"):
