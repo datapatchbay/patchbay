@@ -25,6 +25,7 @@ pytestmark = pytest.mark.dbt
 PRODUCER = "dataproducts/sa_jaffle_orders"
 ORDERS = f"{PRODUCER}/outputs/sa_jaffle_orders/orders.yaml"
 PRODUCER_MODEL = f"{PRODUCER}/models/sa_jaffle_orders__orders.sql"
+DBT_PROJECT = "name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\n"
 NAME = "agg_order_turnaround__turnaround"
 REF = f"{{{{ ref('{NAME}') }}}}"
 
@@ -86,7 +87,7 @@ def repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     product.write_text(product.read_text() + "executor: dbt\n")
     write(jaffle_repo, TABLE, TABLE_YAML)
     write(jaffle_repo, MODEL, "select 1 as days\n")
-    write(jaffle_repo, "dbt_project.yml", "name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\n")
+    write(jaffle_repo, "dbt_project.yml", DBT_PROJECT)
     return jaffle_repo
 
 
@@ -105,11 +106,7 @@ def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
     settings = load_settings(repo)
     for generated in generate_dbt_properties(plan_dataproducts(loaded, settings), settings):
         write(repo, str(generated.path), generated.content)
-    write(
-        repo,
-        "dbt_project.yml",
-        f"name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\nmodel-paths: ['{DP}/models']\n",
-    )
+    write(repo, "dbt_project.yml", DBT_PROJECT + f"model-paths: ['{DP}/models']\n")
     manifest = parse(repo, tmp_path)
     model = manifest["nodes"]["model.jaffle_shop.agg_order_turnaround__turnaround"]
     assert model["config"]["contract"]["enforced"] is True
@@ -125,11 +122,7 @@ def test_dbt_parses_a_model_that_reads_another_data_product(repo: Path, tmp_path
     write(repo, ORDERS, ORDERS_FILE)
     write(repo, MODEL, "select order_id as days from {{ source('sa_jaffle_orders', 'orders') }}\n")
     write(repo, TABLE, TABLE_YAML.replace("numeric", "text"))
-    write(
-        repo,
-        "dbt_project.yml",
-        f"name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\nmodel-paths: ['{DP}/models']\n",
-    )
+    write(repo, "dbt_project.yml", DBT_PROJECT + f"model-paths: ['{DP}/models']\n")
     generate_repo(repo)
     manifest = parse(repo, tmp_path)
     model = manifest["nodes"]["model.jaffle_shop.agg_order_turnaround__turnaround"]
@@ -173,8 +166,7 @@ def reader_repo(repo: Path) -> Path:
     write(
         repo,
         "dbt_project.yml",
-        f"name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\n"
-        f"model-paths: ['{DP}/models', '{PRODUCER}/models']\n",
+        DBT_PROJECT + f"model-paths: ['{DP}/models', '{PRODUCER}/models']\n",
     )
     return repo
 
