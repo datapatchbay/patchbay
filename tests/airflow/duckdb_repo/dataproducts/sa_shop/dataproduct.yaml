@@ -1,0 +1,6 @@
+schema_version: 1
+name: shop
+kind: source-aligned
+owner: Jane Doe
+inputs: [sa_shop_private]
+outputs: [sa_shop]

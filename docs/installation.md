@@ -50,6 +50,7 @@ The generated DAG files do not import datapatchbay, so do not install it on Airf
 | --- | --- |
 | `apache-airflow-providers-common-sql` | The audits, views and grants |
 | The provider of your warehouse, such as `apache-airflow-providers-postgres` | The connection that runs them |
+| `apache-airflow-providers-duckdb` | The connection to a DuckDB warehouse (`warehouse: duckdb`) |
 | `apache-airflow-providers-docker` | Tables with `runtime: docker` |
 | `apache-airflow-providers-cncf-kubernetes` | Tables with `runtime: kubernetes` |
 

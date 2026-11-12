@@ -7,12 +7,25 @@ failing CI. The Airflow image of the integration tests also must not hold datapa
 from pathlib import Path
 
 import pytest
-from airflow_helpers import EXAMPLE_DAGS, EXAMPLE_REPO, FIXTURE_DAGS, FIXTURE_REPO, ROOT, copy_and_generate
+from airflow_helpers import (
+    DUCKDB_DAGS,
+    DUCKDB_REPO,
+    EXAMPLE_DAGS,
+    EXAMPLE_REPO,
+    FIXTURE_DAGS,
+    FIXTURE_REPO,
+    ROOT,
+    copy_and_generate,
+)
 
 
 @pytest.mark.parametrize(
     ("repo", "dag_ids"),
-    [pytest.param(FIXTURE_REPO, FIXTURE_DAGS, id="fixture"), pytest.param(EXAMPLE_REPO, EXAMPLE_DAGS, id="example")],
+    [
+        pytest.param(FIXTURE_REPO, FIXTURE_DAGS, id="fixture"),
+        pytest.param(EXAMPLE_REPO, EXAMPLE_DAGS, id="example"),
+        pytest.param(DUCKDB_REPO, DUCKDB_DAGS, id="duckdb"),
+    ],
 )
 def test_every_generated_dag_file_compiles(repo: Path, dag_ids: dict[str, str], tmp_path: Path):
     dags = copy_and_generate(repo, tmp_path)
