@@ -10,7 +10,6 @@ dbt until the mapping is decided.
 
 from collections.abc import Sequence
 from io import StringIO
-from pathlib import PurePosixPath
 from typing import Any
 
 from ruamel.yaml import YAML
@@ -43,11 +42,13 @@ def generate_dbt_properties(plans: Sequence[DataProductPlan], settings: Effectiv
         if not tables:
             continue
         models = plan.source.file.path.parent / MODELS_FOLDER
-        files.append(GeneratedFile(models / GROUP_FILE, header(plan.source.file.path) + dump_yaml(_group(plan))))
+        files.append(
+            GeneratedFile(models / GROUP_FILE, generated_header(plan.source.file.path) + dump_yaml(_group(plan)))
+        )
         for table in tables:
             name = model_name(settings, plan.source, table.source)
             assert name is not None, "dpb validate guarantees a model name for a table built by dbt"
-            content = header(table.source.file.path) + dump_yaml({"models": [_model(plan, table, name)]})
+            content = generated_header(table.source.file.path) + dump_yaml({"models": [_model(plan, table, name)]})
             files.append(GeneratedFile(models / f"{name}.yml", content))
     return sorted(files, key=lambda file: file.path)
 
@@ -100,10 +101,6 @@ def _data_test(rule: NotNullRule | UniqueRule | AcceptedValuesRule, severity: st
 
 def _sql_literal(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
-
-
-def header(source: str | PurePosixPath) -> str:
-    return generated_header(source)
 
 
 def dump_yaml(document: dict[str, Any]) -> str:

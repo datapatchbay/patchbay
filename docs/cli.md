@@ -15,7 +15,7 @@
 
 ## `dpb new`
 
-`dpb new` creates `dataproducts/<folder>/` with a `dataproduct.yaml`, the default output port with its `port.yaml` and one example table, and a stub Python function per table that the table's `build` block points at. When the effective executor in `datapatchbay.yaml` is `dbt`, it writes `models/<dbt_model>.sql` per table instead (named by the `dbt_model` naming template) and tables without a `build` block; the example table reads the ingested table with `ref()`. The result passes `dpb validate` without edits. The folder and port names come from the naming templates in the effective settings. It never overwrites: if the folder exists, it fails and writes nothing.
+`dpb new` creates `dataproducts/<folder>/` with a `dataproduct.yaml`, the default output port with its `port.yaml` and one example table, and a stub Python function per table that the table's `build` block points at. When the effective executor in `datapatchbay.yaml` is `dbt`, it writes `models/<dbt_model>.sql` per table instead (named by the `dbt_model` naming template) and tables without a `build` block; the example table reads the ingested table with `ref()`. With the Python executor the result passes `dpb validate` without edits; with dbt it does after `dpb generate` has written the properties and `dbt_project.yml`. The folder and port names come from the naming templates in the effective settings. It never overwrites: if the folder exists, it fails and writes nothing.
 
 ```sh
 dpb new                                                     # asks for what is missing

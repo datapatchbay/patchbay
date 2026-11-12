@@ -60,7 +60,7 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     """Check how the executor of each table fits its table file, and what the folder of a dbt model must hold.
 
     - A table built by dbt has no `entrypoint`, `params` or `needs`, no table rule, and its model file exists.
-    Its rendered model name is a plain identifier and no other table built by dbt has the same name.
+    - The rendered model name of a table built by dbt is a plain identifier, and no other such table has the same name.
     - Any other table needs a `build.entrypoint`, because the python executor calls it.
     - No `.py` file sits in the `models/` folder of a data product, because dbt reads it as a dbt Python model.
 

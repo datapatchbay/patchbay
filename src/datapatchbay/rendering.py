@@ -1,5 +1,6 @@
 """Rendering the files of every data product in memory, through the plugins named in the settings."""
 
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.errors import DatapatchbayError
@@ -29,6 +30,12 @@ def render_dataproduct(
 ) -> list[GeneratedFile]:
     """Generate the files of one data product in memory.
 
+    Args:
+        plan: The data product to generate.
+        root: The repo root.
+        target: The output folder.
+        settings: The effective settings, which name the plugins.
+
     Raises:
         GenerationError: If the orchestrator cannot generate the data product.
         PluginNotFoundError: If a plugin is missing.
@@ -51,9 +58,15 @@ def render_dataproduct(
 
 
 def render_dataproducts(
-    plans: list[DataProductPlan], root: Path, target: Path, settings: EffectiveSettings
+    plans: Sequence[DataProductPlan], root: Path, target: Path, settings: EffectiveSettings
 ) -> dict[PurePosixPath, str]:
     """Generate the files of every data product in memory, by path relative to the output folder.
+
+    Args:
+        plans: The data products to generate.
+        root: The repo root.
+        target: The output folder.
+        settings: The effective settings, which name the plugins.
 
     Raises:
         GenerationError: If a data product fails to generate or two data products generate the same file.
@@ -71,6 +84,11 @@ def check_generation(repo: Repo, settings: EffectiveSettings, root: Path) -> lis
     """Find what would make `dpb generate` fail while generating, without writing anything.
 
     Only call this for a repo whose other checks passed, because it plans the data products.
+
+    Args:
+        repo: The loaded repo.
+        settings: The effective settings.
+        root: The repo root.
 
     Returns:
         One problem per data product that fails to generate, at its `dataproduct.yaml`.

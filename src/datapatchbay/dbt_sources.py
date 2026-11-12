@@ -12,7 +12,8 @@ from collections.abc import Sequence
 from typing import Any
 
 from datapatchbay.dbt import DBT_EXECUTOR, MODELS_FOLDER
-from datapatchbay.dbt_properties import dump_yaml, generate_dbt_properties, header
+from datapatchbay.dbt_properties import dump_yaml, generate_dbt_properties
+from datapatchbay.genheader import generated_header
 from datapatchbay.plugins import DataProductPlan, GeneratedFile
 from datapatchbay.repomodel import Port, Table
 from datapatchbay.settings import EffectiveSettings
@@ -51,7 +52,7 @@ def generate_dbt_sources(plans: Sequence[DataProductPlan]) -> list[GeneratedFile
     for plan in sorted({owner.folder: owner for owner in owners.values()}.values(), key=lambda plan: plan.folder):
         ports = [outputs[name] for name, owner in sorted(owners.items()) if owner is plan]
         origin = ", ".join(str(table.file.path) for port in ports for table in port.tables)
-        content = header(origin) + dump_yaml({"sources": [_source(port) for port in ports]})
+        content = generated_header(origin) + dump_yaml({"sources": [_source(port) for port in ports]})
         files.append(GeneratedFile(plan.source.file.path.parent / MODELS_FOLDER / SOURCES_FILE, content))
     return sorted(files, key=lambda file: file.path)
 
