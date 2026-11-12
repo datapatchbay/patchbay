@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
-from datapatchbay.models.base import FileModel
+from datapatchbay.models.base import CascadingSettings, FileModel
 
 _DURATION = re.compile(r"[1-9][0-9]*[mhd]")
 
@@ -110,7 +110,7 @@ class Access(BaseModel):
     )
 
 
-class OutputPortFile(FileModel):
+class OutputPortFile(FileModel, CascadingSettings):
     """An output port: what a data product publishes, with its freshness promise and access policy."""
 
     kind: Literal["schema", "table"] = Field(
@@ -123,7 +123,7 @@ class OutputPortFile(FileModel):
     access: Access = Field(default_factory=Access, description="Who may read this output port.")
 
 
-class SourceInputPortFile(FileModel):
+class SourceInputPortFile(FileModel, CascadingSettings):
     """An input port fed by a source outside the platform."""
 
     kind: Literal["schema", "table"] = Field(

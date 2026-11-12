@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.loading import load_file
 from datapatchbay.models import RootFile
+from datapatchbay.models.base import Severity
 from datapatchbay.models.root import KindConvention
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.yamlio import load_mapping
@@ -55,8 +56,9 @@ class ResolvedSettings(_Resolved):
     warehouse: str
     orchestrator: str
     executor: str
-    runtime: Literal["worker", "docker", "kubernetes"]
-    severity: Literal["error", "warning", "none"]
+    runtime: str
+    image: str | None = None
+    severity: Severity
     connection: str
     conventions: ResolvedConventions
 

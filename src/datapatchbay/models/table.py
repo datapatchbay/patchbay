@@ -18,9 +18,8 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, PydanticCustomError
 
-from datapatchbay.models.base import FileModel
+from datapatchbay.models.base import CascadingSettings, FileModel, Severity
 
-Severity = Literal["error", "warning", "none"]
 COLUMN_RULES = ("not_null", "unique", "accepted_values")
 TABLE_RULES = ("primary_key", "row_count", "sql")
 
@@ -164,10 +163,9 @@ class Column(_Strict):
     )
 
 
-class Build(_Strict):
+class Build(CascadingSettings):
     """How the table is made (ADR-0003)."""
 
-    executor: Literal["python"] = Field(description="The technology that builds the table. Only `python` for now.")
     entrypoint: str = Field(
         description="The function that builds the table, as `path/to/file.py:function`. The path is relative to "
         "the data product folder.",

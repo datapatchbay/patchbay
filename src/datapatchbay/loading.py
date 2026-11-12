@@ -115,8 +115,17 @@ def _port_model(direction: Direction, data: Mapping[str, object]) -> type[PortFi
     return DataProductInputPortFile if "from" in data else SourceInputPortFile
 
 
+def _orchestrator_hint(data: Mapping[str, object], key: str) -> str | None:
+    """Explain `orchestrator` on a port or a table: one data product is one DAG (ADR-0008)."""
+    if key == "orchestrator":
+        return "orchestrator can only be set in datapatchbay.yaml or dataproduct.yaml: one data product is one DAG"
+    return None
+
+
 def _port_key_hint(direction: Direction) -> KeyHint:
     def hint(data: Mapping[str, object], key: str) -> str | None:
+        if (explained := _orchestrator_hint(data, key)) is not None:
+            return explained
         this = _port_model(direction, data)
         this_name = next(name for name, form in PORT_FORMS.items() if form is this)
         owners = [name for name, form in PORT_FORMS.items() if form is not this and _has_field(form, key)]
@@ -149,13 +158,13 @@ def _load_port(directory: Path, direction: Direction, root: Path) -> tuple[Port 
     if port_file is None:
         # Still validate the tables, so one run reports everything.
         for path in table_paths:
-            problems.extend(load_file(path, root, TableFile)[1])
+            problems.extend(load_file(path, root, TableFile, key_hint=_orchestrator_hint)[1])
         return None, problems
 
     tables: list[Table] = []
     if not isinstance(port_file.model, DataProductInputPortFile):
         for path in table_paths:
-            table_file, table_problems = load_file(path, root, TableFile)
+            table_file, table_problems = load_file(path, root, TableFile, key_hint=_orchestrator_hint)
             problems.extend(table_problems)
             if table_file is not None:
                 tables.append(Table(table_file))

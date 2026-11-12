@@ -1,6 +1,6 @@
 """The base model shared by every kind of file."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,4 +22,37 @@ class FileModel(BaseModel):
     meta: dict[str, Any] = Field(
         default_factory=dict,
         description="Free-form map for a team's own extras. datapatchbay never reads it.",
+    )
+
+
+Severity = Literal["error", "warning", "none"]
+
+
+class CascadingSettings(BaseModel):
+    """Settings that can be set at the root, on a data product, on a port and in a table's build block (ADR-0008).
+
+    The nearest one wins; `datapatchbay.cascade` resolves them. `executor` and `runtime` name plugins (ADR-0009), so
+    they accept any non-empty name here and the plugin check happens where the plugins are known.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    executor: str | None = Field(
+        default=None, min_length=1, description="Executor plugin that builds the tables. The nearest level wins."
+    )
+    runtime: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Runtime plugin that runs the build code, such as `worker`, `docker` or `kubernetes`. "
+        "The nearest level wins.",
+    )
+    image: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Container image the build code runs in, for container runtimes. The nearest level wins.",
+    )
+    severity: Severity | None = Field(
+        default=None,
+        description="Default severity of quality rules: `error` fails the run, `warning` reports and continues, "
+        "`none` ignores the rule. The nearest level wins.",
     )
