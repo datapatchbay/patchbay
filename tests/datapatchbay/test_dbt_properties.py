@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from plugin_fakes import FakeOrchestrator, register
-from test_dbt import DP, MODEL, TABLE, TABLE_YAML, write
+from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
 
 from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.generate import GenerationError, generate_repo
