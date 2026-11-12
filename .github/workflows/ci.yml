@@ -100,6 +100,14 @@ jobs:
             agg_lab_turnaround apply_access,build_turnaround,publish_outputs \
             agg_lab_weekly apply_access,build_weekly_raw,build_weekly,build_weekly_pod,publish_outputs
 
+      - name: Generate and load the DAGs of the example repo
+        working-directory: examples/lab
+        run: |
+          uv run --locked --project ../.. dpb generate --output "$RUNNER_TEMP/example-dags"
+          "$RUNNER_TEMP/airflow-venv/bin/python" ../../tests/airflow/check_dags.py "$RUNNER_TEMP/example-dags" \
+            sa_ilab_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
+            agg_lab_turnaround apply_access,audit_turnaround,build_turnaround,publish_outputs
+
   postgres:
     name: postgres
     runs-on: ubuntu-latest
@@ -127,6 +135,51 @@ jobs:
 
       - name: Run the tests that need Postgres
         run: uv run --locked pytest -m postgres
+
+  example:
+    name: example repo runs end to end
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      AIRFLOW_VERSION: "3.4.0"
+      AIRFLOW_PYTHON: "3.12"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Generate the DAGs of the example repo
+        working-directory: examples/lab
+        run: uv run --locked --project ../.. dpb generate --output "$RUNNER_TEMP/dags"
+
+      - name: Install Airflow outside the project lock
+        run: |
+          uv venv "$RUNNER_TEMP/airflow-venv" --python "$AIRFLOW_PYTHON"
+          uv pip install --python "$RUNNER_TEMP/airflow-venv/bin/python" \
+            "apache-airflow==${AIRFLOW_VERSION}" \
+            apache-airflow-providers-common-sql \
+            apache-airflow-providers-postgres \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${AIRFLOW_PYTHON}.txt"
+
+      # Runs both generated DAGs with `dag.test()` against the Postgres service, then reads the views as a reader and
+      # as a PII reader. The roles are created by the script (ADR-0017).
+      - name: Run the DAGs and read the output ports
+        run: |
+          PATH="$RUNNER_TEMP/airflow-venv/bin:$PATH" python tests/airflow/run_example.py "$RUNNER_TEMP/dags" \
+            postgresql://postgres:postgres@localhost:5432/postgres
 
   dbt:
     name: dbt parse
