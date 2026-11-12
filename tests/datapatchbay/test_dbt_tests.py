@@ -211,7 +211,7 @@ def test_dbt_build_runs_the_generated_tests_against_postgres(repo: Path, tmp_pat
     if dbt is None or url is None:
         pytest.skip("needs dbt (dependency group `dbt`) and DPB_TEST_POSTGRES_URL")
     parsed = urlparse(url)
-    write(repo, MODEL, "select * from (values (1), (1)) as t(days)\n")  # the key `days` repeats
+    write(repo, MODEL, "select 1::numeric as days union all select 1::numeric\n")  # the key `days` repeats
     with_rules(
         repo,
         "  - {rule: primary_key, columns: [days]}\n"  # fails
