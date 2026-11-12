@@ -25,7 +25,7 @@ dpb generate
 
 `dpb new` creates `dataproducts/sa_jaffle_orders/` with its files and a stub Python function per table. `dpb validate` prints `ok: 1 data product(s) valid`, and `dpb generate` writes `generated/sa_jaffle_orders.py`, an Airflow 3 DAG that you deploy to your Airflow (add `generated/` to `.gitignore`: it is build output). Replace the stubs in `src/` with build code that writes the tables to your warehouse, and describe the output port in its `port.yaml` (freshness, readers, PII readers).
 
-[`examples/jaffle_shop`](examples/jaffle_shop) is a finished version with two data products: `sa_jaffle_orders`, built by Python, which ingests from a source and publishes orders with a PII column, and `agg_order_turnaround`, built by dbt, which reads that output port through an input port and the generated `source('sa_jaffle_orders', 'orders')`. Its generated dbt files (properties, sources, tests, `dbt_project.yml`) are committed. The CI `example` job runs both generated DAGs against a real Postgres, including the real `dbt build` and its data tests, and checks that a reader sees NULL in the PII column while a PII reader sees the value.
+[`examples/jaffle_shop`](examples/jaffle_shop) is a finished version with two data products: `sa_jaffle_orders`, built by Python, which ingests from a source and publishes orders with a PII column, and `agg_order_turnaround`, built by dbt, which reads that output port through an input port and the generated `source('sa_jaffle_orders', 'orders')`. Its generated dbt files (properties, sources, tests, `dbt_project.yml`) are committed. The integration tests (`scripts/integration-tests`) run both generated DAGs in Airflow against a real Postgres, including the real `dbt build` and its data tests, and check that a reader sees NULL in the PII column while a PII reader sees the value.
 
 `dpb validate` checks what the dbt model reads against the dbt manifest, so run `dbt parse` first. The profile of the example reads the connection from the environment (`PGHOST`, `PGUSER`, ...), with defaults that let `dbt parse` run without a server:
 
@@ -84,7 +84,7 @@ scripts/integration-tests         # starts Postgres in Docker, runs the tests ma
 scripts/integration-tests -k audit  # arguments go to pytest
 ```
 
-Run it before pushing a change to the Postgres SQL. CI does not run it. The example runs end to end in Airflow with `tests/airflow/run_example.py`, which its docstring describes: Airflow in its own virtual environment, a Postgres server, and the `bin` folder of an environment with dbt (`uv sync --group dbt` makes `.venv/bin`).
+Run it before pushing a change to the Postgres SQL or to the generated DAGs. CI does not run it. It also loads the generated DAGs of the test repo and of the example in Airflow 3 and runs the example end to end, in an Airflow container (`tests/airflow/Dockerfile`, with dbt in a separate environment) next to the Postgres container. The first run builds that image, which takes a few minutes.
 
 Tests mirror the package: the tests for `src/datapatchbay/x.py` live in `tests/datapatchbay/test_x.py`. See [CODING_STANDARDS.md](CODING_STANDARDS.md) for the rest. Every pull request runs the tests on Python 3.12, 3.13 and 3.14, and runs ty and ruff.
 

@@ -6,7 +6,7 @@ Data products as code. Declare owners, ports and freshness in YAML, then scaffol
 
 Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `uv run pytest`, `uv run ty check`, `uv run ruff check` and `uv run ruff format --check`.
 
-`uv run pytest` runs the unit tests only (DuckDB, no server, no Docker). Integration tests (a real Postgres) live in `tests/datapatchbay/integration/` and run with one command, `scripts/integration-tests`, which needs Docker. Run it before pushing a change to the Postgres SQL. CI does not run it.
+`uv run pytest` runs the unit tests only (DuckDB, no server, no Docker). Integration tests (a real Postgres) live in `tests/datapatchbay/integration/` and run with one command, `scripts/integration-tests`, which needs Docker. Run it before pushing a change to the Postgres SQL or to the generated DAGs (it loads them in Airflow 3 and runs the example). CI does not run it.
 
 ## Agent skills
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Runs the integration tests (ADR-0020): starts a Postgres in Docker, runs the tests that need it, stops it again.
+# The tests that run Airflow start it in a container on the same Docker network as the Postgres container.
 # The only requirement is Docker. Extra arguments go to pytest, for example `scripts/integration-tests -k audit`.
 set -euo pipefail
 
@@ -10,12 +11,19 @@ if ! docker info >/dev/null 2>&1; then
   exit 2
 fi
 
+network="$(docker network create --label dpb-integration-tests "dpb-integration-tests-$$")"
+cleanup() {
+  [ -z "${container:-}" ] || docker stop --time 5 "$container" >/dev/null 2>&1 || true
+  docker network rm "$network" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
 container="$(docker run --detach --rm \
   --label dpb-integration-tests \
+  --network "$network" --network-alias postgres \
   --env POSTGRES_PASSWORD=postgres \
   --publish 127.0.0.1::5432 \
   postgres:17)"
-trap 'docker stop --time 5 "$container" >/dev/null 2>&1 || true' EXIT
 
 ready() { docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null 2>&1; }
 
@@ -31,6 +39,9 @@ ready
 
 port="$(docker port "$container" 5432/tcp | head -n 1 | sed 's/.*://')"
 export DPB_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${port}/postgres"
+# What a container on the network reaches the same server by.
+export DPB_TEST_DOCKER_NETWORK="$network"
+export DPB_TEST_POSTGRES_NETWORK_URL="postgresql://postgres:postgres@postgres:5432/postgres"
 
 # The `dbt` group provides dbt for the tests that run `dbt build`.
 uv run --group dbt pytest -m integration "$@"

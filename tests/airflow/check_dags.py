@@ -1,8 +1,8 @@
 """Load generated DAG files in Airflow 3 and fail on any import error.
 
-CI runs this with the Python of a separate virtual environment that has Airflow installed, never the project's
-environment: Airflow is not a dependency of datapatchbay, and datapatchbay must not be installed there, which also
-shows that a generated file stands alone (ADR-0001).
+The integration tests run this in the Airflow container (`tests/airflow/Dockerfile`), never in the project's
+environment: Airflow is not a dependency of datapatchbay, and datapatchbay is not installed there, which also shows that
+a generated file stands alone (ADR-0001).
 
 Usage: python check_dags.py DAGS_DIR [DAG_ID TASK_ID,TASK_ID ...]
 
@@ -17,7 +17,7 @@ import tempfile
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
 os.environ.setdefault("AIRFLOW_HOME", tempfile.mkdtemp(prefix="patchbay-airflow-"))
 
-from airflow.dag_processing.dagbag import DagBag  # ty: ignore[import-not-found]
+from airflow.dag_processing.dagbag import DagBag
 
 
 def main(argv: list[str]) -> int:

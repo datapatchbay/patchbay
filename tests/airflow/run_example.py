@@ -1,19 +1,20 @@
 """Run the generated DAGs of the example repo for real, against a Postgres, and read the result as two kinds of reader.
 
-CI runs this with the Python of the separate virtual environment that has Airflow and its Postgres provider installed,
-never the project's environment, so datapatchbay is not importable here (ADR-0001). It runs `airflow db migrate` on a
-throwaway SQLite metadata database, points the connection `warehouse` at Postgres through the environment, and runs
-`dag.test()` for the source-aligned DAG and then for the aggregate DAG. The source-aligned DAG builds its tables with
-Python, runs the audit tasks and applies the views and grants. The aggregate DAG is built by dbt: its `build_dbt` task
-runs the real `dbt build` of the example's dbt project, which builds the model from the output port of the other data
-product and runs its data tests, and then the DAG applies the views and grants. Roles are expected to exist
-(ADR-0017), so the script creates them first.
+The integration tests run this in the Airflow container (`tests/airflow/Dockerfile`), whose Python has Airflow and its
+Postgres provider installed and not datapatchbay, so datapatchbay is not importable here (ADR-0001). It runs `airflow
+db migrate` on a throwaway SQLite metadata database, points the connection `warehouse` at Postgres through the
+environment, and runs `dag.test()` for the source-aligned DAG and then for the aggregate DAG. The source-aligned DAG
+builds its tables with Python, runs the audit tasks and applies the views and grants. The aggregate DAG is built by
+dbt: its `build_dbt` task runs the real `dbt build` of the example's dbt project, which builds the model from the
+output port of the other data product and runs its data tests, and then the DAG applies the views and grants. Roles are
+expected to exist (ADR-0017), so the script creates them first.
 
 Usage: python run_example.py DAGS_DIR POSTGRES_URL [DBT_BIN_DIR]
 
 The `build_dbt` task runs the `dbt` command of its PATH. dbt cannot be installed next to Airflow (their pins conflict),
-so DBT_BIN_DIR names the `bin` folder of the environment that has dbt; it is put first in the PATH. dbt reads the
-connection from the environment in the profile of the example, which this script sets from POSTGRES_URL.
+so DBT_BIN_DIR names the `bin` folder of the separate environment that has dbt (/opt/dbt/bin in the container); it is
+put first in the PATH. dbt reads the connection from the environment in the profile of the example, which this script
+sets from POSTGRES_URL.
 
 POSTGRES_URL names a server where the user may create roles and databases. The script works in a database of its own and
 drops it at the end. The roles are created by the script and dropped at the end too.
@@ -37,9 +38,10 @@ os.environ["AIRFLOW_HOME"] = AIRFLOW_HOME
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{AIRFLOW_HOME}/airflow.db"
 
-import psycopg2  # noqa: E402  # ty: ignore[import-not-found]
-from airflow.dag_processing.dagbag import DagBag  # noqa: E402  # ty: ignore[import-not-found]
+import psycopg2  # noqa: E402
+from airflow.dag_processing.dagbag import DagBag  # noqa: E402
 
+INSUFFICIENT_PRIVILEGE = "42501"  # the SQLSTATE of a permission denied
 REPORTER = "grp-shop-reporting"
 SUPPORT = "grp-shop-support"
 MANAGER = "grp-shop-management"
@@ -179,7 +181,9 @@ def main(dags_dir: str, admin_url: str, dbt_bin_dir: str | None = None) -> None:
         ):
             try:
                 query(url, role, statement)
-            except psycopg2.errors.InsufficientPrivilege:
+            except psycopg2.Error as error:
+                if error.pgcode != INSUFFICIENT_PRIVILEGE:
+                    raise AssertionError(f"{what}: got {error}") from error
                 print(f"ok: {what}")
             else:
                 raise AssertionError(what)

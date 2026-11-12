@@ -320,8 +320,8 @@ There are two kinds of test (ADR-0020):
 
 - **Unit tests** run with `uv run pytest`, in CI and on every developer's machine. They need no network, server or
   Docker. The SQL that `dpb` generates is run against DuckDB in the test process.
-- **Integration tests** need a real service, which is a Postgres server for now. They live in
-  `tests/datapatchbay/integration/`, one file per tool or area, and every test in that folder carries the `integration`
+- **Integration tests** need a real service: a Postgres server, and Airflow in a container next to it. They live
+  in `tests/datapatchbay/integration/`, one file per tool or area, and every test in that folder carries the `integration`
   marker automatically (`conftest.py` adds it). `uv run pytest` deselects that marker. Put a new integration test in
   that folder; do not mark tests elsewhere.
 
@@ -332,8 +332,8 @@ when a test fails. It needs Docker and nothing else:
 scripts/integration-tests          # extra arguments go to pytest, for example -k audit
 ```
 
-Run it before pushing a change to the Postgres SQL. CI does not run integration tests. A quality rule MUST also be
-checked on DuckDB by a unit test, so that CI keeps covering it.
+Run it before pushing a change to the Postgres SQL or to the generated DAGs. CI does not run integration tests. A
+quality rule MUST also be checked on DuckDB by a unit test, so that CI keeps covering it.
 
 ## Related Guidance
 
