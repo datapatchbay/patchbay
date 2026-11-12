@@ -7,9 +7,9 @@ By default a table's build function runs on the Airflow worker. With the `docker
 Both settings cascade, so set them where they apply: in `datapatchbay.yaml` for every data product, in a `dataproduct.yaml`, in a `port.yaml`, or in the `build` block of one table.
 
 ```yaml
-# dataproducts/sa_ilab_orders/dataproduct.yaml
+# dataproducts/sa_jaffle_orders/dataproduct.yaml
 runtime: docker
-image: registry.example.com/lab:1
+image: registry.example.com/jaffle-shop:1
 ```
 
 `dpb validate` fails when a table resolves to `docker` or `kubernetes` and no level sets `image`.
@@ -27,7 +27,7 @@ So the image needs three things:
 ```dockerfile
 FROM python:3.12-slim
 RUN pip install "psycopg[binary]"
-COPY dataproducts/sa_ilab_orders /app
+COPY dataproducts/sa_jaffle_orders /app
 WORKDIR /app
 ```
 
@@ -38,9 +38,9 @@ The image does not need datapatchbay. If the folder is somewhere else in the ima
 `dpb` passes no credentials. Build code in a container reads what you put in the container's environment. The `container` setting is a map that `dpb` hands to the Airflow task as written:
 
 ```yaml
-# dataproducts/sa_ilab_orders/dataproduct.yaml
+# dataproducts/sa_jaffle_orders/dataproduct.yaml
 runtime: docker
-image: registry.example.com/lab:1
+image: registry.example.com/jaffle-shop:1
 container:
   environment:
     PGHOST: warehouse.example.com
@@ -54,7 +54,7 @@ For Kubernetes, the keys are those of the `KubernetesPodOperator`:
 
 ```yaml
 runtime: kubernetes
-image: registry.example.com/lab:1
+image: registry.example.com/jaffle-shop:1
 container:
   namespace: data
   env_vars:
@@ -78,7 +78,7 @@ The generated DAG file uses the `DockerOperator` or the `KubernetesPodOperator`:
 
 ```console
 $ dpb validate
-$ dpb describe sa_ilab_orders
+$ dpb describe sa_jaffle_orders
 $ dpb generate
 ```
 

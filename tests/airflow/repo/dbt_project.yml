@@ -1,7 +1,7 @@
-name: lab
+name: jaffle_shop
 version: "1.0"
-profile: lab
+profile: jaffle_shop
 model-paths:
-  - dataproducts/agg_lab_weekly/models
+  - dataproducts/agg_weekly_orders/models
 test-paths:
-  - dataproducts/agg_lab_weekly/tests
+  - dataproducts/agg_weekly_orders/tests

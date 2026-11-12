@@ -204,7 +204,7 @@ def derive_port_name(template: str, *, prefix: str, name: str) -> str:
 
     Keyword Args:
         prefix: The prefix of the data product's kind, for example `"sa"`.
-        name: The data product's bare name, for example `"ilab_orders"`.
+        name: The data product's bare name, for example `"jaffle_orders"`.
 
     Returns:
         The port name, which is always snake_case.

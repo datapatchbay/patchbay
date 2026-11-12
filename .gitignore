@@ -223,5 +223,5 @@ __marimo__/
 generated/
 
 # Written by dbt when it runs in the example repo
-examples/lab/.user.yml
-examples/lab/logs/
+examples/jaffle_shop/.user.yml
+examples/jaffle_shop/logs/

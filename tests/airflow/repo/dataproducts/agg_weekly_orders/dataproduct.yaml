@@ -1,0 +1,6 @@
+schema_version: 1
+name: weekly_orders
+kind: aggregate
+owner: Ann
+inputs: [agg_weekly_orders_source, sa_jaffle_orders]
+outputs: [agg_weekly_orders]

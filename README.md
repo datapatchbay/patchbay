@@ -15,22 +15,22 @@ You need [uv](https://docs.astral.sh/uv/). Start a repo, scaffold a source-align
 
 ```sh
 uv tool install git+https://github.com/datapatchbay/patchbay   # not on PyPI yet
-mkdir lab && cd lab
+mkdir jaffle_shop && cd jaffle_shop
 echo "schema_version: 1" > datapatchbay.yaml
 
-dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --no-input
+dpb new --name jaffle_orders --kind source-aligned --owner "Jane Doe" --source jaffle_shop --no-input
 dpb validate
 dpb generate
 ```
 
-`dpb new` creates `dataproducts/sa_ilab_orders/` with its files and a stub Python function per table. `dpb validate` prints `ok: 1 data product(s) valid`, and `dpb generate` writes `generated/sa_ilab_orders.py`, an Airflow 3 DAG that you deploy to your Airflow (add `generated/` to `.gitignore`: it is build output). Replace the stubs in `src/` with build code that writes the tables to your warehouse, and describe the output port in its `port.yaml` (freshness, readers, PII readers).
+`dpb new` creates `dataproducts/sa_jaffle_orders/` with its files and a stub Python function per table. `dpb validate` prints `ok: 1 data product(s) valid`, and `dpb generate` writes `generated/sa_jaffle_orders.py`, an Airflow 3 DAG that you deploy to your Airflow (add `generated/` to `.gitignore`: it is build output). Replace the stubs in `src/` with build code that writes the tables to your warehouse, and describe the output port in its `port.yaml` (freshness, readers, PII readers).
 
-[`examples/lab`](examples/lab) is a finished version with two data products: `sa_ilab_orders`, built by Python, which ingests from a source and publishes orders with a PII column, and `agg_lab_turnaround`, built by dbt, which reads that output port through an input port and the generated `source('sa_ilab_orders', 'orders')`. Its generated dbt files (properties, sources, tests, `dbt_project.yml`) are committed. CI runs both generated DAGs against a real Postgres, including the real `dbt build` and its data tests, and checks that a reader sees NULL in the PII column while a PII reader sees the value.
+[`examples/jaffle_shop`](examples/jaffle_shop) is a finished version with two data products: `sa_jaffle_orders`, built by Python, which ingests from a source and publishes orders with a PII column, and `agg_order_turnaround`, built by dbt, which reads that output port through an input port and the generated `source('sa_jaffle_orders', 'orders')`. Its generated dbt files (properties, sources, tests, `dbt_project.yml`) are committed. CI runs both generated DAGs against a real Postgres, including the real `dbt build` and its data tests, and checks that a reader sees NULL in the PII column while a PII reader sees the value.
 
 `dpb validate` checks what the dbt model reads against the dbt manifest, so run `dbt parse` first. The profile of the example reads the connection from the environment (`PGHOST`, `PGUSER`, ...), with defaults that let `dbt parse` run without a server:
 
 ```sh
-cd examples/lab
+cd examples/jaffle_shop
 uv tool install dbt-postgres   # or any environment that has dbt
 dbt parse --profiles-dir .     # writes target/manifest.json
 dpb validate && dpb list && dpb generate

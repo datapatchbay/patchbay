@@ -15,30 +15,30 @@ from datapatchbay.plugins import UnsupportedCombinationError
 
 
 @pytest.mark.parametrize("runtime", [DockerRuntime(), KubernetesRuntime()])
-def test_a_container_runtime_refuses_a_table_without_an_image(lab_repo: Path, runtime: DockerRuntime):
+def test_a_container_runtime_refuses_a_table_without_an_image(jaffle_repo: Path, runtime: DockerRuntime):
     with pytest.raises(UnsupportedCombinationError, match="table 'ingested_orders' has no image"):
-        render(runtime, table_of(lab_repo))
+        render(runtime, table_of(jaffle_repo))
 
 
 @pytest.mark.parametrize(
     ("runtime", "key"), [(DockerRuntime(), "image"), (DockerRuntime(), "command"), (KubernetesRuntime(), "arguments")]
 )
-def test_the_container_setting_cannot_replace_what_dpb_sets(lab_repo: Path, runtime: DockerRuntime, key: str):
-    table = replace(table_of(lab_repo), image="x:1", container={key: "y"})
+def test_the_container_setting_cannot_replace_what_dpb_sets(jaffle_repo: Path, runtime: DockerRuntime, key: str):
+    table = replace(table_of(jaffle_repo), image="x:1", container={key: "y"})
     with pytest.raises(UnsupportedCombinationError, match=f"'{key}'"):
         render(runtime, table)
 
 
-def test_the_container_setting_is_handed_over_as_written(lab_repo: Path):
+def test_the_container_setting_is_handed_over_as_written(jaffle_repo: Path):
     container = {"environment": {"PGHOST": "db", "PGPASSWORD": "{{ conn.warehouse.password }}"}, "mem_limit": "1g"}
-    table = replace(table_of(lab_repo), image="x:1", container=container)
+    table = replace(table_of(jaffle_repo), image="x:1", container=container)
     code = "\n".join(render(DockerRuntime(), table).lines)
     assert 'environment={"PGHOST": "db", "PGPASSWORD": "{{ conn.warehouse.password }}"},' in code
     assert 'mem_limit="1g",' in code
 
 
-def test_a_container_setting_that_is_not_a_keyword_is_refused(lab_repo: Path):
-    table = replace(table_of(lab_repo), image="x:1", container={"not a name": 1})
+def test_a_container_setting_that_is_not_a_keyword_is_refused(jaffle_repo: Path):
+    table = replace(table_of(jaffle_repo), image="x:1", container={"not a name": 1})
     with pytest.raises(UnsupportedCombinationError, match="'not a name'"):
         render(DockerRuntime(), table)
 
@@ -59,13 +59,13 @@ def test_the_entrypoint_and_its_params_reach_the_function_in_the_container(tmp_p
     assert json.loads(done.stdout) == {"mode": "full", "limit": 3}
 
 
-def test_the_rendered_task_carries_the_file_function_and_params_as_arguments(lab_repo: Path):
-    table = replace(table_of(lab_repo), image="x:1")
+def test_the_rendered_task_carries_the_file_function_and_params_as_arguments(jaffle_repo: Path):
+    table = replace(table_of(jaffle_repo), image="x:1")
     code = "\n".join(render(DockerRuntime(), table).lines)
     assert '"src/ingested.py", "build", "{\\"limit\\":100}"' in code
 
 
-def test_a_param_that_is_not_a_plain_value_is_refused(lab_repo: Path):
-    table = replace(table_of(lab_repo), image="x:1", params={"day": datetime.date(2025, 1, 1)})
+def test_a_param_that_is_not_a_plain_value_is_refused(jaffle_repo: Path):
+    table = replace(table_of(jaffle_repo), image="x:1", params={"day": datetime.date(2025, 1, 1)})
     with pytest.raises(ValueError, match="not a plain value"):
         render(DockerRuntime(), table)

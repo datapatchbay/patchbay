@@ -1,0 +1,9 @@
+name: jaffle_shop
+version: "1.0"
+profile: jaffle_shop
+macro-paths:
+  - macros
+model-paths:
+  - dataproducts/agg_order_turnaround/models
+test-paths:
+  - dataproducts/agg_order_turnaround/tests

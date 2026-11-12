@@ -40,12 +40,12 @@ os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{AIRFLOW_HOME}/a
 import psycopg2  # noqa: E402  # ty: ignore[import-not-found]
 from airflow.dag_processing.dagbag import DagBag  # noqa: E402  # ty: ignore[import-not-found]
 
-REPORTER = "grp-lab-reporting"
-DOCTOR = "grp-lab-doctors"
-MANAGER = "grp-lab-management"
+REPORTER = "grp-shop-reporting"
+SUPPORT = "grp-shop-support"
+MANAGER = "grp-shop-management"
 OUTSIDER = "grp-outsider"
-DATA_PRODUCT_ROLE = "dp_agg_lab_turnaround"
-ROLES = (REPORTER, DOCTOR, MANAGER, OUTSIDER, DATA_PRODUCT_ROLE)
+DATA_PRODUCT_ROLE = "dp_agg_order_turnaround"
+ROLES = (REPORTER, SUPPORT, MANAGER, OUTSIDER, DATA_PRODUCT_ROLE)
 
 
 def with_database(url: str, database: str) -> str:
@@ -112,7 +112,7 @@ def check_dbt_tests(artifacts: Path) -> None:
     statuses = {tuple(r["unique_id"].split(".")[::2]): r["status"] for r in results}  # (resource type, name) -> status
     models = sorted(name for kind, name in statuses if kind == "model")
     tests = {name: status for (kind, name), status in statuses.items() if kind == "test"}
-    expect(models, ["agg_lab_turnaround__turnaround"], "dbt built the model")
+    expect(models, ["agg_order_turnaround__turnaround"], "dbt built the model")
     assert len(tests) == 4, f"expected 4 data tests: {tests}"  # three column tests and the row_count rule
     assert set(tests.values()) == {"pass"}, tests
     print(f"ok: dbt ran {len(tests)} data tests and all passed")
@@ -141,41 +141,41 @@ def main(dags_dir: str, admin_url: str, dbt_bin_dir: str | None = None) -> None:
         # The audit and the access grants are tasks of the DAG, so a missing one fails here instead of passing silently.
         run_dag(
             bag,
-            "sa_ilab_orders",
+            "sa_jaffle_orders",
             {"build_ingested_orders", "build_orders", "audit_orders", "apply_access", "publish_outputs"},
         )
         # The rules of the dbt table are data tests inside `build_dbt`, so this DAG has no audit task.
-        run_dag(bag, "agg_lab_turnaround", {"build_dbt", "apply_access", "publish_outputs"})
+        run_dag(bag, "agg_order_turnaround", {"build_dbt", "apply_access", "publish_outputs"})
         check_dbt_tests(artifacts)
 
-        orders = "SELECT order_id, patient_id FROM sa_ilab_orders.orders ORDER BY order_id"
+        orders = "SELECT order_id, customer_id FROM sa_jaffle_orders.orders ORDER BY order_id"
         expect(
             query(url, REPORTER, orders),
-            [("LO-1", None), ("LO-2", None), ("LO-3", None)],
+            [("JO-1", None), ("JO-2", None), ("JO-3", None)],
             "a reader sees NULL in the PII column",
         )
         expect(
-            query(url, DOCTOR, orders),
-            [("LO-1", "P-100"), ("LO-2", "P-101"), ("LO-3", "P-102")],
+            query(url, SUPPORT, orders),
+            [("JO-1", "C-100"), ("JO-2", "C-101"), ("JO-3", "C-102")],
             "a PII reader sees the value",
         )
         expect(
-            query(url, DATA_PRODUCT_ROLE, "SELECT count(*) FROM sa_ilab_orders.orders"),
+            query(url, DATA_PRODUCT_ROLE, "SELECT count(*) FROM sa_jaffle_orders.orders"),
             [(3,)],
             "the aggregate data product's role reads the output port",
         )
         expect(
-            query(url, MANAGER, "SELECT order_id, turnaround_hours FROM agg_lab_turnaround.turnaround ORDER BY 1"),
-            [("LO-1", 48), ("LO-2", 24)],
+            query(url, MANAGER, "SELECT order_id, turnaround_hours FROM agg_order_turnaround.turnaround ORDER BY 1"),
+            [("JO-1", 48), ("JO-2", 24)],
             "a reader of the aggregate reads its output port",
         )
         for role, statement, what in (
             (
                 OUTSIDER,
-                "SELECT 1 FROM sa_ilab_orders.orders",
+                "SELECT 1 FROM sa_jaffle_orders.orders",
                 "a role that is not a reader cannot read the output port",
             ),
-            (REPORTER, "SELECT 1 FROM sa_ilab_orders_private.orders", "a reader cannot read the private schema"),
+            (REPORTER, "SELECT 1 FROM sa_jaffle_orders_private.orders", "a reader cannot read the private schema"),
         ):
             try:
                 query(url, role, statement)

@@ -14,7 +14,7 @@ from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import AuditTask
 from datapatchbay.settings import load_settings
 
-SCHEMA = "sa_ilab_orders_private"
+SCHEMA = "sa_jaffle_orders_private"
 """Where the output table `orders` of the fixture data product is built."""
 
 TABLE_HEAD = "schema_version: 1\nname: orders\nbuild:\n  entrypoint: src/orders.py:build\n"
@@ -22,14 +22,14 @@ TABLE_HEAD = "schema_version: 1\nname: orders\nbuild:\n  entrypoint: src/orders.
 
 def audit_of(root: Path, table_yaml: str, *, settings: str = "") -> AuditTask | None:
     """Replace `orders.yaml` in a copy of the fixture repo, plan it and return the warehouse's audit of `orders`."""
-    (root / "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml").write_text(
+    (root / "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml").write_text(
         TABLE_HEAD + textwrap.dedent(table_yaml)
     )
     if settings:
         (root / "datapatchbay.yaml").write_text("schema_version: 1\n" + settings)
     repo, problems = load_repo(root)
     assert problems == []
-    plan = next(p for p in plan_dataproducts(repo, load_settings(root)) if p.folder == "sa_ilab_orders")
+    plan = next(p for p in plan_dataproducts(repo, load_settings(root)) if p.folder == "sa_jaffle_orders")
     table = next(t for t in plan.tables if t.name == "orders")
     tasks = PostgresWarehouse().audit_tasks(table)
     assert len(tasks) <= 1

@@ -1,0 +1,15 @@
+schema_version: 1
+name: weekly_pod
+columns:
+  - name: days
+    type: numeric
+build:
+  entrypoint: src/weekly_pod.py:build
+  needs: [weekly]
+  runtime: kubernetes
+  image: registry.example.com/jaffle-shop:1
+  container:
+    namespace: data
+    env_vars:
+      PGHOST: warehouse.example.com
+    get_logs: true

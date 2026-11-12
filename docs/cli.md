@@ -31,9 +31,9 @@ Every command uses the same exit codes, so a script or CI job can act on them:
 
 ```sh
 dpb new                                                     # asks for what is missing
-dpb new --name ilab_orders --kind source-aligned --domain lab \
+dpb new --name jaffle_orders --kind source-aligned --domain sales \
   --owner "Jane Doe" --technical-owner "Joe Dev" --no-input
-dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --schedule "0 5 * * *"
+dpb new --name jaffle_orders --kind source-aligned --owner "Jane Doe" --source jaffle_shop --schedule "0 5 * * *"
 ```
 
 | Flag | Meaning |
@@ -60,7 +60,7 @@ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ila
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
 - `kind` is one of the kinds in the conventions. `domain` is in the domain list when the list is not empty, and is accepted as written when it is empty.
-- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name is the data product's derived name or starts with it and an underscore (`sa_ilab_orders_extra`, not `sa_ilab_orders2`). An input port that reads another data product keeps the name of the output port it reads.
+- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name is the data product's derived name or starts with it and an underscore (`sa_jaffle_orders_extra`, not `sa_jaffle_orders2`). An input port that reads another data product keeps the name of the output port it reads.
 - Data product, port, table and column names are snake_case.
 - Derived data product names and port names are unique across the repo.
 - A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
@@ -81,7 +81,7 @@ With `--json`, stdout holds only this document:
   "ok": false,
   "dataproducts_checked": 1,
   "problems": [
-    {"file": "dataproducts/sa_ilab_orders/dataproduct.yaml", "line": 5, "message": "unknown key 'ownr'; ..."}
+    {"file": "dataproducts/sa_jaffle_orders/dataproduct.yaml", "line": 5, "message": "unknown key 'ownr'; ..."}
   ]
 }
 ```
@@ -118,11 +118,11 @@ With `--json`, stdout holds one object from setting name to `{"value": ..., "ori
 `dpb describe <data product>` takes the folder name or the `name` of a data product. It prints the data product with its ports, tables, columns, quality rules, freshness and readers. For each output port it also shows which data products read it (`read by`). Every setting is resolved and shown with the level it came from, for example `runtime: kubernetes  (port, dataproducts/.../port.yaml)`; a quality rule shows its severity and whether the rule or a level set it.
 
 ```text
-sa_ilab_orders  (dataproducts/sa_ilab_orders/dataproduct.yaml)
+sa_jaffle_orders  (dataproducts/sa_jaffle_orders/dataproduct.yaml)
   settings:
     executor: python  (defaults)
     runtime: docker  (root, datapatchbay.yaml)
-    orchestrator: prefect  (dataproduct, dataproducts/sa_ilab_orders/dataproduct.yaml)
+    orchestrator: prefect  (dataproduct, dataproducts/sa_jaffle_orders/dataproduct.yaml)
 ```
 
 With `--json`, stdout holds one object with the same content. Its keys are `folder`, `name`, `file`, `kind`, `domain`, `owner`, `technical_owner`, `description`, `settings`, `inputs` and `outputs`. Each port has `name`, `file`, `settings` and `tables`, plus `from` or `kind`; output ports add `freshness`, `readers`, `pii_readers` and `read_by`. Each table has `name`, `file`, `description`, `freshness_column`, `columns`, `rules`, `entrypoint`, `params`, `needs` and `settings`. Each setting is `{"value", "level", "file"}`, where `level` is `table`, `port`, `dataproduct`, `root`, `defaults` or `unset`. Each rule carries its own fields, its resolved `severity` and `severity_from`, which is `rule` when the rule sets the severity itself and otherwise the level the default came from. An unknown name fails with exit code 2 and a message naming the data products that exist.

@@ -7,32 +7,32 @@ This page covers schema version 1.
 ```text
 datapatchbay.yaml
 dataproducts/
-  sa_ilab_orders/
+  sa_jaffle_orders/
     dataproduct.yaml
     inputs/
-      sa_ilab_orders_private/
+      sa_jaffle_orders_private/
         port.yaml
         ingested_orders.yaml
     outputs/
-      sa_ilab_orders/
+      sa_jaffle_orders/
         port.yaml
         orders.yaml
     src/
       ingested_orders.py
       orders.py
-  agg_lab_turnaround/
+  agg_order_turnaround/
     dataproduct.yaml
     inputs/
-      sa_ilab_orders/
+      sa_jaffle_orders/
         port.yaml
     outputs/
-      agg_lab_turnaround/
+      agg_order_turnaround/
         port.yaml
         turnaround.yaml
     models/
-      agg_lab_turnaround__turnaround.sql
-      agg_lab_turnaround__turnaround.yml   # generated, committed
-dbt_project.yml                            # only for dbt; once any table is built by dbt, `dpb generate` owns its `model-paths` and `test-paths` keys (a hand-set entry is replaced)
+      agg_order_turnaround__turnaround.sql
+      agg_order_turnaround__turnaround.yml   # generated, committed
+dbt_project.yml                              # only for dbt; once any table is built by dbt, `dpb generate` owns its `model-paths` and `test-paths` keys (a hand-set entry is replaced)
 ```
 
 There are four kinds of file:
@@ -85,14 +85,14 @@ See [Settings and plugins](settings.md) for how these values merge with the defa
 
 ```yaml
 schema_version: 1
-name: ilab_orders
+name: jaffle_orders
 kind: source-aligned
 domain: operations
 owner: Jane Doe
 technical_owner: John Roe
-description: Lab orders as received from the lab system
-inputs: [sa_ilab_orders_private]
-outputs: [sa_ilab_orders]
+description: Jaffle shop orders as received from the shop's order system
+inputs: [sa_jaffle_orders_private]
+outputs: [sa_jaffle_orders]
 ```
 
 - `name` is written without the kind's prefix. Naming templates produce the folder name, the port names and the role name.
@@ -110,9 +110,9 @@ kind: schema               # schema | table
 freshness: 24h             # optional; without it the port makes no freshness promise
 access:
   readers:
-    - grp-lab-reporting
-    - product: agg_lab_turnaround
-  pii_readers: [grp-lab-doctors]
+    - grp-shop-reporting
+    - product: agg_order_turnaround
+  pii_readers: [grp-shop-support]
 ```
 
 An input port fed by a source:
@@ -120,7 +120,7 @@ An input port fed by a source:
 ```yaml
 schema_version: 1
 kind: schema
-source: ilab
+source: jaffle_shop
 schedule: "0 5 * * *"
 ```
 
@@ -128,10 +128,10 @@ An input port that reads another data product's output port has a folder named a
 
 ```yaml
 schema_version: 1
-from: sa_ilab_orders
+from: sa_jaffle_orders
 ```
 
-- A data product is identified in `product:` readers by its folder name, such as `agg_lab_turnaround`.
+- A data product is identified in `product:` readers by its folder name, such as `agg_order_turnaround`.
 - A port of kind `schema` holds any number of table files. A port of kind `table` has the same folder shape with exactly one table file.
 - A reader is either a plain string, used as the warehouse role name as written, or `product: <data product>`, which maps to that data product's role.
 - `schedule` is a declared expectation in cron form. The orchestrator runs it, not `dpb`.
@@ -141,19 +141,19 @@ from: sa_ilab_orders
 ```yaml
 schema_version: 1
 name: orders
-description: One row per lab order
+description: One row per jaffle shop order
 columns:
   - name: order_id
     type: text
     rules: [not_null, unique]
-  - name: patient_id
+  - name: customer_id
     type: text
     pii: true
   - name: status
     type: text
     rules:
       - rule: accepted_values
-        values: [open, closed]
+        values: [placed, shipped, completed, return_pending, returned]
         severity: warning
   - name: ordered_at
     type: timestamp

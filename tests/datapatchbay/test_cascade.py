@@ -9,8 +9,8 @@ from datapatchbay.settings import EffectiveSettings, load_settings
 def setup(root: Path) -> tuple[EffectiveSettings, DataProduct, DataProduct]:
     repo, problems = load_repo(root)
     assert problems == []
-    orders = next(p for p in repo.dataproducts if p.folder == "sa_ilab_orders")
-    reader = next(p for p in repo.dataproducts if p.folder == "agg_lab_turnaround")
+    orders = next(p for p in repo.dataproducts if p.folder == "sa_jaffle_orders")
+    reader = next(p for p in repo.dataproducts if p.folder == "agg_order_turnaround")
     return load_settings(root), orders, reader
 
 
@@ -19,7 +19,7 @@ def test_table_setting_beats_every_other_level(sample_repo: Path):
     port = orders.outputs[0]
     got = resolve_setting("image", settings, dataproduct=orders, port=port, table=port.tables[0])
     assert (got.value, got.level) == ("registry/orders:2", "table")
-    assert got.file == PurePosixPath("dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml")
+    assert got.file == PurePosixPath("dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml")
 
 
 def test_port_setting_beats_data_product_and_root(sample_repo: Path):
@@ -33,7 +33,7 @@ def test_data_product_setting_beats_root_and_defaults(sample_repo: Path):
     settings, orders, _ = setup(sample_repo)
     got = resolve_setting("severity", settings, dataproduct=orders, port=orders.outputs[0])
     assert (got.value, got.level) == ("warning", "dataproduct")
-    assert got.file == PurePosixPath("dataproducts/sa_ilab_orders/dataproduct.yaml")
+    assert got.file == PurePosixPath("dataproducts/sa_jaffle_orders/dataproduct.yaml")
 
 
 def test_root_setting_is_used_when_no_nearer_level_sets_it(sample_repo: Path):
@@ -77,7 +77,7 @@ def test_resolve_settings_returns_every_cascading_setting(sample_repo: Path):
     assert got["image"].to_json() == {
         "value": "registry/orders:2",
         "level": "table",
-        "file": "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml",
+        "file": "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml",
     }
 
 

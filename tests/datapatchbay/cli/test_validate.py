@@ -9,7 +9,7 @@ from datapatchbay.cli import app
 
 VALID_DATAPRODUCT = """\
 schema_version: 1
-name: ilab_orders
+name: jaffle_orders
 kind: source-aligned
 owner: Jane Doe
 """
@@ -18,7 +18,7 @@ Writer = Callable[[str, str], Path]
 
 
 def test_validate_exits_zero_on_valid_repo(runner: CliRunner, repo: Path, write_dataproduct: Writer):
-    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT)
+    write_dataproduct("sa_jaffle_orders", VALID_DATAPRODUCT)
     result = runner.invoke(app, ["validate"])
     assert result.exit_code == 0, result.output
 
@@ -37,18 +37,18 @@ def test_validate_fails_outside_repo(runner: CliRunner, tmp_path: Path, monkeypa
 def test_validate_finds_repo_root_from_subdirectory(
     runner: CliRunner, repo: Path, write_dataproduct: Writer, monkeypatch: pytest.MonkeyPatch
 ):
-    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT + "ownr: x\n")
+    write_dataproduct("sa_jaffle_orders", VALID_DATAPRODUCT + "ownr: x\n")
     monkeypatch.chdir(repo / "dataproducts")
     result = runner.invoke(app, ["validate"])
     assert result.exit_code != 0
-    assert "dataproducts/sa_ilab_orders/dataproduct.yaml:5: unknown key 'ownr'" in result.output
+    assert "dataproducts/sa_jaffle_orders/dataproduct.yaml:5: unknown key 'ownr'" in result.output
 
 
 def test_validate_reports_unknown_key_with_file_and_line(runner: CliRunner, repo: Path, write_dataproduct: Writer):
-    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT + "ownr: x\n")
+    write_dataproduct("sa_jaffle_orders", VALID_DATAPRODUCT + "ownr: x\n")
     result = runner.invoke(app, ["validate"])
     assert result.exit_code != 0
-    assert "dataproducts/sa_ilab_orders/dataproduct.yaml:5: unknown key 'ownr'" in result.output
+    assert "dataproducts/sa_jaffle_orders/dataproduct.yaml:5: unknown key 'ownr'" in result.output
 
 
 def test_validate_reports_all_problems_across_files_in_one_run(
@@ -69,7 +69,9 @@ def test_validate_reports_all_problems_across_files_in_one_run(
 
 
 def test_validate_accepts_meta_map_with_any_content(runner: CliRunner, repo: Path, write_dataproduct: Writer):
-    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT + "meta:\n  team: {slack: '#lab', tags: [a, b]}\n  n: 3\n")
+    write_dataproduct(
+        "sa_jaffle_orders", VALID_DATAPRODUCT + "meta:\n  team: {slack: '#jaffle-shop', tags: [a, b]}\n  n: 3\n"
+    )
     (repo / "datapatchbay.yaml").write_text("schema_version: 1\nmeta: {anything: [1, 2]}\n")
     assert runner.invoke(app, ["validate"]).exit_code == 0
 
@@ -111,7 +113,7 @@ def test_validate_reports_wrong_type_with_line_of_list_item(runner: CliRunner, r
 
 
 def test_validate_json_on_valid_repo(runner: CliRunner, repo: Path, write_dataproduct: Writer):
-    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT)
+    write_dataproduct("sa_jaffle_orders", VALID_DATAPRODUCT)
     result = runner.invoke(app, ["validate", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {"ok": True, "dataproducts_checked": 1, "problems": []}
