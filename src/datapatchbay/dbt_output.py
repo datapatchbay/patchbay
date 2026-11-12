@@ -10,6 +10,7 @@ the two cannot drift. Nothing here imports or runs dbt (ADR-0004).
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from operator import attrgetter
 from pathlib import Path, PurePosixPath
 
 from ruamel.yaml.comments import CommentedSeq
@@ -125,13 +126,12 @@ class DbtOutput:
         problems.extend(self._duplicates())
         return problems
 
-    def write(self, root: Path, write: Callable[[Path, str], None] = write_file) -> tuple[PurePosixPath, ...]:
+    def write(self, write: Callable[[Path, str], None] = write_file) -> tuple[PurePosixPath, ...]:
         """Write the files, then delete the orphans, then write `dbt_project.yml` last.
 
         The order means a failed write leaves the committed `dbt_project.yml` as it was.
 
         Args:
-            root: The repo root.
             write: Writes one file; defaults to a whole-or-nothing write. Raises `GenerationError` on failure.
 
         Returns:
@@ -142,13 +142,13 @@ class DbtOutput:
         """
         committed = []
         for file in self.files:
-            write(root / file.path, file.content)
+            write(self.root / file.path, file.content)
             committed.append(file.path)
         for path in self.orphans:
-            remove_file(root / path)
+            remove_file(self.root / path)
         if self.project is not None:
             write(self.project.path, self.project.content)
-            committed.append(PurePosixPath(self.project.path.relative_to(root).as_posix()))
+            committed.append(PurePosixPath(self.project.path.relative_to(self.root).as_posix()))
         return tuple(committed)
 
     def _compare(self, file: DbtFile) -> list[Problem]:
@@ -202,7 +202,9 @@ def build_dbt_output(planned: PlannedRepo) -> DbtOutput:
         (DbtFileKind.TEST, generate_dbt_tests(plans, settings)),
     ]
     files = tuple(
-        sorted((DbtFile(file.path, file.content, kind) for kind, made in kinded for file in made), key=_by_path)
+        sorted(
+            (DbtFile(file.path, file.content, kind) for kind, made in kinded for file in made), key=attrgetter("path")
+        )
     )
     models, tests = _folders(plans, MODELS_FOLDER), _folders(plans, TESTS_FOLDER)
     project: DbtProjectChange | None = None
@@ -213,10 +215,6 @@ def build_dbt_output(planned: PlannedRepo) -> DbtOutput:
     except DbtProjectError as exc:
         project_error = str(exc)
     return DbtOutput(repo.root, files, tuple(_orphans(repo, files)), models, tests, project, project_error)
-
-
-def _by_path(file: DbtFile) -> PurePosixPath:
-    return file.path
 
 
 def _folders(plans: Sequence[DataProductPlan], name: str) -> tuple[str, ...]:

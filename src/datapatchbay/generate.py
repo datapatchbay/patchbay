@@ -81,5 +81,5 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
 
     for path, content in files.items():
         write_file(target / path, content)
-    committed = dbt_output.write(root)
+    committed = dbt_output.write()
     return GenerateResult(planned.report, target, tuple(sorted(files)), committed, dbt_output.orphans)
