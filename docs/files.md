@@ -133,7 +133,7 @@ from: sa_ilab_orders
 
 - A data product is identified in `product:` readers by its folder name, such as `agg_lab_turnaround`.
 - A port of kind `schema` holds any number of table files. A port of kind `table` has the same folder shape with exactly one table file.
-- A reader is either a plain string, used as the warehouse role name as written, or `product: <data product>`, which maps to that data product's role. On DuckDB readers and PII readers are accepted and applied to nothing, and a PII column shows NULL in the view; see [Settings and plugins](settings.md).
+- A reader is either a plain string, used as the warehouse role name as written, or `product: <data product>`, which maps to that data product's role. On DuckDB readers and PII readers are accepted and applied to nothing, and a PII column shows NULL in the view; see [Concepts](concepts.md).
 - `schedule` is a declared expectation in cron form. The orchestrator runs it, not `dpb`.
 
 ## Table file

@@ -106,7 +106,7 @@ The plugin interface is not declared stable yet.
 
 ## DuckDB enforces no access
 
-On DuckDB the warehouse enforces no access: it has no roles and no grants, so readers and PII readers are accepted and applied to nothing, and a PII column always shows NULL in the view, to everyone. DuckDB is meant for local development and tests. The same files work on both warehouses, so a team can develop on DuckDB and deploy on Postgres by changing the `warehouse` setting ([ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)).
+The DuckDB warehouse enforces no access and is meant for local development and tests. Readers and PII readers are accepted and create no grants, and a PII column shows NULL to everyone. The same files then work on both warehouses, so a team can switch the `warehouse` setting between them ([ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)).
 
 ## Where the generated files go
 
