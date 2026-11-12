@@ -85,3 +85,14 @@ def test_empty_key_in_repo_file_keeps_the_default(tmp_path: Path, text: str):
     assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN}
     assert settings.values.runtime == "worker"
     assert settings.values.conventions.domains == []
+
+
+def test_dbt_project_and_profiles_locations_have_defaults_and_can_be_set(tmp_path: Path):
+    write_root(tmp_path, "schema_version: 1\n")
+    defaults = load_settings(tmp_path).values.dbt
+    assert (defaults.project_dir, defaults.profiles_dir) == (".", "~/.dbt")
+    write_root(tmp_path, "schema_version: 1\ndbt:\n  profiles_dir: /etc/dbt\n")
+    settings = load_settings(tmp_path)
+    assert (settings.values.dbt.project_dir, settings.values.dbt.profiles_dir) == (".", "/etc/dbt")
+    assert settings.origin_of("dbt.profiles_dir") == ROOT_ORIGIN
+    assert settings.origin_of("dbt.project_dir") == DEFAULTS_ORIGIN

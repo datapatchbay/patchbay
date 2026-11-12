@@ -17,8 +17,10 @@ from datapatchbay.plugins import (
     AuditTask,
     BuildTask,
     DataProductPlan,
+    DbtCall,
     GeneratedFile,
     GenerationContext,
+    PythonCall,
     RenderedTask,
     SqlTask,
     TablePlan,
@@ -58,6 +60,7 @@ class _DagFile:
         self._body: list[str] = []
         self._variables: set[str] = set()
         self._task_ids: set[str] = set()
+        self._needed: set[str] = set()  # tables that a later task follows, so they are not the last
 
     def render(self) -> str:
         plan = self._plan
@@ -136,10 +139,26 @@ class _DagFile:
         return "None"
 
     def _tables(self) -> dict[str, list[str]]:
-        """Add a build task and its audit tasks per table; return the variables that mean 'table done'."""
+        """Add the build tasks and audit tasks; return the variables that mean 'table done' per table.
+
+        Each Python table has a build task and its audit tasks. The tables built by dbt share one task that runs after
+        the Python tables, because dbt runs their models and data tests together.
+        """
+        context = self._context
+        calls = {table.name: context.executors[table.executor].call(table) for table in self._plan.tables}
+        dbt_tables = [table for table in self._plan.tables if isinstance(calls[table.name], DbtCall)]
+        dbt_names = {table.name for table in dbt_tables}
         done: dict[str, list[str]] = {}
         for table in self._plan.tables:
-            build = self._build(table)
+            if table.name in dbt_names:
+                continue
+            for need in table.needs:
+                if need in dbt_names:
+                    raise UnsupportedCombinationError(
+                        f"table '{table.name}' needs table '{need}', which dbt builds after the Python tables; "
+                        "dbt tables cannot be needed"
+                    )
+            build = self._build(table, calls[table.name])
             audits = [
                 self._audit_task(audit, f"audit of table '{table.name}'") for audit in self._warehouse_audits(table)
             ]
@@ -149,21 +168,40 @@ class _DagFile:
             for need in table.needs:
                 for upstream in done[need]:
                     self._body.append(f"{upstream} >> {build}")
+            self._needed.update(table.needs)
+        if dbt_tables:
+            self._dbt(dbt_tables, calls, done)
         return done
 
-    def _build(self, table: TablePlan) -> str:
-        context = self._context
-        task_id = f"build_{table.name}"
-        where = f"table '{table.name}'"
+    def _dbt(self, tables: list[TablePlan], calls: dict[str, PythonCall | DbtCall], done: dict[str, list[str]]) -> None:
+        """Add the one task that builds the dbt tables with `dbt build`, after every Python table is done."""
+        first = tables[0]
+        for table in tables:
+            if table.runtime != first.runtime:
+                raise UnsupportedCombinationError(
+                    f"tables '{first.name}' and '{table.name}' are built by dbt in one task, "
+                    f"but their runtimes are '{first.runtime}' and '{table.runtime}'"
+                )
+        upstream = [variable for name, variables in done.items() if name not in self._needed for variable in variables]
+        build = self._build(first, calls[first.name], task_id="build_dbt", where="tables built by dbt")
+        self._body.extend(f"{variable} >> {build}" for variable in upstream)
+        self._needed.update(done)  # the dbt task follows every Python table, so only it is last
+        for table in tables:
+            done[table.name] = [build]
+
+    def _build(
+        self, table: TablePlan, call: PythonCall | DbtCall, *, task_id: str | None = None, where: str | None = None
+    ) -> str:
+        task_id = task_id or f"build_{table.name}"
+        where = where or f"table '{table.name}'"
         self._claim_task_id(task_id, where)
-        executor = context.executors[table.executor]
-        runtime = context.runtimes[table.runtime]
+        runtime = self._context.runtimes[table.runtime]
         variable = self._variable(task_id)
-        task = BuildTask(task_id=task_id, table=table, call=executor.call(table))
+        task = BuildTask(task_id=task_id, table=table, call=call)
         try:
             rendered = runtime.render_build_task(task, orchestrator=self._plan.orchestrator, variable=variable)
         except ValueError as exc:
-            raise UnsupportedCombinationError(f"table '{table.name}': {exc}") from exc
+            raise UnsupportedCombinationError(f"{where}: {exc}") from exc
         self._add(rendered)
         return variable
 
@@ -207,8 +245,11 @@ class _DagFile:
     def _finish(self, done: dict[str, list[str]]) -> None:
         """After every table: the warehouse's SQL, then the task that marks the output ports as updated."""
         plan = self._plan
-        needed = {need for table in plan.tables for need in table.needs}
-        last = [variable for table in plan.tables if table.name not in needed for variable in done[table.name]]
+        last = list(
+            dict.fromkeys(
+                variable for table in plan.tables if table.name not in self._needed for variable in done[table.name]
+            )
+        )
         warehouse = self._context.warehouse
         for sql_task in warehouse.apply_tasks(plan) if warehouse is not None else ():
             variable = self._sql_task(sql_task, "warehouse")

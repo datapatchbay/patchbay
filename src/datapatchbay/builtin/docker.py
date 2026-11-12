@@ -21,11 +21,12 @@ class DockerRuntime:
             raise UnsupportedCombinationError(
                 f"the docker runtime cannot render tasks for orchestrator '{orchestrator}'"
             )
+        command = loader_arguments(task, "docker")  # first, so a dbt call is refused before a missing image
         set_by_dpb = {
             "task_id": task.task_id,
             "image": image_of(task, "docker"),
             "entrypoint": ["python"],
-            "command": loader_arguments(task),
+            "command": command,
         }
         return RenderedTask(
             imports=("from airflow.providers.docker.operators.docker import DockerOperator",),

@@ -1,13 +1,15 @@
 """Turning the loaded repo into the plans that plugins generate from, with settings resolved over the cascade."""
 
+import os
 from collections.abc import Mapping
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from datapatchbay.cascade import resolve_setting, resolve_settings
+from datapatchbay.dbt import MODELS_FOLDER
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
 from datapatchbay.naming import DerivedNames, derive_names
-from datapatchbay.plugins import DataProductPlan, SourceSchedule, TablePlan
+from datapatchbay.plugins import DataProductPlan, DbtLocation, SourceSchedule, TablePlan
 from datapatchbay.repomodel import DataProduct, Repo
 from datapatchbay.settings import EffectiveSettings
 
@@ -28,7 +30,7 @@ def plan_dataproducts(repo: Repo, settings: EffectiveSettings) -> list[DataProdu
     plans = []
     for dataproduct in repo.dataproducts:
         orchestrator = resolve_setting("orchestrator", settings, dataproduct=dataproduct)
-        plans.append(_plan(dataproduct, settings, str(orchestrator.value), names[dataproduct.folder], roles))
+        plans.append(_plan(dataproduct, settings, str(orchestrator.value), names[dataproduct.folder], roles, repo.root))
     return plans
 
 
@@ -43,7 +45,9 @@ def _plan(
     orchestrator: str,
     names: DerivedNames,
     roles: Mapping[str, str],
+    root: Path,
 ) -> DataProductPlan:
+    dbt = _dbt_location(dataproduct, settings, root)
     tables = []
     for port in dataproduct.ports:
         for table in port.tables:
@@ -70,6 +74,7 @@ def _plan(
                     port_source=port,
                     source=table,
                     container={} if container is None else container,
+                    dbt=dbt,
                 )
             )
 
@@ -98,6 +103,23 @@ def _plan(
         source=dataproduct,
         names=names,
         roles=roles,
+    )
+
+
+def _dbt_location(dataproduct: DataProduct, settings: EffectiveSettings, root: Path) -> DbtLocation:
+    """Place the models of a data product in the dbt project, which the `dbt.project_dir` setting locates."""
+    dbt = settings.values.dbt
+    models = dataproduct.directory / MODELS_FOLDER
+    if PurePosixPath(dbt.project_dir).is_absolute():
+        # The project is a copy of the repo's layout somewhere else on the worker: select by the path in the repo.
+        project_dir = dbt.project_dir
+        select = os.path.relpath(models, root)
+    else:
+        project = Path(os.path.normpath(root / dbt.project_dir))
+        project_dir = Path(os.path.relpath(project, dataproduct.directory)).as_posix()
+        select = os.path.relpath(models, project)
+    return DbtLocation(
+        models=PurePosixPath(Path(select).as_posix()), project_dir=project_dir, profiles_dir=dbt.profiles_dir
     )
 
 

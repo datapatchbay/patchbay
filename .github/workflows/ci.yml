@@ -98,7 +98,7 @@ jobs:
           "$RUNNER_TEMP/airflow-venv/bin/python" tests/airflow/check_dags.py "$RUNNER_TEMP/dags" \
             sa_ilab_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
             agg_lab_turnaround apply_access,build_turnaround,publish_outputs \
-            agg_lab_weekly apply_access,build_weekly_raw,build_weekly,build_weekly_pod,publish_outputs
+            agg_lab_weekly apply_access,build_weekly_raw,build_weekly,build_weekly_pod,build_dbt,publish_outputs
 
       - name: Generate and load the DAGs of the example repo
         working-directory: examples/lab

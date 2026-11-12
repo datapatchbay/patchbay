@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from datapatchbay.literals import python_literal
-from datapatchbay.plugins import BuildTask, UnsupportedCombinationError
+from datapatchbay.plugins import BuildTask, PythonCall, UnsupportedCombinationError
 
 ENTRYPOINT_LOADER = """\
 import importlib.util, json, sys
@@ -24,6 +24,20 @@ getattr(module, function)(**json.loads(params))"""
 would read as a template."""
 
 _INDENT = "    "
+
+
+def python_call_of(task: BuildTask, runtime: str) -> PythonCall:
+    """Return the task's Python call.
+
+    Raises:
+        UnsupportedCombinationError: If the executor asks for something else, such as a `dbt build`, which only the
+            worker runtime runs.
+    """
+    if not isinstance(task.call, PythonCall):
+        raise UnsupportedCombinationError(
+            f"the {runtime} runtime cannot run dbt: set `runtime: worker` for the tables built by dbt"
+        )
+    return task.call
 
 
 def image_of(task: BuildTask, runtime: str) -> str:
@@ -40,13 +54,14 @@ def image_of(task: BuildTask, runtime: str) -> str:
     return image
 
 
-def loader_arguments(task: BuildTask) -> list[str]:
+def loader_arguments(task: BuildTask, runtime: str) -> list[str]:
     """Return the arguments of `python`: the loader, then the file, the function and the params as JSON.
 
     Raises:
+        UnsupportedCombinationError: If the task is not a Python call.
         ValueError: If a param is not a plain YAML value.
     """
-    call = task.call
+    call = python_call_of(task, runtime)
     python_literal(call.params)  # refuses what YAML reads as a date or other non-plain value
     params = json.dumps(dict(call.params), separators=(",", ":"), ensure_ascii=False)
     return ["-c", ENTRYPOINT_LOADER, call.file.as_posix(), call.function, params]

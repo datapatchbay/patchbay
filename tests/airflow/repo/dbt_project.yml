@@ -1,0 +1,5 @@
+name: lab
+version: "1.0"
+profile: lab
+model-paths:
+  - dataproducts/agg_lab_weekly/models

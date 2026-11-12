@@ -59,6 +59,9 @@ runtime: worker            # worker | docker | kubernetes
 severity: error            # default severity of quality rules
 connection: warehouse      # the orchestrator's connection to the warehouse
 output_dir: generated      # where `dpb generate` writes, relative to the repo root
+dbt:
+  project_dir: .           # the dbt project on the worker; relative to the repo root as deployed with the DAG files
+  profiles_dir: ~/.dbt     # the folder with profiles.yml on the worker
 conventions:
   kinds:
     source-aligned: {prefix: sa}

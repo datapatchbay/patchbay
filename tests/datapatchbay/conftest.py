@@ -98,9 +98,24 @@ def sample_repo(tmp_path: Path) -> Path:
 LAB_REPO = Path(__file__).parents[1] / "airflow" / "repo"
 
 
+DBT_FIXTURE = frozenset({"dbt_project.yml", "models", "weekly_summary.yaml"})
+"""The files of the fixture repo that exist for the table built by dbt, which most tests do without."""
+
+
 @pytest.fixture
 def lab_repo(tmp_path: Path) -> Path:
-    """A copy of the valid fixture repo that CI also loads in Airflow: a source-fed data product and its reader."""
+    """A copy of the valid fixture repo that CI also loads in Airflow, without its table built by dbt.
+
+    A source-fed data product and its reader, and a data product that mixes runtimes.
+    """
+    root = tmp_path / "repo"
+    shutil.copytree(LAB_REPO, root, ignore=lambda _folder, names: DBT_FIXTURE.intersection(names))
+    return root
+
+
+@pytest.fixture
+def lab_dbt_repo(tmp_path: Path) -> Path:
+    """A copy of the whole fixture repo, where `agg_lab_weekly` also has a table that dbt builds."""
     root = tmp_path / "repo"
     shutil.copytree(LAB_REPO, root)
     return root

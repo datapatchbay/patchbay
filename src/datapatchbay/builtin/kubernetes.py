@@ -33,12 +33,13 @@ class KubernetesRuntime:
                 f"the kubernetes runtime cannot render tasks for orchestrator '{orchestrator}'"
             )
         table = task.table
+        arguments = loader_arguments(task, "kubernetes")  # first, so a dbt call is refused before a missing image
         set_by_dpb = {
             "task_id": task.task_id,
             "name": pod_name(table.dataproduct, table.name),
             "image": image_of(task, "kubernetes"),
             "cmds": ["python"],
-            "arguments": loader_arguments(task),
+            "arguments": arguments,
         }
         return RenderedTask(
             imports=("from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator",),
