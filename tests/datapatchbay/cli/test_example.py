@@ -7,9 +7,7 @@ Airflow against a real Postgres is `tests/airflow/run_example.py`, an integratio
 
 import filecmp
 import json
-import os
 import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -115,46 +113,4 @@ def test_a_model_that_reads_a_private_schema_of_the_python_data_product_fails_va
     (in_example / MANIFEST).write_text(json.dumps(manifest))
     result = runner.invoke(app, ["validate"])
     assert result.exit_code != 0
-    assert "private schema 'sa_jaffle_orders_private'" in result.output
-
-
-def dbt_parse(project: Path) -> None:
-    """Run the real `dbt parse` on the project, which writes `target/manifest.json`."""
-    dbt = shutil.which("dbt")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
-    if dbt is None:
-        pytest.skip("dbt is not installed; it is in the dependency group `dbt`")
-    # The profile of the example reads the connection from the environment and has defaults, so parsing needs no server.
-    result = subprocess.run(
-        [dbt, "parse", "--project-dir", str(project), "--profiles-dir", str(project)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-
-
-@pytest.mark.dbt
-def test_validate_passes_after_dbt_parse(runner: CliRunner, in_example: Path):
-    (in_example / MANIFEST).unlink()
-    dbt_parse(in_example)
-    result = runner.invoke(app, ["validate"])
-    assert result.exit_code == 0, result.output
-
-
-@pytest.mark.dbt
-def test_validate_fails_after_dbt_parse_when_the_model_reads_the_private_table(runner: CliRunner, in_example: Path):
-    (in_example / MANIFEST).unlink()
-    (in_example / READER / "models" / "private_sources.yml").write_text(
-        "sources:\n  - name: sa_jaffle_orders_private\n    schema: sa_jaffle_orders_private\n"
-        "    tables:\n      - name: orders\n"
-    )
-    (in_example / MODEL).write_text(
-        "select order_id, 1 as turnaround_hours, ordered_at\nfrom {{ source('sa_jaffle_orders_private', 'orders') }}\n"
-    )
-    dbt_parse(in_example)
-    result = runner.invoke(app, ["validate"])
-    assert result.exit_code != 0
-    assert f"{MODEL}:2:" in result.output
     assert "private schema 'sa_jaffle_orders_private'" in result.output

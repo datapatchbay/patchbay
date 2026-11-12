@@ -1,7 +1,3 @@
-import json
-import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -147,40 +143,3 @@ def test_hand_edited_sources_fail(repo: Path):
     (repo / SOURCES).write_text("sources: []\n")
     [problem] = rendered(repo)
     assert problem.startswith(f"{SOURCES}: ")
-
-
-@pytest.mark.dbt
-def test_dbt_parses_a_model_that_reads_another_data_product(repo: Path, tmp_path: Path):
-    dbt = shutil.which("dbt")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
-    if dbt is None:
-        pytest.skip("dbt is not installed; CI runs this test with `--group dbt`")
-    write(repo, MODEL, "select order_id as days from {{ source('sa_jaffle_orders', 'orders') }}\n")
-    write(repo, TABLE, TABLE_YAML.replace("numeric", "text"))
-    write(
-        repo,
-        "dbt_project.yml",
-        f"name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\nmodel-paths: ['{DP}/models']\n",
-    )
-    generate_repo(repo)
-    profiles = tmp_path / "profiles"
-    write(
-        profiles,
-        "profiles.yml",
-        "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
-        "      {type: postgres, host: localhost, user: u, password: p, port: 5432, dbname: d, schema: s, threads: 1}\n",
-    )
-    result = subprocess.run(
-        [dbt, "parse", "--project-dir", str(repo), "--profiles-dir", str(profiles)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    manifest = json.loads((repo / "target" / "manifest.json").read_text())
-    model = manifest["nodes"]["model.jaffle_shop.agg_order_turnaround__turnaround"]
-    assert model["sources"] == [["sa_jaffle_orders", "orders"]]
-    source = manifest["sources"]["source.jaffle_shop.sa_jaffle_orders.orders"]
-    assert source["schema"] == "sa_jaffle_orders"
-    assert list(source["columns"]) == ["order_id", "customer_id"]

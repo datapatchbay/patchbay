@@ -336,7 +336,12 @@ when a test fails. It needs Docker and nothing else:
 scripts/integration-tests          # extra arguments go to pytest, for example -k audit
 ```
 
-Run it before pushing a change to the Postgres SQL. CI does not run integration tests. A quality rule MUST also be
+The same command installs the `dbt` dependency group and runs the tests marked `dbt`, which run the real `dbt parse` on
+the generated dbt files. Those tests live in the integration folder too, and a missing dbt fails them instead of
+skipping them. A selected integration test MUST run.
+
+Run it before pushing a change to the Postgres SQL or to the generated dbt files (properties, sources, tests,
+`dbt_project.yml`). CI does not run integration tests. A quality rule MUST also be
 checked on DuckDB by a unit test, so that CI keeps covering it.
 
 ## Related Guidance

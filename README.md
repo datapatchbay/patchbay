@@ -84,7 +84,7 @@ scripts/integration-tests         # starts Postgres in Docker, runs the tests ma
 scripts/integration-tests -k audit  # arguments go to pytest
 ```
 
-Run it before pushing a change to the Postgres SQL. CI does not run it. The example runs end to end in Airflow with `tests/airflow/run_example.py`, which its docstring describes: Airflow in its own virtual environment, a Postgres server, and the `bin` folder of an environment with dbt (`uv sync --group dbt` makes `.venv/bin`).
+It also runs the tests that call the real `dbt parse` on the generated dbt files (dbt comes from the `dbt` dependency group). Run it before pushing a change to the Postgres SQL or to the generated dbt files. CI does not run it. The example runs end to end in Airflow with `tests/airflow/run_example.py`, which its docstring describes: Airflow in its own virtual environment, a Postgres server, and the `bin` folder of an environment with dbt (`uv sync --group dbt` makes `.venv/bin`).
 
 Tests mirror the package: the tests for `src/datapatchbay/x.py` live in `tests/datapatchbay/test_x.py`. See [CODING_STANDARDS.md](CODING_STANDARDS.md) for the rest. Every pull request runs the tests on Python 3.12, 3.13 and 3.14, and runs ty and ruff.
 

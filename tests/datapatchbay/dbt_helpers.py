@@ -1,6 +1,10 @@
 """Constants and helpers shared by the dbt tests."""
 
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from datapatchbay.validation import load_and_validate, validate_repo
 
@@ -26,3 +30,27 @@ def write(repo: Path, relative: str, text: str) -> None:
     path = repo / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
+
+
+PROFILES = (
+    "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
+    "      {type: postgres, host: localhost, user: u, password: p, port: 5432, dbname: d, schema: s, threads: 1}\n"
+)
+
+
+def dbt_parse(project: Path, profiles_dir: Path) -> None:
+    """Run the real `dbt parse` on the project, which writes `target/manifest.json`.
+
+    For the integration tests only. dbt is in the dependency group `dbt`, which `scripts/integration-tests` installs,
+    so a missing dbt fails the test: a selected integration test must run (ADR-0020).
+    """
+    dbt = shutil.which("dbt")
+    if dbt is None:
+        pytest.fail("dbt is not installed; run the integration tests with scripts/integration-tests")
+    result = subprocess.run(
+        [dbt, "parse", "--project-dir", str(project), "--profiles-dir", str(profiles_dir)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -64,7 +64,7 @@ testpaths = ["tests"]
 addopts = ["-ra", "--import-mode=importlib", "-m", "not integration"]
 strict = true
 markers = [
-    "dbt: runs `dbt parse` on generated properties; skipped unless dbt is installed (dependency group `dbt`)",
+    "dbt: runs the real dbt (dependency group `dbt`); only in tests/datapatchbay/integration, where a missing dbt fails",
     "integration: needs a Postgres server; added to every test in tests/datapatchbay/integration; run by scripts/integration-tests",
 ]
 # Helper modules such as plugin_fakes.py sit next to the tests and are imported by name.
