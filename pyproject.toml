@@ -15,22 +15,22 @@ dependencies = [
 dpb = "datapatchbay.cli:main"
 
 [project.entry-points."datapatchbay.orchestrators"]
-airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
-dagster = "datapatchbay.builtin.dagster:DagsterOrchestrator"
-local = "datapatchbay.builtin.local:LocalOrchestrator"
+airflow = "datapatchbay.integrations.airflow.orchestrator:AirflowOrchestrator"
+dagster = "datapatchbay.integrations.dagster.orchestrator:DagsterOrchestrator"
+local = "datapatchbay.integrations.local.orchestrator:LocalOrchestrator"
 
 [project.entry-points."datapatchbay.executors"]
-python = "datapatchbay.builtin.python_executor:PythonExecutor"
-dbt = "datapatchbay.builtin.dbt_executor:DbtExecutor"
+python = "datapatchbay.integrations.python.executor:PythonExecutor"
+dbt = "datapatchbay.integrations.dbt.executor:DbtExecutor"
 
 [project.entry-points."datapatchbay.runtimes"]
-worker = "datapatchbay.builtin.worker:WorkerRuntime"
-docker = "datapatchbay.builtin.docker:DockerRuntime"
-kubernetes = "datapatchbay.builtin.kubernetes:KubernetesRuntime"
+worker = "datapatchbay.integrations.worker.runtime:WorkerRuntime"
+docker = "datapatchbay.integrations.docker.runtime:DockerRuntime"
+kubernetes = "datapatchbay.integrations.kubernetes.runtime:KubernetesRuntime"
 
 [project.entry-points."datapatchbay.warehouses"]
-postgres = "datapatchbay.builtin.postgres:PostgresWarehouse"
-duckdb = "datapatchbay.builtin.duckdb:DuckDbWarehouse"
+postgres = "datapatchbay.integrations.postgres.warehouse:PostgresWarehouse"
+duckdb = "datapatchbay.integrations.duckdb.warehouse:DuckDbWarehouse"
 
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11"]
@@ -70,8 +70,8 @@ testpaths = ["tests"]
 addopts = ["-ra", "--import-mode=importlib", "-m", "not integration"]
 strict = true
 markers = [
-    "dbt: runs the real dbt (dependency group `dbt`); only in tests/datapatchbay/integration, where a missing dbt fails",
-    "integration: needs a Postgres server; added to every test in tests/datapatchbay/integration; run by scripts/integration-tests",
+    "dbt: runs the real dbt (dependency group `dbt`); only in tests/integration, where a missing dbt fails",
+    "integration: needs a Postgres server; added to every test in tests/integration; run by scripts/integration-tests",
 ]
 # Helper modules such as plugin_fakes.py sit next to the tests and are imported by name.
 pythonpath = ["tests/datapatchbay"]

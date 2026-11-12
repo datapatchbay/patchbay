@@ -8,7 +8,7 @@ from pathlib import PurePosixPath
 from ruamel.yaml.comments import CommentedMap
 
 from datapatchbay.cascade import ResolvedCascade, ResolvedSetting
-from datapatchbay.dbt import DBT_EXECUTOR
+from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.plugins import Runtime
 from datapatchbay.problems import Problem
 from datapatchbay.registry import PluginKind, load_plugin, plugin_names

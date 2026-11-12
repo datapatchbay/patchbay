@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from datapatchbay.dbt_output import build_dbt_output
 from datapatchbay.filewrite import GenerationError, write_file
+from datapatchbay.integrations.dbt.output import build_dbt_output
 from datapatchbay.problems import Report
 from datapatchbay.rendering import render_dataproducts
 from datapatchbay.validation import plan_repo

@@ -8,9 +8,9 @@ from typing import Any
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
-from datapatchbay.dbt import DBT_EXECUTOR
-from datapatchbay.dbt_import import DbtImport, rename_refs
 from datapatchbay.errors import DatapatchbayError
+from datapatchbay.integrations.dbt.importer import DbtImport, rename_refs
+from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.models.base import SCHEMA_VERSION
 from datapatchbay.models.port import check_cron
 from datapatchbay.naming import derive_names, is_snake_case, render_name

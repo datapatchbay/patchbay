@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.cascade import ResolvedCascade
-from datapatchbay.dbt import MODELS_FOLDER
+from datapatchbay.integrations.dbt.layout import MODELS_FOLDER
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
 from datapatchbay.naming import DerivedNames, derive_names
 from datapatchbay.plugins import DataProductPlan, DbtLocation, SourceSchedule, TablePlan

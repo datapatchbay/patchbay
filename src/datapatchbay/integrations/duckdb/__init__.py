@@ -1,0 +1,1 @@
+"""The duckdb integration."""
