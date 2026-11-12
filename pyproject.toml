@@ -23,6 +23,8 @@ dbt = "datapatchbay.builtin.dbt_executor:DbtExecutor"
 
 [project.entry-points."datapatchbay.runtimes"]
 worker = "datapatchbay.builtin.worker:WorkerRuntime"
+docker = "datapatchbay.builtin.docker:DockerRuntime"
+kubernetes = "datapatchbay.builtin.kubernetes:KubernetesRuntime"
 
 [project.entry-points."datapatchbay.warehouses"]
 postgres = "datapatchbay.builtin.postgres:PostgresWarehouse"

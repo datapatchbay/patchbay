@@ -42,10 +42,10 @@ def test_generate_validates_first_and_writes_nothing_when_the_repo_is_invalid(ru
 def test_generate_fails_for_a_runtime_without_a_plugin_and_names_data_product_and_table(
     runner: CliRunner, in_lab_repo: Path
 ):
-    (in_lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: kubernetes\n")
+    (in_lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: podman\n")
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 1
-    assert "runtime 'kubernetes' has no plugin (data product 'sa_ilab_orders', table 'orders')" in result.stderr
+    assert "runtime 'podman' has no plugin (data product 'sa_ilab_orders', table 'orders')" in result.stderr
     assert not (in_lab_repo / "generated").exists()
 
 
