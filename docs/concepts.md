@@ -98,3 +98,9 @@ Rules run as generated audit tasks in the orchestrator, after the table's build 
 - Build code connects by itself. On the worker it can use the orchestrator's connection. In a container it reads what the team put in the container's environment.
 
 A change to access takes effect on the next run of the data product's DAG, not at merge time.
+
+## Why it works this way
+
+Each design decision is recorded with the options that were considered and what follows from it, in [`docs/adr`](https://github.com/datapatchbay/patchbay/tree/main/docs/adr) of the repo. Start with [`dpb` never connects to the warehouse](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0001-dpb-never-connects-to-the-warehouse.md) and [output ports are views over private tables](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0002-output-ports-are-views-over-private-tables.md).
+
+To see the model at work, follow the [tutorial](tutorial.md).

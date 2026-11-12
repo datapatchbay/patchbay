@@ -200,4 +200,4 @@ dpb schema table        # a table file
 dpb schema              # all four, as one JSON object keyed by kind
 ```
 
-The schema is generated from the same models `dpb validate` uses. It accepts the short form of a column rule, a bare `not_null` or `unique`. The schema checks the shape of a file; the cross-file checks of `dpb validate` (names, folders, readers, freshness) are not in it. See the README for how to point an editor at the schema.
+The schema is generated from the same models `dpb validate` uses. It accepts the short form of a column rule, a bare `not_null` or `unique`. The schema checks the shape of a file; the cross-file checks of `dpb validate` (names, folders, readers, freshness) are not in it. [Set up your editor](howto/editor.md) shows how to point an editor at the schema.
