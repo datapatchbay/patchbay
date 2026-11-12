@@ -1,0 +1,8 @@
+schema_version: 1
+kind: schema
+freshness: 24h
+access:
+  readers:
+    - grp-lab-reporting
+    - product: agg_lab_turnaround
+  pii_readers: [grp-lab-doctors]

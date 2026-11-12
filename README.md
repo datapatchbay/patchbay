@@ -9,6 +9,24 @@ Data products as code. Declare owners, ports and freshness in YAML, then scaffol
 
 Documentation: [datapatchbay.dev](https://datapatchbay.dev)
 
+## Quickstart
+
+You need [uv](https://docs.astral.sh/uv/). Start a repo, scaffold a source-aligned data product, validate it and generate its Airflow DAG:
+
+```sh
+uv tool install git+https://github.com/datapatchbay/patchbay   # not on PyPI yet
+mkdir lab && cd lab
+echo "schema_version: 1" > datapatchbay.yaml
+
+dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --no-input
+dpb validate
+dpb generate
+```
+
+`dpb new` creates `dataproducts/sa_ilab_orders/` with its files and a stub Python function per table. `dpb validate` prints `ok: 1 data product(s) valid`, and `dpb generate` writes `generated/sa_ilab_orders.py`, an Airflow 3 DAG that you deploy to your Airflow (add `generated/` to `.gitignore`: it is build output). Replace the stubs in `src/` with build code that writes the tables to your warehouse, and describe the output port in its `port.yaml` (freshness, readers, PII readers).
+
+[`examples/lab`](examples/lab) is a finished version with two data products: `sa_ilab_orders`, which ingests from a source and publishes orders with a PII column, and `agg_lab_turnaround`, which reads that output port. CI runs both generated DAGs against a real Postgres and checks that a reader sees NULL in the PII column while a PII reader sees the value. Try the commands on it with `cd examples/lab && dpb validate && dpb list && dpb generate`.
+
 ## Editor support
 
 `dpb schema` prints the JSON Schema of the four kinds of file, so an editor can complete and check them as you type. Save the schemas once, and again after upgrading `dpb`:

@@ -1,0 +1,2 @@
+schema_version: 1
+# Everything else is a default: Postgres, Airflow, the Python executor on the worker, and the connection `warehouse`.
