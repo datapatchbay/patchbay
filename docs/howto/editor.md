@@ -10,4 +10,4 @@ With the JSON Schema of the files, an editor completes keys and marks mistakes a
 ## Next
 
 - The [file reference](../files.md) describes every key.
-- [`dpb schema`](../files.md#json-schema) lists the schemas that `dpb` prints.
+- [`dpb schema`](../cli.md#dpb-schema) lists the schemas that `dpb` prints.

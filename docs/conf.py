@@ -60,7 +60,8 @@ sitemap_excludes = ["404.html", "genindex.html", "search.html"]
 LLMS_SUMMARY = (
     "datapatchbay (`dpb`) is a file-based CLI for data products as code. A data product is a folder of YAML files "
     "that state its owner, its input and output ports, its tables, its freshness and its readers. `dpb` scaffolds "
-    "and validates those files, and generates Airflow DAGs and Postgres SQL from them."
+    "and validates those files, and generates the orchestrator files (Airflow 3, Dagster or a local script) and "
+    "the warehouse SQL (Postgres or DuckDB) from them."
 )
 
 
@@ -81,7 +82,14 @@ def write_llms_txt(app, exception):
     (Path(app.outdir) / "llms.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def drop_avoid_lines(app, relative_path, parent_docname, content):
+    """Leave the `_Avoid_:` lines of `GLOSSARY.md` out of the site: they guide contributors, not readers."""
+    if relative_path.name == "GLOSSARY.md":
+        content[0] = "".join(line for line in content[0].splitlines(keepends=True) if not line.startswith("_Avoid_"))
+
+
 def setup(app):
+    app.connect("include-read", drop_avoid_lines)
     app.connect("build-finished", write_llms_txt)
 
 
@@ -92,7 +100,7 @@ html_theme_options = {
     "light_logo": "datapatchbay-logo-light.svg",
     "dark_logo": "datapatchbay-logo-dark.svg",
     "sidebar_hide_name": True,
-    "announcement": "Design agreed, nothing released yet. These pages describe milestone 1 as designed.",
+    "announcement": "Not released yet: install from GitHub. The plugin interface may still change.",
     "source_repository": "https://github.com/datapatchbay/patchbay/",
     "source_branch": "main",
     "source_directory": "docs/",

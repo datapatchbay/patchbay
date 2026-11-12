@@ -67,7 +67,15 @@ version: "1.0"
 profile: jaffle_shop
 ```
 
-For models to land in the private schema of their data product, the project must also override the `generate_schema_name` macro. See the [table file reference](../files.md#table-file) for the macro.
+For models to land in the private schema of their data product, the project must also override the `generate_schema_name` macro. Create `macros/generate_schema_name.sql`:
+
+```jinja
+{% macro generate_schema_name(custom_schema_name, node) -%}
+    {{ custom_schema_name | trim if custom_schema_name is not none else target.schema }}
+{%- endmacro %}
+```
+
+Without it, dbt creates the tables in a schema such as `<target schema>_<private schema>`, and the views and grants do not find them. `dpb` does not write or check this macro. See [The schema name macro](../dbt.md#the-schema-name-macro).
 
 ## 5. Generate the dbt files
 
@@ -109,7 +117,9 @@ When you remove a table rule or a table, run `dpb generate` again. It removes th
 
 ## What runs
 
-All dbt tables of a data product share one task in its DAG, `build_dbt`. It runs `dbt build` on the data product's `models/` folder on the Airflow worker, after the Python tables and before the views and grants. dbt runs the data tests itself, so these tables get no audit task. The worker needs the `dbt` command and a profile. See [dbt on the worker](../settings.md#dbt-on-the-worker).
+All dbt tables of a data product share one task in its DAG, `build_dbt`. It runs `dbt build` on the data product's `models/` folder on the Airflow worker, after the Python tables and before the views and grants. dbt runs the data tests itself, so these tables get no audit task. The worker needs the `dbt` command and a profile. See [dbt on the worker](../dbt.md#dbt-on-the-worker).
+
+The [dbt reference](../dbt.md) describes every generated file, and [Import an existing dbt project](import-dbt.md) starts from models you already have.
 
 ## Limits
 

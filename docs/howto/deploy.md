@@ -1,6 +1,6 @@
 # Deploy the generated DAGs
 
-`dpb generate` writes one Airflow 3 DAG file per data product. This guide shows how to generate them in CD and what Airflow needs to run them.
+`dpb generate` writes one Airflow 3 DAG file per data product. This guide shows how to generate them in CD, how to get them to Airflow, and what Airflow needs to run them.
 
 ## Generate in CD
 
@@ -21,7 +21,7 @@ The files go to the folder of the `output_dir` setting, `generated` by default. 
 
 A table on the `worker` runtime runs its build code on the Airflow worker. The generated DAG file finds that code from its own location. It holds the relative path from the output folder to the data product folder, as it was when you ran `dpb generate`: `../dataproducts/<data product>` for the default output folder. So the output folder and the data product folders must keep their relative places on the worker.
 
-The simplest way is to deploy the whole repo, with `generated/` in it, as the DAG bundle:
+The simplest way is to deploy the whole repo, with `generated/` in it, as the DAG bundle. A DAG bundle is the place where Airflow 3 reads DAG files from:
 
 ```text
 <DAG bundle>/
@@ -34,6 +34,27 @@ The simplest way is to deploy the whole repo, with `generated/` in it, as the DA
 ```
 
 Tables on the `docker` or `kubernetes` runtime do not read the repo on the worker. Their build code is in the image. See [Run build code in a container](containers.md).
+
+## Get the files to Airflow
+
+`generated/` is not in git, so the CD job has to bring it to Airflow together with the repo. Generate first, then publish the checkout in the way your Airflow reads DAG files:
+
+A folder that Airflow reads
+: Copy the checkout, with `generated/` in it, to the folder of the DAG bundle on the Airflow hosts, or to the bucket that the bundle reads:
+
+  ```sh
+  rm -rf generated
+  dpb generate
+  rsync -a --delete --exclude .git ./ airflow:/opt/airflow/dags/jaffle_shop/
+  ```
+
+The Airflow image
+: Copy the checkout, with `generated/` in it, into the image that the scheduler and the workers run.
+
+A git DAG bundle
+: A bundle that tracks the source repo does not see `generated/`. Let the CD job commit the checkout, with `generated/` in it, to a deploy branch or a deploy repo, and point the bundle at that.
+
+Whichever way you choose, the workers must see the same files as the DAG processor, because the build tasks load the build code on the worker.
 
 ## What Airflow needs
 
@@ -50,7 +71,7 @@ Build code that can connect
 : Build code connects to the warehouse by itself. On the `worker` runtime it can use the Airflow connection. In a container it uses what you put in the container's environment.
 
 dbt, for tables built by dbt
-: The `dbt` command and a profile on the worker. See [dbt on the worker](../settings.md#dbt-on-the-worker).
+: The `dbt` command and a profile on the worker, and the `dbt_project.yml` of the repo in the DAG bundle. See [dbt on the worker](../dbt.md#dbt-on-the-worker).
 
 ## When a change takes effect
 

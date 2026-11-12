@@ -52,9 +52,12 @@ The pages are sorted by what the reader wants to do:
 
 | Section | Holds | Add a page when |
 | --- | --- | --- |
-| Getting started | The installation and one tutorial | Rarely. Extend the tutorial instead |
+| Getting started | What a data product is, the installation and one tutorial | Rarely. Extend the tutorial instead |
 | How-to guides | One task per page, as steps | Users ask how to do something |
-| Reference | Commands, files, settings and terms | A command or a kind of file is added |
-| Explanation | How it works and why | A concept needs more than a paragraph |
+| Reference | Commands, validation rules, generated files, the four kinds of file, settings, dbt and terms | A command or a kind of file is added |
+| Explanation | How it works, how it compares, and its limits | A concept needs more than a paragraph |
+| Project | The roadmap, writing a plugin and this page | Rarely |
+
+Say a thing once, on the page that owns it, and link to it from the others. The owners are: exit codes in [the CLI page](cli.md#exit-codes), validation rules in [What `dpb validate` checks](validation.md), everything about dbt in the [dbt reference](dbt.md), and what does not work in [Limits and guarantees](limits.md).
 
 A change to a command, a key or a message is not complete until the page that describes it is changed too.

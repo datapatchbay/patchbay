@@ -49,11 +49,7 @@ uv add --dev git+https://github.com/datapatchbay/patchbay
 
 `dpb validate` looks for `datapatchbay.yaml` in the working directory and its parents, so run it from anywhere inside the repo.
 
-| Exit code | Meaning |
-| --- | --- |
-| 0 | Every file is valid |
-| 1 | There are problems. Each one is a line `file:line: message` on stderr, and all of them are reported at once |
-| 2 | `dpb` could not start the check, for example because there is no `datapatchbay.yaml` |
+It exits 0 when every file is valid, and the job passes. It exits 1 when there are problems: each one is a line `file:line: message` on stderr, and all of them are reported at once. It exits 2 when it could not start the check, for example because there is no `datapatchbay.yaml`.
 
 For a script or an agent, `dpb validate --json` prints one JSON document on stdout, with `ok`, `dataproducts_checked` and a list of `problems`. See [`dpb validate`](../cli.md#dpb-validate).
 

@@ -1,6 +1,6 @@
 # Writing a plugin
 
-A plugin adds support for one technology: an orchestrator, an executor, a runtime or a warehouse. This page shows the four extension points, how to register a plugin, and the two toolkits that the built-in plugins are written with. The plugin interface and both toolkits are public, but not yet stable in milestone 1: names may change.
+A plugin adds support for one technology: an orchestrator, an executor, a runtime or a warehouse. This page shows the four extension points, how to register a plugin, and the two toolkits that the built-in plugins are written with. The plugin interface and both toolkits are public, but not yet stable: names may change.
 
 ## The four extension points
 
@@ -24,7 +24,13 @@ A plugin package registers a class, or a function without arguments that returns
 mywarehouse = "my_package.warehouse:MyWarehouse"
 ```
 
-After `uv add my-package`, the `warehouse: mywarehouse` setting selects it. Plugins are selected by what they can do, never by name in the core. See [Settings and plugins](settings.md#plugins).
+After `uv add my-package`, the `warehouse: mywarehouse` setting selects it. Plugins are found through Python entry points, so plugin support adds no dependency. The built-in plugins are written against the same interfaces and registered the same way: [Settings](settings.md#plugins) lists them.
+
+## How the plugins work together
+
+The orchestrator composes the file of a data product from what the other three contribute. The executor says what to call, the runtime renders the build task, and the warehouse returns SQL tasks that the orchestrator runs through its own connection. Plugins are selected by what they can do, never by name in the core.
+
+An orchestrator declares the kind of build code it needs, `render_kind`: `task` (an Airflow task) or `function` (a plain Python function with no arguments). A runtime declares the kinds it supports, `render_kinds`, and receives the kind in `render_build_task`. `dpb generate` and `dpb validate` refuse a table whose runtime does not support the kind of its orchestrator. A new orchestrator of kind `function` works with the `worker` runtime without changing it.
 
 ## Executor capabilities
 
@@ -39,6 +45,8 @@ An executor can do more than say what to call. The core asks for each extra with
 | `BatchesBuilds` | `batch_key`, `call_type`, `call(table)` | The tables of a data product that share a `batch_key` are built in one task, `build_<key>`, after the tables that are built one by one. `call(table)` is called with the first of them and returns the one call. No other table can `needs` a table of a batch, the tables of a batch share one runtime, and that runtime must list `call_type` in its `call_types`. |
 | `OwnsQualityRules` | `owns_quality_rules(table)` | The executor runs the quality rules of this table itself, so the warehouse gets no audit task for it. |
 | `ScaffoldsTables` | `scaffold_table(table)` | For `dpb new`: given a `NewTable`, returns a `ScaffoldedTable` with the `build` block of the table file (or `None`) and the files for the data product folder, such as the stub of the build code. |
+
+Validation has two stages. Stage 1 checks the files of each data product. Stage 2 plans the whole repo and runs only when stage 1 found no problems.
 
 An executor without `ChecksTables` gets no check of its table files, so a missing `build.entrypoint` shows up when the build runs. An executor without `ScaffoldsTables` cannot be used by `dpb new`, which stops with an error instead of writing Python stubs.
 
