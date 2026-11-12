@@ -106,6 +106,14 @@ _Avoid_: Scheduler
 The place where an executor's code runs, such as an Airflow worker or a container.
 _Avoid_: Environment, compute
 
+**Warehouse**:
+The database that holds the private schemas and the output ports of the platform, such as Postgres. The platform has one.
+_Avoid_: Database, lake
+
+**Plugin**:
+What an integration registers for one extension point (orchestrator, executor, runtime or warehouse), under the name used in the settings.
+_Avoid_: Extension, driver
+
 **Integration**:
 The support for one technology (an orchestrator, executor, runtime or warehouse) in one folder, found through an entry point.
 _Avoid_: Provider, connector, adapter

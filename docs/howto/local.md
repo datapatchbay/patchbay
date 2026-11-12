@@ -1,6 +1,6 @@
 # Run a data product without an orchestrator
 
-With `orchestrator: local`, `dpb generate` writes one Python script per data product. The script builds the data product once: it runs the builds, the audits and then the SQL of the warehouse. Use it to run a data product by hand, from cron or in CI, with no orchestrator.
+With `orchestrator: local`, `dpb generate` writes one Python script per data product. The script builds the data product once: it runs the builds, the audits and then the SQL of the warehouse. Use it to run a data product by hand, from cron or in CI, with no orchestrator. The [tutorial](../tutorial.md#10-run-it-on-your-machine) runs one this way on DuckDB.
 
 The script does the connecting, not `dpb` ([ADR-0001](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0001-dpb-never-connects-to-the-warehouse.md)). It imports only the standard library and the warehouse driver, never datapatchbay.
 
@@ -13,7 +13,7 @@ warehouse: duckdb
 runtime: worker
 ```
 
-The `orchestrator` setting cascades like the others, so you can also set it in one `dataproduct.yaml`. Then run `dpb generate`. The script `<folder>.py` is written next to the Airflow DAG files, in the `output_dir` folder.
+You can also set `orchestrator` in one `dataproduct.yaml`, for that data product only. Then run `dpb generate`. The script `<folder>.py` is written next to the Airflow DAG files, in the `output_dir` folder.
 
 Only `runtime: worker` works. The `docker` and `kubernetes` runtimes make `dpb generate` fail for this orchestrator. The build code runs in the process of the script, so the script needs the same Python packages as the build code.
 

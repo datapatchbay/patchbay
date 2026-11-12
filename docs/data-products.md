@@ -1,97 +1,77 @@
-# Data products
+# What is a data product
 
-The idea behind datapatchbay on one page: what a data product is, where the idea comes from, how `dpb` puts it into files, and what to read next.
+This page explains the idea behind datapatchbay for a reader who has never worked with data products: what one is, how `dpb` puts it into files, and where the idea comes from.
 
 ## Data as a product
 
 A table that a pipeline writes as a side effect has no owner, no promise and no interface. Whoever needs it joins straight into it, and every change breaks someone. Treating data as a product turns that around. A team publishes data for others on purpose, the way a team publishes an API:
 
 - It has an **owner** who is accountable for it.
-- It has **consumers**, and the owner knows who they are.
+- It has **consumers**, and the owner knows who they are. datapatchbay calls them **readers**.
 - It has an **interface** that stays stable while the inside changes.
 - It makes **promises**, such as a schema, quality rules and freshness, and keeps them.
 
 A **data product** is the unit that carries all of this: the data, the code that builds it, the metadata that describes it and the policies that guard it, owned together.
 
-## Why dbt and a warehouse are not enough
+## A data product in datapatchbay
 
-Many teams start with dbt on a warehouse, and it works well for building tables. dbt is a build tool, though. It knows models, not products:
+In datapatchbay a data product is one folder in a repo. The folder holds YAML files that describe the data product, and the code that builds its tables:
 
-- **Every model is public by default.** Any model can `ref()` any other, so a report joins into an intermediate model, and the next refactor breaks it.
-- **Ownership is optional.** dbt has groups, access levels, model contracts and grants. Each one is opt-in, per model, and nothing checks that the whole project uses them the same way.
-- **dbt sees only dbt.** Ingestion in Python, a BI tool or an AI agent that queries the warehouse are outside the project. dbt does not know who reads a model, so it cannot tell the owner who breaks when it changes.
-- **Access lives somewhere else.** Grants and masking of personal data are written by hand in the warehouse, or not at all. Nobody reviews them next to the code that builds the data.
-- **Freshness is checked on sources, not promised on outputs.** A consumer cannot see how old the data in a model may be.
+```text
+dataproducts/sa_jaffle_orders/
+  dataproduct.yaml     who owns it, and which ports it has
+  inputs/              what it reads: a source, or another data product
+  outputs/             what it publishes, to whom, and how fresh
+  src/                 the code that builds its tables
+```
 
-## Why a medallion architecture is not enough
+Data enters and leaves through **ports**. An input port receives data, and an output port publishes it. The readers of a data product see only its output ports, never the tables behind them.
 
-A medallion architecture sorts tables into layers by processing stage: bronze for raw, silver for cleaned, gold for ready to use. It answers how clean a table is, not who owns it or who may read it:
-
-- **Layers cut across owners.** One gold layer holds the tables of every domain, and nobody owns the layer. When a number is wrong, there is still no name to call.
-- **Silver leaks.** When gold lacks a column, consumers read silver, and the cleaned-but-internal tables become a public interface by accident.
-- **A layer makes no promise.** Gold says nothing about freshness, quality rules or readers of a single table.
-- **One central team runs all layers.** Every new source and every change waits for that team.
-
-## How datapatchbay addresses this
-
-datapatchbay does not replace dbt or the layers. It cuts the platform vertically into data products, and keeps the layers inside each one:
+Each part of the idea has a place in the files:
 
 | Problem | What datapatchbay does |
 | --- | --- |
-| Everything is public | Build code writes to the data product's **private schema**. Consumers read only the views of an **output port**, so the inside can change freely |
 | Nobody owns a table | Every data product names an **owner**, and `dpb validate` fails without one. A **technical owner** can be named next to it |
-| Unknown consumers | A reading data product must be listed in the **readers** of the output port, so the owner approves every new consumer in a pull request |
-| Access by hand | Readers and **PII readers** live in `port.yaml`, next to the data. `dpb generate` writes the views and grants, and a PII column shows NULL to everyone but PII readers |
-| No promise | Each output port promises a **freshness**, and each table has **quality rules** with a severity that run after every build |
-| Opt-in conventions | Naming templates and settings apply to every data product, and `dpb validate` checks them in CI |
-| Only dbt is covered | Python and dbt build code sit side by side, per table. Ingestion, dbt models and consumers are in one model |
+| Everything is public | Build code writes to the data product's **private schema**. Readers see only the views of an **output port**, so the inside can change freely |
+| Unknown consumers | A data product that reads another one must be listed in the **readers** of the output port, so the owner approves every new reader in a pull request |
+| Access by hand | Readers and **PII readers** live in `port.yaml`, next to the data. `dpb generate` writes the views and grants, and a column with personal data shows NULL to everyone but PII readers |
+| No promise | Each output port promises a **freshness**, and each table has **quality rules** that run after every build |
+| Every team names things its own way | Naming templates and settings apply to every data product, and `dpb validate` checks them in CI |
 
-The layers map onto a data product as follows: bronze and silver are its private schema, and gold is its output port. The difference is that each data product has its own gold, with its own owner, readers and promises.
+[How it works](concepts.md) describes each of these in detail, and the [tutorial](tutorial.md) builds two data products step by step.
 
-dbt stays the build tool where a team wants it. For a table built by dbt, `dpb generate` writes the dbt properties from the table file: an enforced model contract, the quality rules as data tests, a dbt group with the owner, and a `source()` for every output port the data product reads. See [Build a table with dbt](howto/dbt.md).
+## Three kinds of data product
+
+Every data product has a **kind**. datapatchbay ships three, which are the usual ones in data mesh:
+
+Source-aligned
+: Publishes the data of one source system, cleaned and described, but not reshaped. Example: the orders of the shop's order system. Its prefix is `sa`.
+
+Aggregate
+: Combines or summarises other data products into a concept that more than one reader needs. Example: the turnaround time of orders. Its prefix is `agg`.
+
+Consumer-aligned
+: Shapes data for one use, such as a report, a dashboard or the input of a model. Its prefix is `ca`.
+
+A kind is a label. It gives the data product its prefix, and it does not restrict what a data product may read. A team can rename the kinds or add its own in the [settings](files.md#datapatchbayyaml).
 
 ## Where the idea comes from
 
-Zhamak Dehghani named data as a product as one of the four principles of **data mesh**:
+Zhamak Dehghani named data as a product as one of the four principles of **data mesh**. datapatchbay applies them to one team or a few teams on one warehouse:
 
 Domain ownership
-: The business domain that knows the data owns it, not a central team that only moves it.
+: The business domain that knows the data owns it, not a central team that only moves it. In datapatchbay every data product has a domain and an owner, written as free text, with no team registry to fill in first.
 
 Data as a product
-: Each domain publishes its data as products that others can find, understand and trust.
+: Each domain publishes its data as products that others can find, understand and trust. In datapatchbay `dpb list` and `dpb describe` show every data product, table files describe every table and column, and output ports are views over private tables.
 
 Self-serve data platform
-: A platform team gives domains the tools to build and run data products without becoming a bottleneck.
+: A platform team gives domains the tools to build and run data products without becoming a bottleneck. In datapatchbay `dpb new` scaffolds a data product in minutes, and `dpb generate` writes the orchestrator files and the warehouse SQL. The platform is the orchestrator and warehouse a team already runs.
 
 Federated computational governance
-: Global rules, such as naming, access and personal data, are agreed together and enforced by code, not by review meetings.
+: Global rules, such as naming, access and personal data, are agreed together and enforced by code, not by review meetings. In datapatchbay naming templates, settings with defaults and `dpb validate` in CI enforce the shared rules on every pull request.
 
-Dehghani also lists what makes a data product usable. It is **discoverable**, **addressable**, **understandable**, **trustworthy**, **natively accessible**, **interoperable**, **valuable on its own** and **secure**.
-
-## How datapatchbay maps the idea
-
-datapatchbay applies the idea to one team or a few teams on one warehouse. Most of the books below describe a large company. Here, a data product is a folder of YAML files in a repo, and pull requests carry the approvals.
-
-| Characteristic | In datapatchbay |
-| --- | --- |
-| Owned | `dataproduct.yaml` names an owner, a technical owner and a domain |
-| Discoverable | `dpb list` and `dpb describe` show every data product, with `--json` for tools and agents |
-| Addressable | Naming templates give every port a name that is unique across the repo |
-| Understandable | Table files describe each table and column, and the contract names no technology |
-| Trustworthy | Quality rules with a severity run after each build. Each output port promises a freshness, and `dpb validate` checks it against the inputs |
-| Natively accessible | An output port is a schema of views in the warehouse, so SQL, BI tools and dbt read it as they are |
-| Interoperable | Input ports read other output ports. A dbt model reads them through a generated `source()` |
-| Secure | Each output port lists its readers and PII readers, and the generated grants apply them. The owner approves every new reader in a pull request |
-| Valuable on its own | Not something a tool can check. The data product kind and the owner's judgment carry it |
-
-The four principles map as follows:
-
-- **Domain ownership.** Every data product has a domain and an owner, written as free text, with no team registry to fill in first.
-- **Data as a product.** Output ports are views over private tables. Consumers see the interface and never the inside.
-- **Self-serve platform.** `dpb new` scaffolds a data product in minutes, and `dpb generate` writes the Airflow DAGs and warehouse SQL. The platform is the orchestrator and warehouse a team already runs.
-- **Computational governance.** Naming templates, settings with defaults and `dpb validate` in CI enforce the shared rules on every pull request.
-
-What datapatchbay leaves out is listed in the [roadmap](roadmap.md): a web marketplace, catalog search across the company, and live measurement of freshness. [How it works](concepts.md) describes the model in detail.
+Most of the books below describe a large company. datapatchbay leaves out what such a company adds: a web marketplace, catalog search across the company, and live measurement of freshness. See the [roadmap](roadmap.md) and [Limits and guarantees](limits.md).
 
 ## Further reading
 
@@ -109,4 +89,4 @@ Articles:
 - Zhamak Dehghani, [How to Move Beyond a Monolithic Data Lake to a Distributed Data Mesh](https://martinfowler.com/articles/data-monolith-to-mesh.html). martinfowler.com, 2019. The article that introduced data mesh.
 - Zhamak Dehghani, [Data Mesh Principles and Logical Architecture](https://martinfowler.com/articles/data-mesh-principles.html). martinfowler.com, 2020. The four principles, in short.
 
-Specifications that describe a data product or a contract in a file are compared with datapatchbay in [Alternatives](alternatives.md).
+[Why not just dbt](alternatives.md) compares datapatchbay with dbt, a medallion architecture and the specifications that describe a data product or a contract in a file.

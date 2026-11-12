@@ -34,7 +34,7 @@ The names are prefixed with the folder of the data product, so the definitions o
 
 A rule with severity `error` is a blocking check: when it is broken, the run fails and the assets downstream of the table do not materialize, so the output port is not updated. A rule with severity `warning` fails its check with Dagster's `WARN` severity and the run goes on. Each result has the number of violations in its metadata. A rule with severity `none` is not generated.
 
-As in the Airflow DAG, the table is already built when its rules run (ADR-0010). Check names are unique for a table: a second rule with the same name on the same column gets `_2` after its name.
+As in the Airflow DAG, the table is already built when its rules run. See [Limits and guarantees](../limits.md#quality-rules). Check names are unique for a table: a second rule with the same name on the same column gets `_2` after its name.
 
 ### Tables built by dbt
 
@@ -108,5 +108,5 @@ Merge `warehouse` into the definitions file in place of the `DuckDBResource` one
 ## Limits
 
 - Only the `worker` runtime.
-- The quality rules and the views run after the table is built, so a failed rule stops the run but the data is already in the private table (ADR-0010).
+- The quality rules and the views run after the table is built, so a failed rule stops the run but the data is already in the private table. See [Limits and guarantees](../limits.md#quality-rules).
 - `dpb validate` does not load the generated modules. Check them with `dagster definitions validate`.
