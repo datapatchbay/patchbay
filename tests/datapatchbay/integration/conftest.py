@@ -44,9 +44,8 @@ def pg_db(postgres_admin: psycopg.Connection) -> Iterator[psycopg.Connection]:
     postgres_admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database)))
 
 
-AIRFLOW_DIR = (
-    Path(__file__).parents[3] / "tests" / "airflow"
-)  # the Dockerfile and the scripts that run in the container
+# The Dockerfile and the scripts that run in the container.
+AIRFLOW_DIR = Path(__file__).parents[3] / "tests" / "airflow"
 SCRIPTS = "/scripts"
 
 
