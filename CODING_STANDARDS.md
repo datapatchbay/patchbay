@@ -327,7 +327,7 @@ There are two kinds of test (ADR-0020):
 - **Unit tests** run with `uv run pytest`, in CI and on every developer's machine. They need no network, server or
   Docker. The SQL that `dpb` generates is run against DuckDB in the test process.
 - **Integration tests** need a real service: a Postgres server, and Airflow in a container next to it. They live
-  in `tests/datapatchbay/integration/`, one file per tool or area, and every test in that folder carries the `integration`
+  in `tests/integration/`, one file per tool or area, and every test in that folder carries the `integration`
   marker automatically (`conftest.py` adds it). `uv run pytest` deselects that marker. Put a new integration test in
   that folder; do not mark tests elsewhere.
 

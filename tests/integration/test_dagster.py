@@ -25,7 +25,7 @@ from psycopg import sql
 
 from datapatchbay.generate import generate_repo
 
-ROOT = Path(__file__).parents[3]
+ROOT = Path(__file__).parents[2]
 DOC = ROOT / "docs" / "howto" / "dagster.md"
 MACRO = ROOT / "examples" / "jaffle_shop" / "macros" / "generate_schema_name.sql"
 

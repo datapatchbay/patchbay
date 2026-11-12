@@ -19,7 +19,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.integration)
         elif item.get_closest_marker("dbt"):
             # Outside this folder it would run in `uv run pytest`, and skip silently where dbt is missing.
-            raise pytest.UsageError(f"{item.nodeid} is marked `dbt`: move it to tests/datapatchbay/integration")
+            raise pytest.UsageError(f"{item.nodeid} is marked `dbt`: move it to tests/integration")
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def pg_db(postgres_admin: psycopg.Connection) -> Iterator[psycopg.Connection]:
 
 
 # The Dockerfile and the scripts that run in the container.
-AIRFLOW_DIR = Path(__file__).parents[3] / "tests" / "airflow"
+AIRFLOW_DIR = Path(__file__).parents[2] / "tests" / "airflow"
 SCRIPTS = "/scripts"
 
 

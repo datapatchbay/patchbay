@@ -15,7 +15,7 @@ from datapatchbay.cli import app
 
 pytestmark = pytest.mark.dbt
 
-EXAMPLE = Path(__file__).resolve().parents[3] / "examples" / "jaffle_shop"
+EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "jaffle_shop"
 READER = "dataproducts/agg_order_turnaround"
 MODEL = f"{READER}/models/agg_order_turnaround__turnaround.sql"
 

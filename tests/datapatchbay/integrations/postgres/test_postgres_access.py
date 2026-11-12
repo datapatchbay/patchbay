@@ -1,6 +1,6 @@
 """The SQL that makes an output port real in Postgres: views, masking and grants (ADR-0002, ADR-0007).
 
-The tests that apply the SQL to a real Postgres are integration tests (`tests/datapatchbay/integration`).
+The tests that apply the SQL to a real Postgres are integration tests (`tests/integration`).
 """
 
 import re
