@@ -58,6 +58,8 @@ conventions:
     role: "dp_{kind.prefix}_{name}"
 ```
 
+A naming template may use `{name}` (the data product's bare name), `{kind.prefix}` and `{kind.name}`. `dpb validate` compares the folder name, the default output port name and the private port name with what the templates produce, so changing a prefix or a template changes what it expects.
+
 See [Settings and plugins](settings.md) for how these values merge with the defaults and with settings lower down.
 
 ## `dataproduct.yaml`

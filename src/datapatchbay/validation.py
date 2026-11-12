@@ -2,9 +2,13 @@
 
 from pathlib import Path
 
+from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.loading import load_repo
 from datapatchbay.problems import Report
+from datapatchbay.repo import ROOT_FILE
+from datapatchbay.settings import InvalidSettingsError, load_settings
+from datapatchbay.yamlio import load_mapping
 
 
 def validate_repo(root: Path) -> Report:
@@ -15,4 +19,10 @@ def validate_repo(root: Path) -> Report:
     """
     repo, problems = load_repo(root)
     problems.extend(check_repo(repo))
+    try:
+        settings = load_settings(root)
+    except InvalidSettingsError:
+        pass  # `load_repo` reported `datapatchbay.yaml`; without settings no convention can be checked.
+    else:
+        problems.extend(check_conventions(repo, settings, load_mapping(root / ROOT_FILE)))
     return Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)
