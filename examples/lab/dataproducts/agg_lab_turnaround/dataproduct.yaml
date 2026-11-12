@@ -7,3 +7,4 @@ technical_owner: John Roe
 description: How long the lab takes to complete an order
 inputs: [sa_ilab_orders]
 outputs: [agg_lab_turnaround]
+executor: dbt

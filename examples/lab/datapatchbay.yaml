@@ -1,2 +1,5 @@
 schema_version: 1
 # Everything else is a default: Postgres, Airflow, the Python executor on the worker, and the connection `warehouse`.
+dbt:
+  # The profile sits next to dbt_project.yml and reads the connection from the environment of the worker.
+  profiles_dir: .
