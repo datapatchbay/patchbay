@@ -1,0 +1,25 @@
+/* Michroma, the logo's lettering, for page titles only. Body text stays Furo's. */
+@font-face {
+  font-family: "Michroma";
+  src: url("Michroma-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+article h1 {
+  font-family: "Michroma", var(--font-stack);
+  font-weight: 400;
+  font-size: 1.9em;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+/* The logo strip carries the name; give it room in the sidebar. */
+.sidebar-logo {
+  max-width: 100%;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.announcement-content {
+  font-size: 0.85em;
+  letter-spacing: 0.01em;
+}

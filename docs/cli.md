@@ -1,0 +1,65 @@
+# The `dpb` CLI
+
+| Command | What it does |
+| --- | --- |
+| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table. Asks questions in a terminal. With `--no-input` it fails instead of asking |
+| `dpb validate` | Validates every data product. Meant for CI |
+| `dpb list` | Shows all data products with their kind, domain and owners |
+| `dpb describe` | Prints one data product with all settings resolved, for humans or agents |
+| `dpb config` | Prints the effective settings and where each one comes from |
+| `dpb schema` | Prints the JSON Schema of the four kinds of file |
+| `dpb generate` | Writes the orchestrator files and the warehouse SQL. Meant for CD |
+| `dpb upgrade` | Rewrites files to the current schema version, keeping comments |
+
+`validate`, `list`, `describe` and `config` take `--json`.
+
+## `dpb validate`
+
+`dpb validate` checks every data product and enforces these rules:
+
+- Every file matches the schema, and unknown keys fail. Errors name the file and line, and all errors are reported at once.
+- The port lists in `dataproduct.yaml` match the folders under `inputs/` and `outputs/`.
+- Every derived name matches its naming template, and every name is snake_case.
+- Port names and data product names are unique across the repo. Table names are unique within a data product.
+- `kind` is a declared kind. `domain` is in the domain list when one is declared.
+- An input port's `from` names an existing output port.
+- A data product that reads an output port is among that port's readers.
+- `needs` refers to existing tables and contains no cycle.
+- An output port does not promise fresher data than its inputs deliver. Its freshness is compared with the schedule of its source input ports and the freshness of the output ports it reads.
+- `executor` is `python`. Other executors arrive as plugins.
+
+`dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
+
+## `dpb generate`
+
+Generated files are build output of CD and are not committed.
+
+One Airflow 3 DAG per data product
+: Each table gets a build task followed by an audit task, and task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
+
+Three runtimes
+: `worker` calls the entrypoint on the Airflow worker. `docker` and `kubernetes` run it in a container from an image named in the settings.
+
+No connection management
+: The views, grants and audits run on the orchestrator, through a connection that already exists there. The settings only name it. Build code connects by itself.
+
+Views and grants for Postgres
+: The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else, and readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access.
+
+Audit tasks
+: Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run, `warning` reports and continues, and `none` is skipped.
+
+The generated DAG files do not import datapatchbay, so the orchestrator needs neither datapatchbay nor its dependencies installed.
+
+## `dpb upgrade`
+
+Each schema version bump comes with a migration. `dpb upgrade` rewrites a team's files to the current version and keeps their comments and key order. It ships from the first release, before there is a migration to run, so the first breaking change doesn't also have to invent the way out.
+
+`dpb` refuses files with a `schema_version` newer than it knows.
+
+## Built for agents
+
+- `--json` output on `validate`, `list`, `describe` and `config`.
+- `dpb describe` prints a data product with every setting resolved, which is everything an agent needs in one call.
+- `dpb schema` publishes the JSON Schema, so an agent can validate a file before writing it.
+- `--no-input` makes `dpb new` fail instead of prompting.

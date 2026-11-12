@@ -1,0 +1,62 @@
+name: docs
+
+# Runs only when something the site is built from changes. ADRs and agent
+# notes live under docs/ but are not part of the site.
+on:
+  push:
+    branches: [main]
+    paths: &docs-paths
+      - "docs/**"
+      - "!docs/adr/**"
+      - "!docs/agents/**"
+      - "GLOSSARY.md"
+      - "assets/logo/**"
+      - "assets/icon/favicon.svg"
+      - "assets/fonts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths: *docs-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Build docs
+        run: uv run --locked --group docs sphinx-build -W --keep-going -b html docs docs/_build/html
+
+      - name: Upload site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/_build/html
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
