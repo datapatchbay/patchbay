@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+from dbt_helpers import write
 from plugin_fakes import FakeOrchestrator, FakeWarehouse, install_distribution, register
 
 from datapatchbay.generate import GenerationError, generate_repo
@@ -227,6 +228,7 @@ def test_source_input_ports_with_different_schedules_cannot_share_one_dag(lab_re
 def test_a_table_named_dbt_collides_with_the_dbt_task_and_validate_says_so(lab_dbt_repo: Path):
     port = lab_dbt_repo / "dataproducts/agg_lab_weekly/outputs/agg_lab_weekly"
     (port / "dbt.yaml").write_text((port / "weekly.yaml").read_text().replace("name: weekly", "name: dbt"))
+    write(lab_dbt_repo, "target/manifest.json", '{"metadata": {}, "nodes": {}, "sources": {}}')
     [problem] = validate_repo(lab_dbt_repo).problems
     assert problem.file.as_posix() == "dataproducts/agg_lab_weekly/dataproduct.yaml"
     assert "task id 'build_dbt'" in problem.message

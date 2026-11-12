@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from dbt_helpers import write
 from typer.testing import CliRunner
 
 from datapatchbay.cli import app
@@ -196,6 +197,7 @@ def test_new_with_the_dbt_executor_scaffolds_models_instead_of_build_code(runner
     # What `dpb new` wrote passes `dpb validate` once `dpb generate` has written the dbt properties.
     (repo / "dbt_project.yml").write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
     assert generate_repo(repo).report.ok
+    write(repo, "target/manifest.json", '{"metadata": {}, "nodes": {}, "sources": {}}')  # `dbt parse` writes it
     assert_valid(repo)
 
 
