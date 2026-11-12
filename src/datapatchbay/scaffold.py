@@ -56,7 +56,15 @@ class NewDataProduct:
 
 
 def missing_answers(conventions: ResolvedConventions, answers: Mapping[str, str]) -> list[str]:
-    """List the required answers that are empty: `name`, `kind`, `owner` and, with declared domains, `domain`."""
+    """List the required answers that are empty: `name`, `kind`, `owner` and, with declared domains, `domain`.
+
+    Args:
+        conventions: The conventions in the effective settings; declared domains make `domain` required.
+        answers: The answers by key, with an empty string for a value not given.
+
+    Returns:
+        The keys of the missing answers, in the order they are asked.
+    """
     required = ["name", "kind", "owner"]
     if conventions.domains:
         required.append("domain")
@@ -65,6 +73,10 @@ def missing_answers(conventions: ResolvedConventions, answers: Mapping[str, str]
 
 def check_answers(conventions: ResolvedConventions, new: NewDataProduct) -> None:
     """Check the answers against the conventions.
+
+    Args:
+        conventions: The conventions in the effective settings.
+        new: The answers to check.
 
     Raises:
         ScaffoldError: Listing every problem at once.

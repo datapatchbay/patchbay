@@ -149,7 +149,7 @@ If any file cannot be upgraded, because its `schema_version` is newer than `dpb`
 
 ## Built for agents
 
-- `--json` output on `validate`, `list`, `describe` and `config`.
+- `--json` output on `new`, `validate`, `list`, `describe` and `config`.
 - `dpb describe` prints a data product with every setting resolved, which is everything an agent needs in one call.
 - `dpb schema` publishes the JSON Schema, so an agent can validate a file before writing it.
 - `--no-input` makes `dpb new` fail instead of prompting.
