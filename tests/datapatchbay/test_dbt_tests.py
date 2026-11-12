@@ -228,7 +228,7 @@ def test_dbt_build_runs_the_generated_tests_against_postgres(repo: Path, tmp_pat
         f"password: '{parsed.password}', dbname: '{parsed.path.lstrip('/')}', "
         f"schema: dpb_test_{uuid.uuid4().hex[:8]}, threads: 1}}\n",
     )
-    subprocess.run(
+    build = subprocess.run(
         [dbt, "build", "--project-dir", str(repo), "--profiles-dir", str(profiles)],
         capture_output=True,
         text=True,
@@ -241,4 +241,4 @@ def test_dbt_build_runs_the_generated_tests_against_postgres(repo: Path, tmp_pat
         f"{NAME}__primary_key": "fail",
         f"{NAME}__row_count": "pass",
         f"{NAME}__sql": "pass",
-    }
+    }, build.stdout + build.stderr
