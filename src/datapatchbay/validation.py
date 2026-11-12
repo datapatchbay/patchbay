@@ -5,6 +5,7 @@ from pathlib import Path
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.dbt import check_dbt
+from datapatchbay.dbt_sync import check_dbt_files
 from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
 from datapatchbay.pluginchecks import check_plugins
@@ -40,5 +41,14 @@ def load_and_validate(root: Path) -> tuple[Repo, Report]:
 
 
 def validate_repo(root: Path) -> Report:
-    """Validate a repo and return the report. See `load_and_validate`."""
-    return load_and_validate(root)[1]
+    """Validate a repo and return the report. See `load_and_validate`.
+
+    On top of that, once everything else is valid, the committed dbt files are compared with what `dpb generate`
+    would write. `dpb generate` uses `load_and_validate` and skips that comparison, because it is what refreshes the
+    files. Nothing is written.
+    """
+    repo, report = load_and_validate(root)
+    if not report.ok:
+        return report
+    problems = check_dbt_files(repo, load_settings(root))
+    return Report(dataproducts_checked=report.dataproducts_checked, problems=problems)

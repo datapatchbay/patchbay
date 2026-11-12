@@ -1,0 +1,18 @@
+schema_version: 1
+name: turnaround
+description: Hours between the order and its completion, one row per completed order
+columns:
+  - name: order_id
+    type: text
+    rules: [not_null, unique]
+  - name: turnaround_hours
+    type: numeric
+    rules: [not_null]
+  - name: ordered_at
+    type: timestamp
+freshness_column: ordered_at
+rules:
+  - rule: row_count
+    min: 1
+build:
+  entrypoint: src/turnaround.py:build
