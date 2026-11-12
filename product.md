@@ -245,6 +245,8 @@ Generated files are build output of CD and are not committed, with one exception
 
 **Views and grants for Postgres.** The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else. Readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access.
 
+**Access on DuckDB.** On DuckDB the warehouse enforces no access: it has no roles and no grants, so readers and PII readers are accepted and applied to nothing, and a PII column always shows NULL in the view, to everyone. DuckDB is meant for local development and tests. The same files then work on both warehouses (ADR-0021).
+
 **Audit tasks.** Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run; `warning` reports and continues; `none` is skipped. In milestone 1 the audit runs after the table is built, so the data is already visible when a rule fails. Write-audit-publish closes that gap. For a table built by dbt, the quality rules run as dbt data tests during the dbt build instead.
 
 **dbt properties.** For each table built by dbt, a properties file next to the model with its description, columns and types, quality rules as dbt data tests (table rules as generated singular tests, ADR-0019), an enforced dbt model contract, its alias and schema, and its data product's dbt group, plus a dbt source for each output port the data product reads (ADR-0018). `dpb generate` also keeps the `model-paths` and `test-paths` of the root `dbt_project.yml` in step with the data product folders.
@@ -257,7 +259,7 @@ Defaults ship inside the package in one file with the same shape as `datapatchba
 
 ## Plugins
 
-Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt and Postgres support is written against the same interfaces. The interface is not declared stable yet.
+Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt, Postgres and DuckDB support is written against the same interfaces. The interface is not declared stable yet.
 
 ## Roadmap
 
@@ -281,7 +283,7 @@ Later, as someone needs them: more orchestrators, more warehouses, more port kin
 
 - A data product with more than one source: one private input port or several?
 - Is the thin semantic language enough, or will it grow into a second Cube?
-- Which warehouses after Postgres?
+- Which warehouses after Postgres and DuckDB?
 
 ## First milestone test
 

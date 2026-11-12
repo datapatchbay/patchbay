@@ -2,6 +2,7 @@
 
 import logging
 import textwrap
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,7 @@ from datapatchbay.builtin.airflow_audit import AUDIT_HELPER, check_rows
 from datapatchbay.builtin.postgres import PostgresWarehouse
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
-from datapatchbay.plugins import AuditTask
+from datapatchbay.plugins import AuditTask, Warehouse
 from datapatchbay.settings import load_settings
 
 SCHEMA = "sa_jaffle_orders_private"
@@ -20,8 +21,13 @@ SCHEMA = "sa_jaffle_orders_private"
 TABLE_HEAD = "schema_version: 1\nname: orders\nbuild:\n  entrypoint: src/orders.py:build\n"
 
 
-def audit_of(root: Path, table_yaml: str, *, settings: str = "") -> AuditTask | None:
-    """Replace `orders.yaml` in a copy of the fixture repo, plan it and return the warehouse's audit of `orders`."""
+def audit_of(
+    root: Path, table_yaml: str, *, settings: str = "", warehouse: Warehouse | None = None
+) -> AuditTask | None:
+    """Replace `orders.yaml` in a copy of the fixture repo, plan it and return the warehouse's audit of `orders`.
+
+    The warehouse is Postgres unless another one is given.
+    """
     (root / "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml").write_text(
         TABLE_HEAD + textwrap.dedent(table_yaml)
     )
@@ -31,7 +37,7 @@ def audit_of(root: Path, table_yaml: str, *, settings: str = "") -> AuditTask | 
     assert problems == []
     plan = next(p for p in plan_dataproducts(repo, load_settings(root)) if p.folder == "sa_jaffle_orders")
     table = next(t for t in plan.tables if t.name == "orders")
-    tasks = PostgresWarehouse().audit_tasks(table)
+    tasks = (warehouse or PostgresWarehouse()).audit_tasks(table)
     assert len(tasks) <= 1
     if not tasks:
         return None
@@ -44,18 +50,23 @@ def execute(connection: psycopg.Connection, statement: str) -> psycopg.Cursor:
     return connection.execute(statement)  # ty: ignore[no-matching-overload] - the SQL is built from test constants
 
 
-def run_audit(connection: psycopg.Connection, task: AuditTask | None) -> None:
-    """Run the audit with the code that is generated into the DAG file, counting violations on `connection`."""
+def run_audit_with(count: Callable[[str], int], task: AuditTask | None) -> None:
+    """Run the audit with the code that is generated into the DAG file; `count` runs one query for its number."""
     assert task is not None
     namespace: dict[str, Any] = {"logging": logging}
     exec(AUDIT_HELPER, namespace)
+    namespace["_run_audit"](check_rows(task), count)
+
+
+def run_audit(connection: psycopg.Connection, task: AuditTask | None) -> None:
+    """Run the audit with the code that is generated into the DAG file, counting violations on `connection`."""
 
     def count(sql: str) -> int:
         row = execute(connection, sql).fetchone()
         assert row is not None
         return row[0]
 
-    namespace["_run_audit"](check_rows(task), count)
+    run_audit_with(count, task)
 
 
 def load_orders(connection: psycopg.Connection, rows: str, columns: str = "order_id text, status text, qty integer"):

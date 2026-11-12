@@ -17,6 +17,12 @@ def test_a_repo_that_uses_only_installed_plugins_is_valid(jaffle_repo: Path):
     assert rendered(jaffle_repo) == []
 
 
+@pytest.mark.parametrize("warehouse", ["duckdb", "postgres"])
+def test_validate_accepts_each_built_in_warehouse(jaffle_repo: Path, warehouse: str):
+    (jaffle_repo / "datapatchbay.yaml").write_text(f"schema_version: 1\nwarehouse: {warehouse}\n")
+    assert rendered(jaffle_repo) == []
+
+
 def test_a_runtime_without_a_plugin_names_the_data_product_table_and_line(jaffle_repo: Path):
     path = jaffle_repo / ORDERS
     path.write_text(path.read_text().replace("build:\n", "build:\n  runtime: podman\n"))
@@ -53,9 +59,10 @@ def test_an_orchestrator_without_a_plugin_names_the_data_product(jaffle_repo: Pa
 
 
 def test_a_warehouse_without_a_plugin_is_reported_at_the_root_file(jaffle_repo: Path):
-    (jaffle_repo / "datapatchbay.yaml").write_text("schema_version: 1\nwarehouse: duckdb\n")
+    (jaffle_repo / "datapatchbay.yaml").write_text("schema_version: 1\nwarehouse: snowflake\n")
     assert rendered(jaffle_repo) == [
-        "datapatchbay.yaml:2: warehouse 'duckdb' has no plugin (the repo); available warehouse plugins: postgres"
+        "datapatchbay.yaml:2: warehouse 'snowflake' has no plugin (the repo); "
+        "available warehouse plugins: duckdb, postgres"
     ]
 
 
