@@ -497,7 +497,7 @@ def test_the_dbt_build_runs_once_after_the_python_tables_and_before_the_warehous
     assert run.count("build_dbt()") == 1
     assert run.index("build_dbt()") < run.index('_sql_step("apply_access"')
     assert "#   30 6 * * 1  agg_weekly_orders_source\n" in file.content
-    assert "def _dbt_build_function(" in file.content
+    assert "def _command_function(" in file.content
     assert 'READS = ("sa_jaffle_orders",)' in file.content
 
 

@@ -37,7 +37,7 @@ _NAME = re.compile(r"[A-Za-z0-9_]+")
 _INDENT = "    "
 _RESERVED = frozenset(
     {"dg", "Path", "importlib", "os", "subprocess", "defs", "job", "schedule", "DATAPRODUCT_DIR"}
-    | {"_build_function", "_dbt_build_function", "_execute", "_count_violations"}
+    | {"_build_function", "_command_function", "_execute", "_count_violations"}
     | {"_audit_check", "_sql_check", "_read_sensor"}
 )
 """Names the module uses itself, so no asset, check or sensor takes them as a Python name."""

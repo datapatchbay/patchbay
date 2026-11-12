@@ -37,7 +37,7 @@ MODULE_OF = {
         "AuditTask",
         "BuildCall",
         "BuildTask",
-        "DbtCall",
+        "CommandCall",
         "GeneratedFile",
         "PythonCall",
         "RenderedTask",

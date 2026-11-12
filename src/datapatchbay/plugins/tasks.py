@@ -5,7 +5,7 @@ files an orchestrator returns. The plan they are made from is in `plan`, the int
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Any, Literal
 
@@ -16,7 +16,7 @@ __all__ = [
     "AuditTask",
     "BuildCall",
     "BuildTask",
-    "DbtCall",
+    "CommandCall",
     "GeneratedFile",
     "PythonCall",
     "RenderedTask",
@@ -41,31 +41,35 @@ class PythonCall:
 
 
 @dataclass(frozen=True, slots=True)
-class DbtCall:
-    """Run `dbt build` on the models of a data product, as the dbt executor asks for.
+class CommandCall:
+    """Run a command on the worker, as an executor asks for when its tool is a program, not a Python function.
 
-    The build runs the models and their data tests in dependency order; a failed test with severity `error` fails it.
+    The command is run without a shell, so the runtime expands no variables or globs. The only expansion is explicit:
+    the arguments listed in `home_args` have a leading `~` replaced by the home of the worker's user, which a shell
+    would have done. Every other argument is passed as it is, even when it starts with `~`.
 
     Attributes:
-        select: The `models/` folder of the data product, relative to the dbt project, for `--select path:`.
-        project_dir: The dbt project on the worker: an absolute path, or the path from the data product folder.
-        profiles_dir: The folder with `profiles.yml` on the worker. `~` is the home of the worker's user.
+        argv: The program and its arguments.
+        cwd: The working directory: an absolute path, or the path from the data product folder.
+        env: Environment variables to set besides the environment of the worker.
+        home_args: Positions in `argv` of the path arguments whose leading `~` is the home of the worker's user.
     """
 
-    select: PurePosixPath
-    project_dir: str
-    profiles_dir: str
+    argv: tuple[str, ...]
+    cwd: str = "."
+    env: Mapping[str, str] = field(default_factory=dict)
+    home_args: tuple[int, ...] = ()
 
 
-type BuildCall = PythonCall | DbtCall
-"""What an executor asks a runtime to run. The union is closed until the generic command call replaces `DbtCall`."""
+type BuildCall = PythonCall | CommandCall
+"""What an executor asks a runtime to run."""
 
 
 @dataclass(frozen=True, slots=True)
 class BuildTask:
     """What a runtime renders: a build and how the executor wants it called.
 
-    For a `PythonCall` the task builds one table. For a `DbtCall` it builds every dbt table of the data product at
+    For a `PythonCall` the task builds one table. For a `CommandCall` it builds every table of the batch at
     once, and `table` is the first of them, which holds the settings the tables share, such as the runtime.
     """
 

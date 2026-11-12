@@ -1,4 +1,4 @@
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, checked, rendered, write
@@ -8,7 +8,7 @@ from datapatchbay import schemas
 from datapatchbay.cascade import resolve_cascade
 from datapatchbay.integrations.dbt.executor import DbtExecutor
 from datapatchbay.loading import load_repo
-from datapatchbay.plugins import DbtCall
+from datapatchbay.plugins import CommandCall
 from datapatchbay.settings import load_settings
 
 
@@ -153,7 +153,7 @@ def test_the_dbt_model_template_defaults_and_is_in_the_schema(jaffle_repo: Path)
     assert "dbt_model" in schemas.json_schema("root")["$defs"]["NamesConvention"]["properties"]
 
 
-def dbt_call_of(repo: Path) -> DbtCall:
+def dbt_call_of(repo: Path) -> CommandCall:
     loaded, _ = load_repo(repo)
     plans = plan_all(loaded, repo)
     table = next(t for plan in plans for t in plan.tables if t.name == "turnaround")
@@ -162,16 +162,20 @@ def dbt_call_of(repo: Path) -> DbtCall:
 
 def test_the_dbt_executor_selects_the_models_folder_of_the_data_product(dbt_repo: Path):
     call = dbt_call_of(dbt_repo)
-    assert call == DbtCall(select=PurePosixPath(f"{DP}/models"), project_dir="../..", profiles_dir="~/.dbt")
+    assert call == CommandCall(
+        argv=("dbt", "build", "--select", f"path:{DP}/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"),
+        cwd="../..",
+        home_args=(7,),
+    )
 
 
 def test_the_dbt_settings_decide_where_the_project_and_profiles_are(dbt_repo: Path):
     write(dbt_repo, "datapatchbay.yaml", "schema_version: 1\ndbt:\n  project_dir: /opt/dbt\n  profiles_dir: profiles\n")
     call = dbt_call_of(dbt_repo)
-    assert (call.select, call.project_dir, call.profiles_dir) == (PurePosixPath(f"{DP}/models"), "/opt/dbt", "profiles")
+    assert (call.argv[3], call.argv[-1], call.cwd) == (f"path:{DP}/models", "profiles", "/opt/dbt")
 
 
 def test_a_project_dir_inside_the_repo_makes_the_selection_relative_to_it(dbt_repo: Path):
     write(dbt_repo, "datapatchbay.yaml", "schema_version: 1\ndbt:\n  project_dir: dataproducts\n")
     call = dbt_call_of(dbt_repo)
-    assert (call.select, call.project_dir) == (PurePosixPath("agg_order_turnaround/models"), "..")
+    assert (call.argv[3], call.cwd) == ("path:agg_order_turnaround/models", "..")

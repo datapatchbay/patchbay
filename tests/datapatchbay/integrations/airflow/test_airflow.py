@@ -65,17 +65,18 @@ def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_pro
     rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), kind="task", variable="dbt")
     assert rendered.imports == ("import os", "import subprocess", "from airflow.sdk import task")
     assert rendered.lines == (
-        'dbt = _dbt_build_task("build_dbt", "../..", "~/.dbt", "dataproducts/agg_weekly_orders/models")',
+        'dbt = _command_task("build_dbt", ["dbt", "build", "--select", '
+        '"path:dataproducts/agg_weekly_orders/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"], '
+        '"../..", {}, [7])',
     )
     [helper] = rendered.helpers
-    assert '"build",\n            "--project-dir",' in helper
-    assert 'f"path:{select}"' in helper
-    assert "subprocess.run(command, check=True, cwd=project)" in helper
+    assert "os.path.expanduser(a) if i in home_args" in helper
+    assert "subprocess.run(command, check=True, cwd=(DATAPRODUCT_DIR / cwd).resolve()" in helper
 
 
 @pytest.mark.parametrize("runtime", [DockerRuntime(), KubernetesRuntime()])
 def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_another_runtime(jaffle_dbt_repo: Path, runtime):
-    with pytest.raises(UnsupportedCombinationError, match=r"cannot run a DbtCall: set a runtime that can"):
+    with pytest.raises(UnsupportedCombinationError, match=r"cannot run a CommandCall: set a runtime that can"):
         runtime.render_build_task(dbt_task_of(jaffle_dbt_repo), kind="task", variable="dbt")
 
 
@@ -105,7 +106,7 @@ def test_a_data_product_with_only_dbt_tables_has_just_the_dbt_task_before_the_pu
     tables = tuple(t for t in plan.tables if t.executor == "dbt")
     [file] = AirflowOrchestrator().generate(replace(plan, tables=tables), context_of(jaffle_dbt_repo))
     body = file.content.split("with DAG(", 1)[1]
-    assert body.count("_dbt_build_task(") == 1
+    assert body.count("_command_task(") == 1
     assert "build_weekly" not in body
     assert "    build_dbt >> publish\n" in body
 
@@ -115,7 +116,7 @@ def test_the_dbt_task_runs_the_dbt_command_in_the_project(
 ):
     runs: list[tuple[list[str], Path]] = []
 
-    def fake_run(command: list[str], *, check: bool, cwd: Path) -> None:
+    def fake_run(command: list[str], *, check: bool, cwd: Path, env: dict[str, str]) -> None:
         assert check
         runs.append((command, cwd))
 
@@ -138,12 +139,12 @@ def test_the_dbt_task_runs_the_dbt_command_in_the_project(
             [
                 "dbt",
                 "build",
-                "--project-dir",
-                str(jaffle_dbt_repo.resolve()),
-                "--profiles-dir",
-                "/home/airflow/.dbt",
                 "--select",
                 "path:dataproducts/agg_weekly_orders/models",
+                "--project-dir",
+                ".",
+                "--profiles-dir",
+                "/home/airflow/.dbt",
             ],
             jaffle_dbt_repo.resolve(),
         )

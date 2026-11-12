@@ -12,7 +12,7 @@ from datapatchbay.integrations.dbt.layout import check_dbt_dataproduct, check_db
 from datapatchbay.integrations.dbt.manifest import check_dbt_reads
 from datapatchbay.integrations.dbt.output import DbtOutput, build_dbt_output
 from datapatchbay.plugins import (
-    DbtCall,
+    CommandCall,
     NewTable,
     PlannedRepo,
     ScaffoldedTable,
@@ -28,13 +28,16 @@ class DbtExecutor:
     """Build a table with a dbt model, by a `dbt build` of the models of its data product."""
 
     batch_key = "dbt"
-    call_type = DbtCall
+    call_type = CommandCall
 
     def __init__(self) -> None:
         self._model_names: dict[str, PurePosixPath] = {}
 
-    def call(self, table: TablePlan) -> DbtCall:
-        """Return the `dbt build` of the data product's `models/` folder.
+    def call(self, table: TablePlan) -> CommandCall:
+        """Return the `dbt build` of the data product's `models/` folder, run in the dbt project.
+
+        The command runs with the project as its working directory, so the project is `.`; the profiles folder is
+        passed as set, and the runtime expands its leading `~`.
 
         Raises:
             UnsupportedCombinationError: If the plan holds no dbt location.
@@ -42,7 +45,17 @@ class DbtExecutor:
         location = table.dbt
         if location is None:
             raise UnsupportedCombinationError(f"table '{table.name}' has no dbt location to build from")
-        return DbtCall(select=location.models, project_dir=location.project_dir, profiles_dir=location.profiles_dir)
+        argv = (
+            "dbt",
+            "build",
+            "--select",
+            f"path:{location.models}",
+            "--project-dir",
+            ".",
+            "--profiles-dir",
+            location.profiles_dir,
+        )
+        return CommandCall(argv=argv, cwd=location.project_dir, home_args=(len(argv) - 1,))
 
     def committed_output(self, planned: PlannedRepo) -> DbtOutput:
         """Work out the dbt properties, sources and tests and the `dbt_project.yml` sync (ADR-0013)."""
