@@ -259,7 +259,7 @@ Defaults ship inside the package in one file with the same shape as `datapatchba
 
 ## Plugins
 
-Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt, Postgres and DuckDB support is written against the same interfaces. The interface is not declared stable yet.
+Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt, Postgres and DuckDB support is written against the same interfaces. The support for one technology lives in one folder, `src/datapatchbay/integrations/<technology>/` (ADR-0024). The interface is not declared stable yet.
 
 ## Roadmap
 

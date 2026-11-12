@@ -5,10 +5,10 @@ from pathlib import Path
 from datapatchbay.cascade import ResolvedCascade, resolve_cascade
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
-from datapatchbay.dbt import check_dbt
-from datapatchbay.dbt_manifest import check_dbt_reads
-from datapatchbay.dbt_output import build_dbt_output
 from datapatchbay.freshness import check_freshness
+from datapatchbay.integrations.dbt.layout import check_dbt
+from datapatchbay.integrations.dbt.manifest import check_dbt_reads
+from datapatchbay.integrations.dbt.output import build_dbt_output
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import PlannedRepo, plan_dataproducts
 from datapatchbay.pluginchecks import check_plugins

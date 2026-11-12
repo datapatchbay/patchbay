@@ -7,8 +7,8 @@ from typing import Annotated, Any
 
 import typer
 
-from datapatchbay.dbt import DBT_EXECUTOR
-from datapatchbay.dbt_import import DEFAULT_TYPE, DbtImport, read_dbt_models
+from datapatchbay.integrations.dbt.importer import DEFAULT_TYPE, DbtImport, read_dbt_models
+from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.repo import find_repo_root
 from datapatchbay.scaffold import DEFAULT_SCHEDULE, NewDataProduct, ScaffoldError, missing_answers, scaffold
 from datapatchbay.settings import ResolvedConventions, load_settings

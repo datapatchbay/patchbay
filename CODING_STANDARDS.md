@@ -52,7 +52,9 @@ These follow from the product decisions and apply to every change.
 - **Strict keys.** Every file model MUST reject unknown keys (`extra="forbid"`) and accept the free-form `meta` map
   (ADR-0011).
 - **Plugins through entry points.** Built-in orchestrator, executor, runtime and warehouse support MUST be registered
-  through the same entry points as third-party plugins, not imported directly by the core (ADR-0009).
+  through the same entry points as third-party plugins, not imported directly by the core (ADR-0009). The support
+  for one technology lives in one folder of `src/datapatchbay/integrations/`, and the core imports no integration
+  (ADR-0024; a test enforces it).
 - **Use the glossary.** Names in code SHOULD use the terms in `GLOSSARY.md`: data product, port, reader, naming
   template. A different word for the same concept needs a meaningful difference in meaning.
 

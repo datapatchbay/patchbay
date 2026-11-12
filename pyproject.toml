@@ -15,22 +15,22 @@ dependencies = [
 dpb = "datapatchbay.cli:main"
 
 [project.entry-points."datapatchbay.orchestrators"]
-airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
-dagster = "datapatchbay.builtin.dagster:DagsterOrchestrator"
-local = "datapatchbay.builtin.local:LocalOrchestrator"
+airflow = "datapatchbay.integrations.airflow.orchestrator:AirflowOrchestrator"
+dagster = "datapatchbay.integrations.dagster.orchestrator:DagsterOrchestrator"
+local = "datapatchbay.integrations.local.orchestrator:LocalOrchestrator"
 
 [project.entry-points."datapatchbay.executors"]
-python = "datapatchbay.builtin.python_executor:PythonExecutor"
-dbt = "datapatchbay.builtin.dbt_executor:DbtExecutor"
+python = "datapatchbay.integrations.python.executor:PythonExecutor"
+dbt = "datapatchbay.integrations.dbt.executor:DbtExecutor"
 
 [project.entry-points."datapatchbay.runtimes"]
-worker = "datapatchbay.builtin.worker:WorkerRuntime"
-docker = "datapatchbay.builtin.docker:DockerRuntime"
-kubernetes = "datapatchbay.builtin.kubernetes:KubernetesRuntime"
+worker = "datapatchbay.integrations.worker.runtime:WorkerRuntime"
+docker = "datapatchbay.integrations.docker.runtime:DockerRuntime"
+kubernetes = "datapatchbay.integrations.kubernetes.runtime:KubernetesRuntime"
 
 [project.entry-points."datapatchbay.warehouses"]
-postgres = "datapatchbay.builtin.postgres:PostgresWarehouse"
-duckdb = "datapatchbay.builtin.duckdb:DuckDbWarehouse"
+postgres = "datapatchbay.integrations.postgres.warehouse:PostgresWarehouse"
+duckdb = "datapatchbay.integrations.duckdb.warehouse:DuckDbWarehouse"
 
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11"]

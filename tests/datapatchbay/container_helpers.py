@@ -2,9 +2,9 @@ from pathlib import Path
 
 from plan_helpers import plan_all
 
-from datapatchbay.builtin.docker import DockerRuntime
-from datapatchbay.builtin.kubernetes import KubernetesRuntime
-from datapatchbay.builtin.python_executor import PythonExecutor
+from datapatchbay.integrations.docker.runtime import DockerRuntime
+from datapatchbay.integrations.kubernetes.runtime import KubernetesRuntime
+from datapatchbay.integrations.python.executor import PythonExecutor
 from datapatchbay.loading import load_repo
 from datapatchbay.plugins import BuildTask, RenderedTask, TablePlan
 

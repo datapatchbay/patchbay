@@ -4,7 +4,7 @@ from pathlib import Path
 
 from plan_helpers import plan_all
 
-from datapatchbay.builtin.postgres import PostgresWarehouse
+from datapatchbay.integrations.postgres.warehouse import PostgresWarehouse
 from datapatchbay.loading import load_repo
 from datapatchbay.plugins import DataProductPlan
 

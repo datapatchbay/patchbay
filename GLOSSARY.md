@@ -105,3 +105,7 @@ _Avoid_: Scheduler
 **Runtime**:
 The place where an executor's code runs, such as an Airflow worker or a container.
 _Avoid_: Environment, compute
+
+**Integration**:
+The support for one technology (an orchestrator, executor, runtime or warehouse) in one folder, found through an entry point.
+_Avoid_: Provider, connector, adapter
