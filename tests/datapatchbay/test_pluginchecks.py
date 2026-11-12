@@ -53,9 +53,10 @@ def test_an_orchestrator_without_a_plugin_names_the_data_product(lab_repo: Path)
 
 
 def test_a_warehouse_without_a_plugin_is_reported_at_the_root_file(lab_repo: Path):
-    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nwarehouse: duckdb\n")
+    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nwarehouse: snowflake\n")
     assert rendered(lab_repo) == [
-        "datapatchbay.yaml:2: warehouse 'duckdb' has no plugin (the repo); available warehouse plugins: postgres"
+        "datapatchbay.yaml:2: warehouse 'snowflake' has no plugin (the repo); "
+        "available warehouse plugins: duckdb, postgres"
     ]
 
 

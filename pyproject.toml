@@ -28,6 +28,7 @@ kubernetes = "datapatchbay.builtin.kubernetes:KubernetesRuntime"
 
 [project.entry-points."datapatchbay.warehouses"]
 postgres = "datapatchbay.builtin.postgres:PostgresWarehouse"
+duckdb = "datapatchbay.builtin.duckdb:DuckDbWarehouse"
 
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11"]
@@ -38,6 +39,7 @@ dbt = [
     "dbt-postgres>=1.10",
 ]
 dev = [
+    "duckdb>=1.3",
     "jsonschema>=4.26.0",
     "psycopg[binary]>=3.2",
     "pytest>=9.2.0",

@@ -24,4 +24,4 @@ Later, as someone needs them:
 
 - A data product with more than one source: one private input port or several?
 - Is the thin semantic language enough, or will it grow into a second Cube?
-- Which warehouses come after Postgres?
+- Which warehouses come after Postgres and DuckDB?
