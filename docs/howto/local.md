@@ -69,7 +69,7 @@ The script does not schedule itself. Its top has a comment with the schedule of 
 
 Use it for a crontab line. The environment variable must be set in the line, because cron starts with an empty environment:
 
-```cron
+```text
 0 5 * * * DPB_CONNECTION_WAREHOUSE=duckdb:/data/warehouse.duckdb /usr/bin/python3 /srv/repo/generated/sa_jaffle_orders.py
 ```
 
