@@ -46,6 +46,9 @@ Every command uses the same three exit codes:
 `` folder inputs/<port> is not listed in `inputs` ``
 : The port lists in `dataproduct.yaml` and the folders under `inputs/` and `outputs/` must match in both directions. Add the port to the list, or remove the folder.
 
+`generated file of '<file>', which is not a data product any more; delete it`
+: The output folder holds the DAG file of a data product that was removed. `dpb generate` does not delete it. Delete the file, or remove the output folder and generate again.
+
 `entrypoint file src/<file>.py does not exist in the data product folder`
 : The `build.entrypoint` of a table points at a file that is not there, often after a rename. The path is relative to the data product folder.
 
@@ -87,8 +90,8 @@ A setting does not have the value you expect
 `` dbt properties file does not match its table file; run `dpb generate` to refresh it ``
 : The table file changed after the properties were generated, or someone edited the properties by hand. Run `dpb generate` and commit the result. The same fix applies to `dbt properties file is missing`, and to the same two messages about a `dbt test file`.
 
-`dbt test file is generated for a table rule that no longer exists; delete it`
-: A table rule was removed, and its generated test in the `tests/` folder is left over. Delete the file. `dpb generate` never deletes files.
+`dbt file is no longer generated from the table files; delete it`
+: A table or a table rule was removed, and a generated file is left over in a `models/` or `tests/` folder. Run `dpb generate`, which removes it, or delete the file.
 
 `` `model-paths` or `test-paths` does not list the `models/` and `tests/` folders of the data products built by dbt; run `dpb generate` to refresh it ``
 : `dbt_project.yml` is behind the data product folders. Run `dpb generate` and commit the file.

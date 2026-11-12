@@ -5,6 +5,7 @@ import pytest
 from typer.testing import CliRunner
 
 from datapatchbay.cli import app
+from datapatchbay.generate import generate_repo
 from datapatchbay.validation import validate_repo
 
 FLAGS = ["new", "--name", "ilab_orders", "--kind", "source-aligned", "--owner", "Jane Doe", "--no-input"]
@@ -177,3 +178,30 @@ def test_new_fails_outside_a_repo(runner: CliRunner, tmp_path: Path, monkeypatch
     result = runner.invoke(app, FLAGS)
     assert result.exit_code == 2
     assert "no datapatchbay.yaml found" in result.output
+
+
+def test_new_with_the_dbt_executor_scaffolds_models_instead_of_build_code(runner: CliRunner, repo: Path):
+    (repo / "datapatchbay.yaml").write_text("schema_version: 1\nexecutor: dbt\n")
+    result = runner.invoke(app, [*FLAGS, "--source", "ilab"])
+    assert result.exit_code == 0, result.output
+    folder = repo / "dataproducts/sa_ilab_orders"
+    assert not (folder / "src").exists()
+    assert "build" not in (folder / "outputs/sa_ilab_orders/example.yaml").read_text()
+    assert "build" not in (folder / "inputs/sa_ilab_orders_private/ingested.yaml").read_text()
+    assert (folder / "models/sa_ilab_orders__example.sql").read_text() == (
+        "select id from {{ ref('sa_ilab_orders__ingested') }}\n"
+    )
+    assert (folder / "models/sa_ilab_orders__ingested.sql").is_file()
+    assert "models/sa_ilab_orders__example.sql" in result.stdout
+    # What `dpb new` wrote passes `dpb validate` once `dpb generate` has written the dbt properties.
+    (repo / "dbt_project.yml").write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
+    assert generate_repo(repo).report.ok
+    assert_valid(repo)
+
+
+def test_new_with_the_dbt_executor_follows_the_dbt_model_template(runner: CliRunner, repo: Path):
+    (repo / "datapatchbay.yaml").write_text(
+        'schema_version: 1\nexecutor: dbt\nconventions:\n  names:\n    dbt_model: "{table}_v1"\n'
+    )
+    assert runner.invoke(app, FLAGS).exit_code == 0
+    assert (repo / "dataproducts/sa_ilab_orders/models/example_v1.sql").is_file()

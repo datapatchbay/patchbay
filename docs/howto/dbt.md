@@ -19,6 +19,8 @@ build:
   executor: dbt
 ```
 
+When `executor: dbt` is set in `datapatchbay.yaml`, `dpb new` scaffolds a stub model per table instead of a Python function.
+
 ## 2. Write the contract
 
 The table file has the same contract as any other table, and no `entrypoint`, `params` or `needs`. dbt takes the order of the models from their `ref()` calls.
@@ -96,7 +98,7 @@ From now on `dpb validate` fails when a committed dbt file does not match the ta
 dataproducts/agg_lab_turnaround/models/agg_lab_turnaround__turnaround.yml: dbt properties file does not match its table file; run `dpb generate` to refresh it
 ```
 
-When you remove a table rule, delete its generated test file too. `dpb generate` does not delete files, and `dpb validate` names the file that is left over.
+When you remove a table rule or a table, run `dpb generate` again. It removes the generated files that nothing produces any more and lists them as removed. It never touches a file that you wrote by hand.
 
 ## What runs
 

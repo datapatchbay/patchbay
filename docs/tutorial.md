@@ -233,7 +233,7 @@ $ dpb describe sa_ilab_orders
 $ dpb generate
 wrote /path/to/lab/generated/agg_lab_turnaround.py
 wrote /path/to/lab/generated/sa_ilab_orders.py
-ok: 2 file(s) written to /path/to/lab/generated
+ok: 2 file(s) written (2 to /path/to/lab/generated), 0 removed
 ```
 
 Each file is one Airflow 3 DAG. Open `generated/sa_ilab_orders.py` and you find:

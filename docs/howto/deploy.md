@@ -12,7 +12,7 @@ dpb generate
 ```
 
 - `dpb generate` validates first. When anything is wrong it prints the problems, writes nothing and exits 1, so a broken repo does not deploy.
-- Remove the output folder first. `dpb generate` does not remove the file of a data product that no longer exists.
+- Remove the output folder first. `dpb generate` does not remove the file of a data product that no longer exists, and `dpb validate` fails on such a file in the default output folder.
 - The same input gives byte-identical files, so a deploy without changes changes nothing.
 
 The files go to the folder of the `output_dir` setting, `generated` by default. `--output <folder>` writes somewhere else.
@@ -62,6 +62,6 @@ A merged change does nothing by itself. It takes effect when the new DAG file is
 
 ## Check a deploy
 
-- The DAG is named after the data product folder and carries the tag `patchbay`.
+- The DAG is named after the data product folder and carries the tag `datapatchbay`.
 - Each table has a `build_<table>` task, and an `audit_<table>` task when it has quality rules. The DAG ends with `apply_access` and `publish_outputs`.
 - When `apply_access` fails on a missing role, the message names the role, and the views and grants of the previous run stay in place.
