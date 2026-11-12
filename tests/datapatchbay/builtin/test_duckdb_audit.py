@@ -175,3 +175,13 @@ def test_all_broken_errors_are_reported_together_and_warnings_do_not_fail(
     assert "column 'qty'" in str(raised.value)
     assert "column 'status'" not in str(raised.value)
     assert "column 'status'" in caplog.text
+
+
+def test_a_rule_with_severity_none_is_not_run_even_when_broken(
+    db: duckdb.DuckDBPyConnection, lab: Path, caplog: pytest.LogCaptureFixture
+):
+    table = columns_yaml(order_id_rules="- not_null\n", qty_rules="- {rule: not_null, severity: none}\n")
+    load_orders(db, "('a','x',NULL)")
+    with caplog.at_level(logging.WARNING):
+        run_audit(db, audit_of(lab, table))
+    assert "column 'qty'" not in caplog.text

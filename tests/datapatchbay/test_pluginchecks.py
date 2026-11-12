@@ -17,6 +17,12 @@ def test_a_repo_that_uses_only_installed_plugins_is_valid(lab_repo: Path):
     assert rendered(lab_repo) == []
 
 
+@pytest.mark.parametrize("warehouse", ["duckdb", "postgres"])
+def test_validate_accepts_each_built_in_warehouse(lab_repo: Path, warehouse: str):
+    (lab_repo / "datapatchbay.yaml").write_text(f"schema_version: 1\nwarehouse: {warehouse}\n")
+    assert rendered(lab_repo) == []
+
+
 def test_a_runtime_without_a_plugin_names_the_data_product_table_and_line(lab_repo: Path):
     path = lab_repo / ORDERS
     path.write_text(path.read_text().replace("build:\n", "build:\n  runtime: podman\n"))
