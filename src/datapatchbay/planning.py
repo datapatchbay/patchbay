@@ -1,10 +1,12 @@
 """Turning the loaded repo into the plans that plugins generate from, with settings resolved over the cascade."""
 
+from collections.abc import Mapping
 from pathlib import PurePosixPath
 
 from datapatchbay.cascade import resolve_setting, resolve_settings
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
+from datapatchbay.naming import DerivedNames, derive_names
 from datapatchbay.plugins import DataProductPlan, SourceSchedule, TablePlan
 from datapatchbay.repomodel import DataProduct, Repo
 from datapatchbay.settings import EffectiveSettings
@@ -21,14 +23,27 @@ def plan_dataproducts(repo: Repo, settings: EffectiveSettings) -> list[DataProdu
         One plan per data product. Each plan holds the orchestrator, warehouse, executor and runtime names that the
         settings give, whether or not a plugin of that name exists.
     """
+    names = {dataproduct.folder: _names_of(dataproduct, settings) for dataproduct in repo.dataproducts}
+    roles = {folder: derived.role for folder, derived in names.items()}
     plans = []
     for dataproduct in repo.dataproducts:
         orchestrator = resolve_setting("orchestrator", settings, dataproduct=dataproduct)
-        plans.append(_plan(dataproduct, settings, str(orchestrator.value)))
+        plans.append(_plan(dataproduct, settings, str(orchestrator.value), names[dataproduct.folder], roles))
     return plans
 
 
-def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: str) -> DataProductPlan:
+def _names_of(dataproduct: DataProduct, settings: EffectiveSettings) -> DerivedNames:
+    model = dataproduct.file.model
+    return derive_names(settings.values.conventions, name=model.name, kind_name=model.kind)
+
+
+def _plan(
+    dataproduct: DataProduct,
+    settings: EffectiveSettings,
+    orchestrator: str,
+    names: DerivedNames,
+    roles: Mapping[str, str],
+) -> DataProductPlan:
     tables = []
     for port in dataproduct.ports:
         for table in port.tables:
@@ -80,6 +95,8 @@ def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: s
         reads=tuple(sorted(set(reads))),
         outputs=tuple(sorted(outputs)),
         source=dataproduct,
+        names=names,
+        roles=roles,
     )
 
 
