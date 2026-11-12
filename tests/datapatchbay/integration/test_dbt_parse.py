@@ -10,15 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from dbt_helpers import DP, MODEL, PROFILES, TABLE, TABLE_YAML, dbt_parse, write
+from dbt_helpers import DP, MODEL, PROFILES, TABLE, TABLE_YAML, dbt_parse, planned, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_manifest import check_dbt_reads
 from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.generate import generate_repo
-from datapatchbay.planning import plan_dataproducts
-from datapatchbay.settings import load_settings
-from datapatchbay.validation import load_and_validate
 
 pytestmark = pytest.mark.dbt
 
@@ -101,10 +98,8 @@ def parse(repo: Path, tmp_path: Path) -> dict[str, Any]:
 
 def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
     write(repo, TABLE, TABLE_FILE)
-    loaded, _, report = load_and_validate(repo)
-    assert report.ok, [p.render() for p in report.problems]
-    settings = load_settings(repo)
-    for generated in generate_dbt_properties(plan_dataproducts(loaded, settings), settings):
+    gate = planned(repo)
+    for generated in generate_dbt_properties(gate.plans, gate.settings):
         write(repo, str(generated.path), generated.content)
     write(repo, "dbt_project.yml", DBT_PROJECT + f"model-paths: ['{DP}/models']\n")
     manifest = parse(repo, tmp_path)
@@ -172,9 +167,7 @@ def reader_repo(repo: Path) -> Path:
 
 
 def reads(repo: Path) -> list[str]:
-    loaded, _, report = load_and_validate(repo)
-    assert report.ok, [p.render() for p in report.problems]
-    return [problem.render() for problem in check_dbt_reads(loaded, load_settings(repo))]
+    return [problem.render() for problem in check_dbt_reads(planned(repo))]
 
 
 def test_dbt_parse_of_a_model_that_reads_only_its_input_port_passes_the_check(reader_repo: Path, tmp_path: Path):

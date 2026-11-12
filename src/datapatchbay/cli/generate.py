@@ -23,6 +23,9 @@ def generate(
     root = find_repo_root(Path.cwd())
     result = generate_repo(root, output_dir=output)
     if not result.report.ok:
+        if json_output:
+            typer.echo(json.dumps({"ok": False, "problems": [p.to_json() for p in result.report.problems]}, indent=2))
+            raise typer.Exit(code=1)
         for problem in result.report.problems:
             typer.echo(problem.render(), err=True)
         typer.echo(f"{len(result.report.problems)} problem(s) found; nothing was written", err=True)

@@ -130,8 +130,9 @@ def test_a_failing_orchestrator_leaves_dbt_project_and_output_alone(dbt_repo: Pa
         raise UnsupportedCombinationError("nope")
 
     monkeypatch.setattr(FakeOrchestrator, "generate", fail)
-    with pytest.raises(GenerationError, match="nope"):
-        generate_repo(dbt_repo)
+    problems = generate_repo(dbt_repo).report.problems
+    assert problems
+    assert all("nope" in problem.message for problem in problems)
     assert (dbt_repo / PROJECT).read_text() == HEADER
     assert not (dbt_repo / "generated").exists()
 

@@ -50,13 +50,46 @@ def test_generate_fails_for_a_runtime_without_a_plugin_and_names_data_product_an
     assert not (in_jaffle_repo / "generated").exists()
 
 
-def test_generate_reports_a_generation_failure_as_a_message_with_exit_code_two(runner: CliRunner, in_jaffle_repo: Path):
-    table = in_jaffle_repo / "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
+def _refuse_the_params(repo: Path) -> None:
+    table = repo / "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
     table.write_text(table.read_text().replace("  needs:", "  params:\n    since: 2025-01-01\n  needs:"))
+
+
+def test_generate_reports_a_render_failure_as_a_problem_with_exit_code_one(runner: CliRunner, in_jaffle_repo: Path):
+    _refuse_the_params(in_jaffle_repo)
+    result = runner.invoke(app, ["generate"])
+    assert result.exit_code == 1
+    assert (
+        "dataproducts/sa_jaffle_orders/dataproduct.yaml: data product 'sa_jaffle_orders': table 'orders':"
+        in result.stderr
+    )
+    assert "nothing was written" in result.stderr
+    assert "Traceback" not in result.output
+    assert not (in_jaffle_repo / "generated").exists()
+
+
+def test_generate_json_prints_the_problems_in_the_shape_of_validate_when_it_writes_nothing(
+    runner: CliRunner, in_jaffle_repo: Path
+):
+    _refuse_the_params(in_jaffle_repo)
+    result = runner.invoke(app, ["generate", "--json"])
+    assert result.exit_code == 1
+    data = json.loads(result.stdout)
+    assert data["ok"] is False
+    [problem] = data["problems"]
+    assert problem["file"] == "dataproducts/sa_jaffle_orders/dataproduct.yaml"
+    assert problem["line"] is None
+    assert problem["message"].startswith("data product 'sa_jaffle_orders': table 'orders':")
+    validated = runner.invoke(app, ["validate", "--json"])
+    assert json.loads(validated.stdout)["problems"] == data["problems"]
+
+
+def test_generate_exits_two_when_the_dbt_project_file_is_missing(runner: CliRunner, jaffle_dbt_repo: Path, monkeypatch):
+    monkeypatch.chdir(jaffle_dbt_repo)
+    (jaffle_dbt_repo / "dbt_project.yml").unlink()
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 2
-    assert result.stderr.startswith("error: data product 'sa_jaffle_orders': table 'orders':")
-    assert "Traceback" not in result.output
+    assert "dbt_project.yml" in result.stderr
 
 
 def test_generate_lists_the_dbt_files_it_wrote_into_the_repo(runner: CliRunner, jaffle_dbt_repo: Path, monkeypatch):

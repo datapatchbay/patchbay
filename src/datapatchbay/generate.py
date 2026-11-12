@@ -8,12 +8,16 @@ from pathlib import Path, PurePosixPath
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
 from datapatchbay.dbt_sources import generate_dbt_files
 from datapatchbay.dbt_sync import orphaned_dbt_files
-from datapatchbay.planning import plan_dataproducts
+from datapatchbay.errors import DatapatchbayError
 from datapatchbay.problems import Report
-from datapatchbay.rendering import GenerationError, render_dataproducts
-from datapatchbay.validation import load_and_validate
+from datapatchbay.rendering import render_dataproducts
+from datapatchbay.validation import plan_repo
 
 __all__ = ["GenerateResult", "GenerationError", "generate_repo"]
+
+
+class GenerationError(DatapatchbayError):
+    """Raised when `dpb generate` cannot write, delete or sync a file, so the command exits with code 2."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +25,8 @@ class GenerateResult:
     """The result of `generate_repo`.
 
     Attributes:
-        report: The validation report. Nothing was written unless it is ok.
+        report: The validation report. Nothing was written unless it is ok. It holds the problems of
+            validation and of rendering.
         output_dir: The folder the files went to.
         files: The files written to the output folder, relative to it, sorted.
         committed: The committed files written into the repo (dbt properties, then `dbt_project.yml` when it
@@ -40,10 +45,12 @@ class GenerateResult:
 def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResult:
     """Validate the repo, generate every data product's files in memory and write them.
 
-    Nothing is written when the repo is invalid or when any data product fails to generate, so generation is
-    all-or-nothing. The writing itself is not: each file is written to a temporary file and moved into place, so a
-    reader never sees half a file, but a failure part-way (a full disk, a permission) leaves the files already moved
-    in place. The order limits the damage: output folder first, then the dbt properties, then the deletions, and
+    The repo is planned once by `plan_repo`; the dbt file diff, the manifest reads and the stale output checks of
+    `validate_repo` do not run. Nothing is written when the repo is invalid or when any data product fails to
+    generate (the report holds those problems), so generation is all-or-nothing. The writing itself is not: each
+    file is written to a temporary file and moved into place, so a reader never sees half a file, but a failure
+    part-way (a full disk, a permission) leaves the files already moved in place.
+    The order limits the damage: output folder first, then the dbt properties, then the deletions, and
     `dbt_project.yml` last. Output files left from an earlier run are not removed.
 
     When tables are built by dbt, the `model-paths` and `test-paths` of `dbt_project.yml` at the repo root (not in
@@ -61,17 +68,20 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
         output_dir: The folder to write to. Defaults to the `output_dir` setting, relative to the repo root.
 
     Raises:
-        GenerationError: If a plugin cannot generate a data product, a file cannot be written or deleted, or tables
+        GenerationError: If a file cannot be written or deleted, or tables
             are built by dbt and the repo root has no usable `dbt_project.yml`; the message says which.
-        PluginNotFoundError: If a plugin is missing. Validation reports that first, so this means a plugin vanished.
+        PluginNotFoundError: If a plugin is missing. The gate reports that first, so this means a plugin vanished.
     """
-    repo, settings, report = load_and_validate(root)
-    if settings is None or not report.ok:
-        return GenerateResult(report, (output_dir or root).resolve(), ())
+    planned = plan_repo(root)
+    if isinstance(planned, Report):
+        return GenerateResult(planned, (output_dir or root).resolve(), ())
+    repo, settings, plans = planned.repo, planned.settings, planned.plans
     target = (output_dir or root / settings.values.output_dir).resolve()
 
-    plans = plan_dataproducts(repo, settings)
-    files = render_dataproducts(plans, root, target, settings)
+    rendered = render_dataproducts(planned, target)
+    if rendered.problems:
+        return GenerateResult(Report(planned.report.dataproducts_checked, rendered.problems), target, ())
+    files = rendered.files
 
     # The dbt properties, sources and tests are committed source files, not build output, so they go next to the models.
     dbt_files = generate_dbt_files(plans, settings)
@@ -95,7 +105,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     if dbt_project is not None:  # last, so a failed write above leaves the committed file as it was
         _write(dbt_project[0], dbt_project[1])
         committed.append(PurePosixPath(dbt_project[0].relative_to(root).as_posix()))
-    return GenerateResult(report, target, tuple(sorted(files)), tuple(committed), tuple(orphans))
+    return GenerateResult(planned.report, target, tuple(sorted(files)), tuple(committed), tuple(orphans))
 
 
 def _write(destination: Path, content: str) -> None:

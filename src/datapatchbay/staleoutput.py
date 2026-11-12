@@ -3,12 +3,11 @@
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.genheader import generated_from
+from datapatchbay.planning import PlannedRepo
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import Repo
-from datapatchbay.settings import EffectiveSettings
 
 
-def check_stale_output(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
+def check_stale_output(planned: PlannedRepo) -> list[Problem]:
     """Find files in the output folder whose header names a data product file that does not exist any more.
 
     Only the files directly in the output folder are looked at, and only those that start with the generated header.
@@ -18,6 +17,7 @@ def check_stale_output(repo: Repo, settings: EffectiveSettings) -> list[Problem]
     Returns:
         One problem per stale file, sorted by path.
     """
+    repo, settings = planned.repo, planned.settings
     folder = repo.root / settings.values.output_dir
     if not folder.is_dir():
         return []

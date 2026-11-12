@@ -1,10 +1,10 @@
 """Rendering the files of every data product in memory, through the plugins named in the settings."""
 
-from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.errors import DatapatchbayError
-from datapatchbay.planning import plan_dataproducts
+from datapatchbay.planning import PlannedRepo
 from datapatchbay.plugins import (
     DataProductPlan,
     Executor,
@@ -16,19 +16,31 @@ from datapatchbay.plugins import (
     Warehouse,
 )
 from datapatchbay.problems import Problem
-from datapatchbay.registry import PluginNotFoundError, load_plugin
-from datapatchbay.repomodel import Repo
+from datapatchbay.registry import load_plugin
 from datapatchbay.settings import EffectiveSettings
 
 
-class GenerationError(DatapatchbayError):
-    """Raised when a plugin cannot generate a data product."""
+@dataclass(frozen=True, slots=True)
+class Rendered:
+    """What rendering every data product in memory gave.
+
+    Attributes:
+        files: The files by path relative to the output folder. When two data products generate the same file, the
+            first one's content is kept and the second is a problem.
+        problems: One problem per data product that fails to render or generates a file another one generates, at
+            its `dataproduct.yaml`.
+    """
+
+    files: dict[PurePosixPath, str]
+    problems: list[Problem]
 
 
 def render_dataproduct(
     plan: DataProductPlan, root: Path, target: Path, settings: EffectiveSettings
-) -> list[GeneratedFile]:
+) -> list[GeneratedFile] | Problem:
     """Generate the files of one data product in memory.
+
+    Plugins are known to exist after the gate, so a missing plugin raises `PluginNotFoundError` here.
 
     Args:
         plan: The data product to generate.
@@ -36,9 +48,8 @@ def render_dataproduct(
         target: The output folder.
         settings: The effective settings, which name the plugins.
 
-    Raises:
-        GenerationError: If the orchestrator cannot generate the data product.
-        PluginNotFoundError: If a plugin is missing.
+    Returns:
+        The files, or the problem, at the `dataproduct.yaml`, when the orchestrator refuses to generate them.
     """
     orchestrator: Orchestrator = load_plugin("orchestrator", plan.orchestrator)
     warehouse: Warehouse = load_plugin("warehouse", settings.values.warehouse)
@@ -53,64 +64,34 @@ def render_dataproduct(
     )
     try:
         return list(orchestrator.generate(plan, context))
-    except UnsupportedCombinationError as exc:
-        raise GenerationError(f"data product '{plan.folder}': {exc}") from exc
+    except (UnsupportedCombinationError, DatapatchbayError) as exc:  # a plugin that refuses the data product
+        return Problem(plan.source.file.path, None, f"data product '{plan.folder}': {exc}")
 
 
-def render_dataproducts(
-    plans: Sequence[DataProductPlan], root: Path, target: Path, settings: EffectiveSettings
-) -> dict[PurePosixPath, str]:
-    """Generate the files of every data product in memory, by path relative to the output folder.
+def render_dataproducts(planned: PlannedRepo, target: Path) -> Rendered:
+    """Generate the files of every data product in memory.
 
     Args:
-        plans: The data products to generate.
-        root: The repo root.
+        planned: The planned repo.
         target: The output folder.
-        settings: The effective settings, which name the plugins.
-
-    Raises:
-        GenerationError: If a data product fails to generate or two data products generate the same file.
-    """
-    files: dict[PurePosixPath, str] = {}
-    for plan in plans:
-        for generated in render_dataproduct(plan, root, target, settings):
-            if generated.path in files:
-                raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
-            files[generated.path] = generated.content
-    return files
-
-
-def check_generation(repo: Repo, settings: EffectiveSettings, root: Path) -> list[Problem]:
-    """Find what would make `dpb generate` fail while generating, without writing anything.
-
-    Only call this for a repo whose other checks passed, because it plans the data products.
-
-    Args:
-        repo: The loaded repo.
-        settings: The effective settings.
-        root: The repo root.
 
     Returns:
-        One problem per data product that fails to generate, at its `dataproduct.yaml`.
+        The files and the problems. Every data product is rendered, so one run finds all the problems.
     """
-    target = root / settings.values.output_dir
+    files: dict[PurePosixPath, str] = {}
+    owners: dict[PurePosixPath, str] = {}
     problems: list[Problem] = []
-    seen: dict[PurePosixPath, str] = {}
-    for plan in plan_dataproducts(repo, settings):
-        try:
-            generated = render_dataproduct(plan, root, target, settings)
-        except GenerationError as exc:
-            problems.append(Problem(plan.source.file.path, None, str(exc)))
+    for plan in planned.plans:
+        rendered = render_dataproduct(plan, planned.repo.root, target, planned.settings)
+        if isinstance(rendered, Problem):
+            problems.append(rendered)
             continue
-        except PluginNotFoundError:
-            continue  # `check_plugins` reports a plugin that is not installed; there is nothing to render without it
-        except DatapatchbayError as exc:  # a plugin that refuses with its own error
-            problems.append(Problem(plan.source.file.path, None, f"data product '{plan.folder}': {exc}"))
-            continue
-        for file in generated:
-            if file.path in seen:
+        for file in rendered:
+            if file.path in files:
                 problems.append(
-                    Problem(plan.source.file.path, None, f"file {file.path} is also generated by '{seen[file.path]}'")
+                    Problem(plan.source.file.path, None, f"file {file.path} is also generated by '{owners[file.path]}'")
                 )
-            seen.setdefault(file.path, plan.folder)
-    return problems
+                continue
+            files[file.path] = file.content
+            owners[file.path] = plan.folder
+    return Rendered(files, problems)
