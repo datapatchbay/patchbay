@@ -3,7 +3,7 @@
 The files accept any plugin name (ADR-0009), so the check runs where the plugins are known.
 """
 
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 from ruamel.yaml.comments import CommentedMap
 
@@ -14,16 +14,16 @@ from datapatchbay.registry import PluginKind, load_plugin, plugin_names
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import DataProduct, Port, Repo, Table
 from datapatchbay.settings import EffectiveSettings
-from datapatchbay.yamlio import YamlLoadError, line_of, load_mapping
+from datapatchbay.yamlio import line_of
 
 
-def check_plugins(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
+def check_plugins(repo: Repo, settings: EffectiveSettings, root_data: CommentedMap) -> list[Problem]:
     """Report each setting that names a plugin which is not installed.
 
     A problem points at the line where the name is written and names the data product and, for a table, the table.
     A name set at a higher level is reported for each place it applies to, so each message names its table.
     """
-    checker = _Checker(repo.root, settings)
+    checker = _Checker(settings, root_data)
     for dataproduct in repo.dataproducts:
         checker.check(dataproduct, None, None, "orchestrator", "orchestrator")
         checker.check_dbt(dataproduct)
@@ -37,16 +37,12 @@ def check_plugins(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
 
 
 class _Checker:
-    def __init__(self, root: Path, settings: EffectiveSettings) -> None:
-        self._root = root
+    def __init__(self, settings: EffectiveSettings, root_data: CommentedMap) -> None:
         self._settings = settings
+        self._root_data = root_data
         self._names: dict[PluginKind, list[str]] = {}
         self._needs: dict[str, bool] = {}
         self.problems: list[Problem] = []
-        try:
-            self._root_data: CommentedMap | None = load_mapping(root / ROOT_FILE)
-        except YamlLoadError:
-            self._root_data = None  # reported by the loader
 
     def _installed(self, kind: PluginKind) -> list[str]:
         if kind not in self._names:
@@ -136,7 +132,7 @@ class _Checker:
         value = self._settings.values.warehouse
         if value in self._installed("warehouse"):
             return
-        line = line_of(self._root_data, ["warehouse"]) if self._root_data is not None else None
+        line = line_of(self._root_data, ["warehouse"])
         self.problems.append(
             Problem(PurePosixPath(ROOT_FILE), line, self._message("warehouse", "warehouse", value, "the repo"))
         )
@@ -155,5 +151,5 @@ class _Checker:
             return port.file.path, port.file.line(key)
         if resolved.level == "dataproduct":
             return dataproduct.file.path, dataproduct.file.line(key)
-        line = line_of(self._root_data, [key]) if self._root_data is not None and resolved.level == "root" else None
+        line = line_of(self._root_data, [key]) if resolved.level == "root" else None
         return PurePosixPath(ROOT_FILE), line

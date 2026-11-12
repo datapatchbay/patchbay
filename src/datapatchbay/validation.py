@@ -1,6 +1,7 @@
 """Validating a whole repo: each file on its own, then the links between files."""
 
 from pathlib import Path
+from typing import NamedTuple
 
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
@@ -12,14 +13,26 @@ from datapatchbay.loading import load_repo
 from datapatchbay.pluginchecks import check_plugins
 from datapatchbay.problems import Report
 from datapatchbay.rendering import check_generation
-from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import Repo
-from datapatchbay.settings import InvalidSettingsError, load_settings
+from datapatchbay.settings import EffectiveSettings, resolve_settings
 from datapatchbay.staleoutput import check_stale_output
-from datapatchbay.yamlio import load_mapping
 
 
-def load_and_validate(root: Path) -> tuple[Repo, Report]:
+class Validation(NamedTuple):
+    """What `load_and_validate` found.
+
+    Attributes:
+        repo: What loaded. Use it only when the report is ok.
+        settings: The effective settings, built once from the root file. `None` when `datapatchbay.yaml` is invalid.
+        report: The problems found.
+    """
+
+    repo: Repo
+    settings: EffectiveSettings | None
+    report: Report
+
+
+def load_and_validate(root: Path) -> Validation:
     """Load and validate `datapatchbay.yaml`, every data product, every port and every table.
 
     Every file is checked even when an earlier one has problems, so one run reports everything. Cross-file checks
@@ -27,20 +40,18 @@ def load_and_validate(root: Path) -> tuple[Repo, Report]:
     valid settings, so they are skipped when `datapatchbay.yaml` is invalid, which the report already says.
 
     Returns:
-        What loaded, and the report. Use the repo only when the report is ok.
+        What loaded, the settings and the report. Use the repo only when the report is ok.
     """
     repo, problems = load_repo(root)
     problems.extend(check_repo(repo))
     problems.extend(check_freshness(repo))
-    try:
-        settings = load_settings(root)
-    except InvalidSettingsError:
-        pass  # `load_repo` reported `datapatchbay.yaml`; without settings no convention or plugin can be checked.
-    else:
-        problems.extend(check_conventions(repo, settings, load_mapping(root / ROOT_FILE)))
-        problems.extend(check_plugins(repo, settings))
+    settings: EffectiveSettings | None = None
+    if repo.root_file is not None:  # otherwise `load_repo` reported it, and no convention or plugin can be checked
+        settings = resolve_settings(repo.root_file)
+        problems.extend(check_conventions(repo, settings, repo.root_file.data))
+        problems.extend(check_plugins(repo, settings, repo.root_file.data))
         problems.extend(check_dbt(repo, settings))
-    return repo, Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)
+    return Validation(repo, settings, Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems))
 
 
 def validate_repo(root: Path) -> Report:
@@ -52,10 +63,9 @@ def validate_repo(root: Path) -> Report:
     tables built by dbt, or source input ports with different schedules. `dpb generate` uses `load_and_validate` and
     skips all of these, because it is what refreshes the files and reports the failures itself. Nothing is written.
     """
-    repo, report = load_and_validate(root)
-    if not report.ok:
+    repo, settings, report = load_and_validate(root)
+    if settings is None or not report.ok:
         return report
-    settings = load_settings(root)
     problems = [
         *check_dbt_files(repo, settings),
         *check_dbt_reads(repo, settings),

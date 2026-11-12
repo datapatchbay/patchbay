@@ -82,7 +82,7 @@ def write_manifest(
 
 
 def reads(repo: Path) -> list[str]:
-    loaded, report = load_and_validate(repo)
+    loaded, _, report = load_and_validate(repo)
     assert report.ok, [p.render() for p in report.problems]
     return [problem.render() for problem in check_dbt_reads(loaded, load_settings(repo))]
 

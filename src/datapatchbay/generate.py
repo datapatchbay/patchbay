@@ -11,7 +11,6 @@ from datapatchbay.dbt_sync import orphaned_dbt_files
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.problems import Report
 from datapatchbay.rendering import GenerationError, render_dataproducts
-from datapatchbay.settings import load_settings
 from datapatchbay.validation import load_and_validate
 
 __all__ = ["GenerateResult", "GenerationError", "generate_repo"]
@@ -66,10 +65,9 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
             are built by dbt and the repo root has no usable `dbt_project.yml`; the message says which.
         PluginNotFoundError: If a plugin is missing. Validation reports that first, so this means a plugin vanished.
     """
-    repo, report = load_and_validate(root)
-    if not report.ok:
+    repo, settings, report = load_and_validate(root)
+    if settings is None or not report.ok:
         return GenerateResult(report, (output_dir or root).resolve(), ())
-    settings = load_settings(root)
     target = (output_dir or root / settings.values.output_dir).resolve()
 
     plans = plan_dataproducts(repo, settings)

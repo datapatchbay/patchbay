@@ -11,7 +11,7 @@ from typing import Literal
 
 from ruamel.yaml.comments import CommentedMap
 
-from datapatchbay.models import DataProductFile, DataProductInputPortFile, PortFile, TableFile
+from datapatchbay.models import DataProductFile, DataProductInputPortFile, PortFile, RootFile, TableFile
 from datapatchbay.yamlio import line_of
 
 
@@ -120,12 +120,14 @@ class Repo:
 
     Attributes:
         root: The absolute repo root.
+        root_file: The `datapatchbay.yaml`, read once, or `None` when it failed validation.
         dataproducts: The data products whose `dataproduct.yaml` passed validation, sorted by folder path.
         unloaded_output_ports: Output port folders of data products whose `dataproduct.yaml` failed validation.
         dataproduct_dirs: Every folder that holds a `dataproduct.yaml`.
     """
 
     root: Path
+    root_file: LoadedFile[RootFile] | None = None
     dataproducts: list[DataProduct] = field(default_factory=list)
     unloaded_output_ports: frozenset[str] = frozenset()
     dataproduct_dirs: int = 0

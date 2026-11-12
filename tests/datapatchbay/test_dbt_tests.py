@@ -33,7 +33,7 @@ def with_rules(repo: Path, rules: str, extra: str = "") -> None:
 
 
 def generated_tests(repo: Path) -> dict[str, str]:
-    loaded, report = load_and_validate(repo)
+    loaded, _, report = load_and_validate(repo)
     assert report.ok, [p.render() for p in report.problems]
     settings = load_settings(repo)
     return {str(f.path): f.content for f in generate_dbt_tests(plan_dataproducts(loaded, settings), settings)}

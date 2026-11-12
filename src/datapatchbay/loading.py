@@ -23,7 +23,7 @@ from datapatchbay.models import (
     TableFile,
 )
 from datapatchbay.problems import Problem
-from datapatchbay.repo import find_dataproduct_files
+from datapatchbay.repo import ROOT_FILE, find_dataproduct_files
 from datapatchbay.repomodel import DataProduct, LoadedFile, Port, Repo, Table
 from datapatchbay.yamlio import YamlLoadError, line_of, load_mapping, resolve_location
 
@@ -103,10 +103,9 @@ def _problem(file: PurePosixPath, data: CommentedMap, error: ErrorDetails, key_h
     return Problem(file, line_of(data, location), message)
 
 
-def load_root_file(root: Path) -> list[Problem]:
-    """Validate `datapatchbay.yaml` and return its problems."""
-    _, problems = load_file(root / "datapatchbay.yaml", root, RootFile)
-    return problems
+def load_root_file(root: Path) -> tuple[LoadedFile[RootFile] | None, list[Problem]]:
+    """Read `datapatchbay.yaml` against the root file schema; see `load_file`."""
+    return load_file(root / ROOT_FILE, root, RootFile)
 
 
 def _port_model(direction: Direction, data: Mapping[str, object]) -> type[PortFile]:
@@ -207,9 +206,9 @@ def load_repo(root: Path) -> tuple[Repo, list[Problem]]:
     Every file is read even when an earlier one has problems, so one run reports everything. The returned `Repo`
     holds what loaded; the problems say what did not.
     """
-    problems = load_root_file(root)
+    root_file, problems = load_root_file(root)
     paths = find_dataproduct_files(root)
-    repo = Repo(root=root, dataproduct_dirs=len(paths))
+    repo = Repo(root=root, root_file=root_file, dataproduct_dirs=len(paths))
     unloaded: set[str] = set()
     for path in paths:
         product, unloaded_outputs, product_problems = _load_dataproduct(path, root)
