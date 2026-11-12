@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
 from datapatchbay.dbt_properties import generate_dbt_properties
+from datapatchbay.dbt_tests import generate_dbt_tests
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -48,9 +49,10 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     Nothing is written when the repo is invalid or when any data product fails to generate, so the output folder is
     never left with half a run. Files left from an earlier run are not removed.
 
-    When tables are built by dbt, the `model-paths` of `dbt_project.yml` at the repo root (not in `output_dir`, because
-    the file is committed) are also brought in step, after all other files are written, and only if that is needed.
-    The dbt properties files, also committed, are written just before it, next to the models.
+    When tables are built by dbt, the `model-paths` and `test-paths` of `dbt_project.yml` at the repo root (not in
+    `output_dir`, because the file is committed) are also brought in step, after all other files are written, and only
+    if that is needed. The dbt properties files and singular tests, also committed, are written just before it, next
+    to the models.
 
     Args:
         root: The repo root.
@@ -78,7 +80,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
             files[generated.path] = generated.content
 
     # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
-    properties = generate_dbt_properties(plans, settings)
+    properties = [*generate_dbt_properties(plans, settings), *generate_dbt_tests(plans, settings)]
 
     try:
         dbt_project = synced_dbt_project(repo, settings)
