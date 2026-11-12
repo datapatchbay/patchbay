@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from datapatchbay.cascade import resolve_setting, resolve_settings
+from datapatchbay.cascade import ResolvedCascade
 from datapatchbay.dbt import MODELS_FOLDER
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
 from datapatchbay.naming import DerivedNames, derive_names
@@ -38,12 +38,13 @@ class PlannedRepo:
         return Report(dataproducts_checked=self.repo.dataproduct_dirs, problems=[])
 
 
-def plan_dataproducts(repo: Repo, settings: EffectiveSettings) -> list[DataProductPlan]:
+def plan_dataproducts(repo: Repo, settings: EffectiveSettings, cascade: ResolvedCascade) -> list[DataProductPlan]:
     """Plan every data product of a valid repo, in the order of the repo.
 
     Args:
         repo: A repo that passed validation.
         settings: The effective settings at the root.
+        cascade: The resolved settings of every data product and table.
 
     Returns:
         One plan per data product. Each plan holds the orchestrator, warehouse, executor and runtime names that the
@@ -53,8 +54,10 @@ def plan_dataproducts(repo: Repo, settings: EffectiveSettings) -> list[DataProdu
     roles = {folder: derived.role for folder, derived in names.items()}
     plans = []
     for dataproduct in repo.dataproducts:
-        orchestrator = resolve_setting("orchestrator", settings, dataproduct=dataproduct)
-        plans.append(_plan(dataproduct, settings, str(orchestrator.value), names[dataproduct.folder], roles, repo.root))
+        orchestrator = cascade.for_dataproduct(dataproduct)["orchestrator"]
+        plans.append(
+            _plan(dataproduct, settings, cascade, str(orchestrator.value), names[dataproduct.folder], roles, repo.root)
+        )
     return plans
 
 
@@ -66,6 +69,7 @@ def _names_of(dataproduct: DataProduct, settings: EffectiveSettings) -> DerivedN
 def _plan(
     dataproduct: DataProduct,
     settings: EffectiveSettings,
+    cascade: ResolvedCascade,
     orchestrator: str,
     names: DerivedNames,
     roles: Mapping[str, str],
@@ -75,7 +79,7 @@ def _plan(
     tables = []
     for port in dataproduct.ports:
         for table in port.tables:
-            resolved = resolve_settings(settings, dataproduct=dataproduct, port=port, table=table)
+            resolved = cascade.for_table(table)
             image = resolved["image"].value
             container = resolved["container"].value
             tables.append(

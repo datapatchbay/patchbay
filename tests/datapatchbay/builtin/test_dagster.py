@@ -3,6 +3,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from plan_helpers import plan_all
 from plugin_fakes import FakeWarehouse
 from typer.testing import CliRunner
 
@@ -16,7 +17,6 @@ from datapatchbay.builtin.worker import WorkerRuntime
 from datapatchbay.cli import app
 from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
     DataProductPlan,
     GenerationContext,
@@ -24,7 +24,6 @@ from datapatchbay.plugins import (
     UnsupportedCombinationError,
     Warehouse,
 )
-from datapatchbay.settings import load_settings
 from datapatchbay.validation import validate_repo
 
 SNAPSHOT = Path(__file__).with_name("dagster_sa_jaffle_orders_snapshot.txt")
@@ -52,7 +51,7 @@ def use_dagster(root: Path) -> None:
 def plan_of(root: Path, folder: str) -> DataProductPlan:
     repo, problems = load_repo(root)
     assert problems == []
-    plans = plan_dataproducts(repo, load_settings(root))
+    plans = plan_all(repo, root)
     return replace(next(plan for plan in plans if plan.folder == folder), orchestrator="dagster")
 
 

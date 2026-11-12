@@ -1,24 +1,31 @@
-"""Resolving a setting over the levels it can be set at: defaults, root, data product, port and table (ADR-0008).
+"""Resolving the settings over the levels they can be set at: defaults, root, data product, port and table (ADR-0008).
 
-The nearest level wins, and every resolved setting records the level and the file it came from. Settings are looked
-up by name, so a setting that cascades the same way, such as a container setting, needs one new field on
-`CascadingSettings` and one new entry in `SettingName` and `CASCADING_SETTINGS`.
+The nearest level wins, and every resolved setting records the level, the file and the line it came from. The
+resolution runs once, right after loading: `resolve_cascade` returns a `ResolvedCascade` that the checks, the plans
+and `dpb describe` read. The names of the cascading settings are the fields of `CascadingSettings`, so a setting that
+cascades the same way, such as a container setting, needs one new field there.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, Literal
 
+from ruamel.yaml.comments import CommentedMap
+
+from datapatchbay.models.base import CascadingSettings
 from datapatchbay.repo import ROOT_FILE
-from datapatchbay.repomodel import DataProduct, Port, Table
+from datapatchbay.repomodel import DataProduct, LoadedFile, Port, Repo, Table
 from datapatchbay.settings import EffectiveSettings
+from datapatchbay.yamlio import line_of
 
 type Level = Literal["table", "port", "dataproduct", "root", "defaults", "unset"]
 
-type SettingName = Literal["executor", "runtime", "image", "container", "severity", "orchestrator"]
-
-CASCADING_SETTINGS: tuple[SettingName, ...] = ("executor", "runtime", "image", "container", "severity")
+CASCADING_SETTINGS: tuple[str, ...] = tuple(CascadingSettings.model_fields)
 """The settings that can be set at every level."""
+
+DATAPRODUCT_SETTINGS: tuple[str, ...] = ("orchestrator",)
+"""The settings that apply to a whole data product: set on its file or at the root, never on a port or a table."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,25 +38,29 @@ class ResolvedSetting:
         level: The level the value came from; `unset` when no level sets it.
         file: The file that holds the value, relative to the repo root. `None` for the packaged defaults and for
             a setting that is not set.
+        line: The 1-based line of the value in `file`. `None` for the packaged defaults and for a setting that is
+            not set.
     """
 
-    name: SettingName
+    name: str
     value: Any
     level: Level
     file: PurePosixPath | None
+    line: int | None = None
 
     def to_json(self) -> dict[str, Any]:
         """Return the setting in the public `--json` shape."""
         return {"value": self.value, "level": self.level, "file": str(self.file) if self.file else None}
 
 
-def resolve_setting(
-    name: SettingName,
+def _resolve_setting(
+    name: str,
     settings: EffectiveSettings,
     *,
     dataproduct: DataProduct | None = None,
     port: Port | None = None,
     table: Table | None = None,
+    root_data: CommentedMap | None = None,
 ) -> ResolvedSetting:
     """Resolve one setting for the place given by the levels below the root.
 
@@ -64,40 +75,87 @@ def resolve_setting(
         dataproduct: The data product the place belongs to.
         port: The port the place belongs to.
         table: The table the place is.
+        root_data: The YAML of `datapatchbay.yaml`, to find the line of a value set at the root.
 
     Returns:
-        The winning value with its level and file. A file kind that has no such field, such as a port file for
+        The winning value with its level, file and line. A file kind that has no such field, such as a port file for
         `orchestrator`, never sets it, so the setting passes through to the next level.
     """
-    layers: list[tuple[Level, PurePosixPath, object]] = []
+    layers: list[tuple[Level, LoadedFile[Any], object, tuple[str, ...]]] = []
     if table is not None and table.file.model.build is not None:
-        layers.append(("table", table.file.path, table.file.model.build))
+        layers.append(("table", table.file, table.file.model.build, ("build", name)))
     if port is not None:
-        layers.append(("port", port.file.path, port.file.model))
+        layers.append(("port", port.file, port.file.model, (name,)))
     if dataproduct is not None:
-        layers.append(("dataproduct", dataproduct.file.path, dataproduct.file.model))
-    for level, file, model in layers:
+        layers.append(("dataproduct", dataproduct.file, dataproduct.file.model, (name,)))
+    for level, file, model, location in layers:
         value = getattr(model, name, None)
         if value is not None:
-            return ResolvedSetting(name, value, level, file)
+            return ResolvedSetting(name, value, level, file.path, file.line(*location))
 
     for entry in settings.entries:
         if entry.name == name:
             if entry.origin == ROOT_FILE:
-                return ResolvedSetting(name, entry.value, "root", PurePosixPath(ROOT_FILE))
+                line = None if root_data is None else line_of(root_data, [name])
+                return ResolvedSetting(name, entry.value, "root", PurePosixPath(ROOT_FILE), line)
             return ResolvedSetting(name, entry.value, "defaults", None)
     return ResolvedSetting(name, None, "unset", None)
 
 
-def resolve_settings(
-    settings: EffectiveSettings,
-    *,
-    dataproduct: DataProduct | None = None,
-    port: Port | None = None,
-    table: Table | None = None,
-) -> dict[str, ResolvedSetting]:
-    """Resolve every cascading setting for a place, keyed by setting name. See `resolve_setting`."""
-    return {
-        name: resolve_setting(name, settings, dataproduct=dataproduct, port=port, table=table)
-        for name in CASCADING_SETTINGS
-    }
+@dataclass(frozen=True, slots=True)
+class ResolvedCascade:
+    """Every setting resolved for every data product, port and table of a repo, each with its provenance.
+
+    The lookups take the objects of the loaded repo and answer from what `resolve_cascade` computed, so nothing
+    resolves a setting a second time.
+    """
+
+    dataproducts: Mapping[str, Mapping[str, ResolvedSetting]]
+    ports: Mapping[PurePosixPath, Mapping[str, ResolvedSetting]]
+    tables: Mapping[PurePosixPath, Mapping[str, ResolvedSetting]]
+
+    def for_dataproduct(self, dataproduct: DataProduct) -> Mapping[str, ResolvedSetting]:
+        """The cascading settings at a data product, followed by the settings that only a data product has."""
+        return self.dataproducts[dataproduct.folder]
+
+    def for_port(self, port: Port) -> Mapping[str, ResolvedSetting]:
+        """The cascading settings as they hold for a port."""
+        return self.ports[port.file.path]
+
+    def for_table(self, table: Table) -> Mapping[str, ResolvedSetting]:
+        """The cascading settings as they hold for a table."""
+        return self.tables[table.file.path]
+
+
+def resolve_cascade(repo: Repo, settings: EffectiveSettings) -> ResolvedCascade:
+    """Resolve every setting once for every data product, port and table of the loaded repo.
+
+    Args:
+        repo: What loaded; files that failed validation are not in it, so they are not resolved.
+        settings: The effective settings at the root, which hold the defaults.
+
+    Returns:
+        The resolved settings, for the places that are looked up by data product, port and table.
+    """
+    root_data = None if repo.root_file is None else repo.root_file.data
+    dataproducts: dict[str, Mapping[str, ResolvedSetting]] = {}
+    ports: dict[PurePosixPath, Mapping[str, ResolvedSetting]] = {}
+    tables: dict[PurePosixPath, Mapping[str, ResolvedSetting]] = {}
+    for dataproduct in repo.dataproducts:
+        dataproducts[dataproduct.folder] = {
+            name: _resolve_setting(name, settings, dataproduct=dataproduct, root_data=root_data)
+            for name in (*CASCADING_SETTINGS, *DATAPRODUCT_SETTINGS)
+        }
+        for port in dataproduct.ports:
+            ports[port.file.path] = {
+                name: _resolve_setting(name, settings, dataproduct=dataproduct, port=port, root_data=root_data)
+                for name in CASCADING_SETTINGS
+            }
+            for table in port.tables:
+                tables[table.file.path] = {
+                    name: _resolve_setting(
+                        name, settings, dataproduct=dataproduct, port=port, table=table, root_data=root_data
+                    )
+                    for name in CASCADING_SETTINGS
+                }
+    return ResolvedCascade(dataproducts, ports, tables)

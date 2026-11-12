@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from plan_helpers import plan_all
 
 from datapatchbay.builtin.airflow import AirflowOrchestrator
 from datapatchbay.builtin.dbt_executor import DbtExecutor
@@ -13,15 +14,13 @@ from datapatchbay.builtin.kubernetes import KubernetesRuntime
 from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.builtin.worker import WorkerRuntime
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import BuildTask, DataProductPlan, GenerationContext, UnsupportedCombinationError
-from datapatchbay.settings import load_settings
 
 
 def plan_of(root: Path, folder: str) -> DataProductPlan:
     repo, problems = load_repo(root)
     assert problems == []
-    plans = plan_dataproducts(repo, load_settings(root))
+    plans = plan_all(repo, root)
     return next(plan for plan in plans if plan.folder == folder)
 
 
