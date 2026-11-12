@@ -20,20 +20,25 @@ class DuckDbWarehouse:
     def apply_tasks(self, dataproduct: DataProductPlan) -> Sequence[SqlTask]:
         """Return one task that applies the views of every output port, or none when there is no output port.
 
-        Each port's schema is dropped and created again, so a table or column that left the table files is gone from
-        the next apply. DuckDB has no roles: readers and PII readers are accepted and create no grants, and a PII
-        column shows NULL to everyone (ADR-0021).
+        Every port is applied in one transaction (DuckDB's DDL is transactional): if a statement fails, nothing is
+        committed and the previous schemas and views stay. Each port's schema is dropped and created again, so a table
+        or column that left the table files is gone from the next apply, and so is anything else in the schema. DuckDB
+        has no roles: readers and PII readers are accepted and create no grants, and a PII column shows NULL to
+        everyone (ADR-0021).
         """
         statements = []
         for port, tables in output_ports(dataproduct):
             schema = DUCKDB_DIALECT.identifier(port.name)
             statements += [
+                # Whitespace is collapsed so that the name cannot end the comment.
                 f"-- Output port {' '.join(port.name.split())}",
                 f"DROP SCHEMA IF EXISTS {schema} CASCADE;",
                 f"CREATE SCHEMA {schema};",
                 *(view_sql(table, DUCKDB_DIALECT, _masked) for table in tables),
             ]
-        return (SqlTask("apply_access", "\n".join(statements)),) if statements else ()
+        if not statements:
+            return ()
+        return (SqlTask("apply_access", "\n".join(["BEGIN TRANSACTION;", *statements, "COMMIT;"])),)
 
     def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
         """Return one audit task for the table's quality rules, or none when no rule has to run.

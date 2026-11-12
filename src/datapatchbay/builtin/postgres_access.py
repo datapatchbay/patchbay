@@ -15,7 +15,7 @@ How one output port is applied:
    private schema: the views read it with their owner's privileges.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from datapatchbay.builtin.audit_sql import Dialect, standard_identifier, standard_literal
 from datapatchbay.builtin.port_views import output_ports, view_sql
@@ -41,7 +41,6 @@ END
 {tag};"""
 
 
-_identifier = standard_identifier
 _DIALECT = Dialect(identifier=standard_identifier, literal=standard_literal)
 
 
@@ -62,13 +61,13 @@ def access_sql(plan: DataProductPlan) -> str:
     return "\n\n".join(_port_sql(plan, port, tables) for port, tables in output_ports(plan))
 
 
-def _port_sql(plan: DataProductPlan, port: Port, tables: list[TablePlan]) -> str:
+def _port_sql(plan: DataProductPlan, port: Port, tables: Sequence[TablePlan]) -> str:
     model = port.file.model
     assert isinstance(model, OutputPortFile)
     readers = {_role_of(plan, reader) for reader in model.access.readers}
     pii_readers = sorted(set(model.access.pii_readers))
     everyone = sorted(readers | set(pii_readers))
-    schema = _identifier(port.name)
+    schema = _DIALECT.identifier(port.name)
     statements = [
         f"-- Output port {' '.join(port.name.split())}",
         f"CREATE SCHEMA IF NOT EXISTS {schema};",
@@ -76,13 +75,13 @@ def _port_sql(plan: DataProductPlan, port: Port, tables: list[TablePlan]) -> str
     ]
     for table in tables:
         statements += [
-            f"DROP VIEW IF EXISTS {schema}.{_identifier(table.name)};",
+            f"DROP VIEW IF EXISTS {schema}.{_DIALECT.identifier(table.name)};",
             _view_sql(table, pii_readers),
         ]
     if everyone:
-        roles = ", ".join(_identifier(role) for role in everyone)
+        roles = ", ".join(_DIALECT.identifier(role) for role in everyone)
         statements.append(f"GRANT USAGE ON SCHEMA {schema} TO {roles};")
-        statements += [f"GRANT SELECT ON {schema}.{_identifier(table.name)} TO {roles};" for table in tables]
+        statements += [f"GRANT SELECT ON {schema}.{_DIALECT.identifier(table.name)} TO {roles};" for table in tables]
     return "\n".join(statements)
 
 

@@ -5,14 +5,14 @@ warehouses is how a PII column is masked and how access is granted; the ports, t
 the same.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 
 from datapatchbay.builtin.audit_sql import Dialect
 from datapatchbay.plugins import DataProductPlan, TablePlan
 from datapatchbay.repomodel import Port
 
 
-def output_ports(plan: DataProductPlan) -> Iterator[tuple[Port, list[TablePlan]]]:
+def output_ports(plan: DataProductPlan) -> Iterator[tuple[Port, Sequence[TablePlan]]]:
     """Yield each output port of the data product with the tables that are in it."""
     for port in plan.source.outputs:
         if port.name in plan.outputs:

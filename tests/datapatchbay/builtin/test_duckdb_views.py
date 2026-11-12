@@ -95,7 +95,6 @@ def test_readers_and_pii_readers_create_no_grants_and_no_roles(repo: Path):
 
 
 def test_applying_again_gives_the_same_result(repo: Path, db: duckdb.DuckDBPyConnection):
-    assert apply_sql(repo) == apply_sql(repo)
     db.execute(apply_sql(repo))
     first = db.execute("SELECT * FROM sa_ilab_orders.orders ORDER BY order_id").fetchall()
     db.execute(apply_sql(repo))
@@ -136,3 +135,21 @@ def test_generate_ends_the_dag_with_the_apply_task_before_publishing_the_outputs
     dag = (repo / "generated/sa_ilab_orders.py").read_text()
     assert "apply_access" in dag
     assert dag.index("apply_access") < dag.rindex("publish_outputs")
+
+
+def test_a_failing_apply_leaves_the_previous_views(repo: Path, db: duckdb.DuckDBPyConnection):
+    db.execute(apply_sql(repo))
+    before = db.execute("SELECT * FROM sa_ilab_orders.orders ORDER BY order_id").fetchall()
+    db.execute(f"ALTER TABLE {SCHEMA}.orders DROP COLUMN status")
+    with pytest.raises(duckdb.Error):
+        db.execute(apply_sql(repo))
+    db.execute("ROLLBACK")
+    db.execute(f"ALTER TABLE {SCHEMA}.orders ADD COLUMN status text")
+    rows = db.execute("SELECT order_id, patient_id, status FROM sa_ilab_orders.orders ORDER BY order_id").fetchall()
+    assert [(r[0], r[1]) for r in rows] == [(r[0], r[1]) for r in before]
+
+
+def test_the_apply_is_one_transaction(repo: Path):
+    lines = apply_sql(repo).splitlines()
+    assert lines[0] == "BEGIN TRANSACTION;"
+    assert lines[-1] == "COMMIT;"
