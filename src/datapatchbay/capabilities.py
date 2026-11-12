@@ -49,7 +49,7 @@ class ExecutorPlugins:
         found: list[Any] = []
         for name in self.installed():
             executor = self.get(name)
-            if isinstance(executor, capability):  # ty: ignore[invalid-argument-type]
+            if isinstance(executor, capability):  # ty: ignore[invalid-argument-type]  # a runtime_checkable Protocol is a type here
                 found.append(executor)
         return found
 

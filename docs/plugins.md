@@ -40,6 +40,8 @@ An executor can do more than say what to call. The core asks for each extra with
 | `OwnsQualityRules` | `owns_quality_rules(table)` | The executor runs the quality rules of this table itself, so the warehouse gets no audit task for it. |
 | `ScaffoldsTables` | `scaffold_table(table)` | For `dpb new`: given a `NewTable`, returns a `ScaffoldedTable` with the `build` block of the table file (or `None`) and the files for the data product folder, such as the stub of the build code. |
 
+An executor without `ChecksTables` gets no check of its table files, so a missing `build.entrypoint` shows up when the build runs. An executor without `ScaffoldsTables` cannot be used by `dpb new`, which stops with an error instead of writing Python stubs.
+
 ## The SQL toolkit: `datapatchbay.plugins.sql`
 
 For warehouse plugins.
