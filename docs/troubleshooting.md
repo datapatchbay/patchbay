@@ -24,7 +24,7 @@ Every command uses the same three exit codes:
 : A data product with that name and kind exists. Choose another name, or edit the existing folder.
 
 `error: no data product named '<name>'; the data products are: ...`
-: `dpb describe` takes the folder name, such as `sa_ilab_orders`, or the bare `name`, such as `ilab_orders`.
+: `dpb describe` takes the folder name, such as `sa_jaffle_orders`, or the bare `name`, such as `jaffle_orders`.
 
 `dpb list` leaves out a data product
 : A file of that data product fails validation. `dpb list` prints a warning on stderr. Run `dpb validate` to see why.

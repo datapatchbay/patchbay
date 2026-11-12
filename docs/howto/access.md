@@ -2,7 +2,7 @@
 
 Access to an output port is declared in its `port.yaml`, under `access`. Nobody runs a `GRANT` by hand: the `apply_access` task of the data product's DAG applies what the file says.
 
-All examples below edit `dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml`.
+All examples below edit `dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml`.
 
 ## Give a role access
 
@@ -11,7 +11,7 @@ Add the name of the warehouse role to `readers`, as the warehouse spells it:
 ```yaml
 access:
   readers:
-    - grp-lab-reporting
+    - grp-shop-reporting
 ```
 
 The role can then read every view of the port. It sees NULL in the columns marked as personal data.
@@ -25,20 +25,20 @@ Two files change, usually in one pull request that the owner of the port approve
    ```yaml
    access:
      readers:
-       - grp-lab-reporting
-       - product: agg_lab_turnaround
+       - grp-shop-reporting
+       - product: agg_order_turnaround
    ```
 
-2. In the reading data product, declare the input port. Create `inputs/sa_ilab_orders/port.yaml`, in a folder named after the output port:
+2. In the reading data product, declare the input port. Create `inputs/sa_jaffle_orders/port.yaml`, in a folder named after the output port:
 
    ```yaml
    schema_version: 1
-   from: sa_ilab_orders
+   from: sa_jaffle_orders
    ```
 
-   Then add `sa_ilab_orders` to `inputs` in its `dataproduct.yaml`.
+   Then add `sa_jaffle_orders` to `inputs` in its `dataproduct.yaml`.
 
-`product: agg_lab_turnaround` maps to that data product's role, `dp_agg_lab_turnaround` with the default naming template. `dpb validate` fails when a data product declares the input port but is not in the readers.
+`product: agg_order_turnaround` maps to that data product's role, `dp_agg_order_turnaround` with the default naming template. `dpb validate` fails when a data product declares the input port but is not in the readers.
 
 ## Let a role see personal data
 
@@ -46,7 +46,7 @@ Mark the column in the table file:
 
 ```yaml
 columns:
-  - name: patient_id
+  - name: customer_id
     type: text
     pii: true
 ```
@@ -55,8 +55,8 @@ Then add the role to `pii_readers`:
 
 ```yaml
 access:
-  readers: [grp-lab-reporting]
-  pii_readers: [grp-lab-doctors]
+  readers: [grp-shop-reporting]
+  pii_readers: [grp-shop-support]
 ```
 
 A PII reader can read the port and sees the values of the PII columns. Readers and PII readers query the same view. A PII reader does not have to be in `readers` as well.
@@ -69,7 +69,7 @@ Remove the line. The next run of the DAG revokes the access.
 
 ```console
 $ dpb validate
-$ dpb describe sa_ilab_orders
+$ dpb describe sa_jaffle_orders
 ```
 
 `dpb describe` shows `readers`, `pii readers` and `read by` for each output port.

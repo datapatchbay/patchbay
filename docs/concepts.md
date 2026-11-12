@@ -21,13 +21,13 @@ Owners are people written as free text. There is no registry of teams to fill in
 
 ## Names come from templates
 
-A data product states a bare name, such as `ilab_orders`, and a kind with a prefix, such as `sa`. Every other name is produced by a **naming template**: the folder name, the output port name, the private port name and the role name. A team's naming convention lives in one place, and port names are unique across the repo by construction.
+A data product states a bare name, such as `jaffle_orders`, and a kind with a prefix, such as `sa`. Every other name is produced by a **naming template**: the folder name, the output port name, the private port name and the role name. A team's naming convention lives in one place, and port names are unique across the repo by construction.
 
 ```text
-name: ilab_orders  +  kind: source-aligned (prefix sa)
-  ├── folder and default output port   sa_ilab_orders
-  ├── private input port               sa_ilab_orders_private
-  └── warehouse role                   dp_sa_ilab_orders
+name: jaffle_orders  +  kind: source-aligned (prefix sa)
+  ├── folder and default output port   sa_jaffle_orders
+  ├── private input port               sa_jaffle_orders_private
+  └── warehouse role                   dp_sa_jaffle_orders
 ```
 
 ## Ports

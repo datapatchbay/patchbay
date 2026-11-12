@@ -1,0 +1,10 @@
+schema_version: 1
+name: order_turnaround
+kind: aggregate
+domain: operations
+owner: Ann Poe
+technical_owner: John Roe
+description: How long the jaffle shop takes to complete an order
+inputs: [sa_jaffle_orders]
+outputs: [agg_order_turnaround]
+executor: dbt

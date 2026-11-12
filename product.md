@@ -44,32 +44,32 @@ Data mesh gave teams the vocabulary for this and no implementation. The goal her
 ```
 datapatchbay.yaml
 dataproducts/
-  sa_ilab_orders/
+  sa_jaffle_orders/
     dataproduct.yaml
     inputs/
-      sa_ilab_orders_private/
+      sa_jaffle_orders_private/
         port.yaml
         ingested_orders.yaml
     outputs/
-      sa_ilab_orders/
+      sa_jaffle_orders/
         port.yaml
         orders.yaml
     src/
       ingested_orders.py
       orders.py
-  agg_lab_turnaround/
+  agg_order_turnaround/
     dataproduct.yaml
     inputs/
-      sa_ilab_orders/
+      sa_jaffle_orders/
         port.yaml
     outputs/
-      agg_lab_turnaround/
+      agg_order_turnaround/
         port.yaml
         turnaround.yaml
     models/
-      agg_lab_turnaround__turnaround.sql
-      agg_lab_turnaround__turnaround.yml   # generated, committed
-dbt_project.yml                            # only for dbt
+      agg_order_turnaround__turnaround.sql
+      agg_order_turnaround__turnaround.yml   # generated, committed
+dbt_project.yml                              # only for dbt
 ```
 
 There are four kinds of file: `datapatchbay.yaml` at the root, and per data product one `dataproduct.yaml`, one `port.yaml` per port and one YAML per table. The build code of a data product lives in its folder: Python modules in `src/`, dbt models in `models/` (ADR-0015). A team chooses Python or dbt per data product, or per table.
@@ -113,14 +113,14 @@ conventions:
 
 ```yaml
 schema_version: 1
-name: ilab_orders
+name: jaffle_orders
 kind: source-aligned
 domain: operations
 owner: Jane Doe
 technical_owner: John Roe
-description: Lab orders as received from the lab system
-inputs: [sa_ilab_orders_private]
-outputs: [sa_ilab_orders]
+description: Jaffle shop orders as received from the shop's order system
+inputs: [sa_jaffle_orders_private]
+outputs: [sa_jaffle_orders]
 ```
 
 - `name` is written without the kind's prefix. Naming templates produce the folder name, the port names and the role name.
@@ -138,9 +138,9 @@ kind: schema               # schema | table
 freshness: 24h
 access:
   readers:
-    - grp-lab-reporting
-    - product: agg_lab_turnaround
-  pii_readers: [grp-lab-doctors]
+    - grp-shop-reporting
+    - product: agg_order_turnaround
+  pii_readers: [grp-shop-support]
 ```
 
 An input port fed by a source:
@@ -148,7 +148,7 @@ An input port fed by a source:
 ```yaml
 schema_version: 1
 kind: schema
-source: ilab
+source: jaffle_shop
 schedule: "0 5 * * *"
 ```
 
@@ -156,7 +156,7 @@ An input port that reads another data product's output port has a folder named a
 
 ```yaml
 schema_version: 1
-from: sa_ilab_orders
+from: sa_jaffle_orders
 ```
 
 - A port of kind `schema` holds any number of table files. A port of kind `table` has the same folder shape with exactly one table file.
@@ -168,19 +168,19 @@ from: sa_ilab_orders
 ```yaml
 schema_version: 1
 name: orders
-description: One row per lab order
+description: One row per jaffle shop order
 columns:
   - name: order_id
     type: text
     rules: [not_null, unique]
-  - name: patient_id
+  - name: customer_id
     type: text
     pii: true
   - name: status
     type: text
     rules:
       - rule: accepted_values
-        values: [open, closed]
+        values: [placed, shipped, completed, return_pending, returned]
         severity: warning
   - name: ordered_at
     type: timestamp

@@ -13,13 +13,13 @@ from datapatchbay.settings import load_settings
 
 
 @pytest.fixture
-def dbt_repo(lab_repo: Path) -> Path:
-    """The lab repo where the reader data product builds its table with dbt, set on the data product."""
-    product = lab_repo / DP / "dataproduct.yaml"
+def dbt_repo(jaffle_repo: Path) -> Path:
+    """The jaffle shop repo where the reader data product builds its table with dbt, set on the data product."""
+    product = jaffle_repo / DP / "dataproduct.yaml"
     product.write_text(product.read_text() + "executor: dbt\n")
-    write(lab_repo, TABLE, TABLE_YAML)
-    write(lab_repo, MODEL, "select 1 as days\n")
-    return lab_repo
+    write(jaffle_repo, TABLE, TABLE_YAML)
+    write(jaffle_repo, MODEL, "select 1 as days\n")
+    return jaffle_repo
 
 
 def test_a_table_built_by_dbt_needs_no_build_block_and_its_model(dbt_repo: Path):
@@ -46,7 +46,7 @@ def test_the_nearest_executor_wins(dbt_repo: Path):
     (dbt_repo / MODEL).unlink()
     assert checked(dbt_repo) == []
     repo, _ = load_repo(dbt_repo)
-    product = next(p for p in repo.dataproducts if p.folder == "agg_lab_turnaround")
+    product = next(p for p in repo.dataproducts if p.folder == "agg_order_turnaround")
     resolved = resolve_setting(
         "executor",
         load_settings(dbt_repo),
@@ -72,8 +72,8 @@ def test_entrypoint_params_and_needs_fail_on_a_dbt_table(dbt_repo: Path, block: 
 def test_a_missing_model_names_the_expected_path(dbt_repo: Path):
     (dbt_repo / MODEL).unlink()
     assert rendered(dbt_repo) == [
-        f"{TABLE}:2: model file models/agg_lab_turnaround__turnaround.sql does not exist in the folder of "
-        "data product 'agg_lab_turnaround'; table 'turnaround' is built by dbt"
+        f"{TABLE}:2: model file models/agg_order_turnaround__turnaround.sql does not exist in the folder of "
+        "data product 'agg_order_turnaround'; table 'turnaround' is built by dbt"
     ]
 
 
@@ -90,7 +90,7 @@ def test_a_rendered_model_name_that_is_not_a_plain_identifier_fails(dbt_repo: Pa
     )
     [message] = rendered(dbt_repo)
     assert message.startswith(f"{TABLE}:2: ")
-    assert "'agg_lab_turnaround/turnaround'" in message
+    assert "'agg_order_turnaround/turnaround'" in message
     assert "plain identifier" in message
 
 
@@ -130,19 +130,19 @@ def test_a_python_file_in_models_fails(dbt_repo: Path):
     ]
 
 
-def test_a_python_table_still_needs_an_entrypoint(lab_repo: Path):
-    write(lab_repo, TABLE, TABLE_YAML)
-    assert rendered(lab_repo) == [
+def test_a_python_table_still_needs_an_entrypoint(jaffle_repo: Path):
+    write(jaffle_repo, TABLE, TABLE_YAML)
+    assert rendered(jaffle_repo) == [
         f"{TABLE}: table 'turnaround' needs a `build` block with an `entrypoint`, because its executor is 'python'"
     ]
-    write(lab_repo, TABLE, TABLE_YAML + "build:\n  params: {}\n")
-    assert rendered(lab_repo) == [
+    write(jaffle_repo, TABLE, TABLE_YAML + "build:\n  params: {}\n")
+    assert rendered(jaffle_repo) == [
         f"{TABLE}:6: table 'turnaround' needs a `build.entrypoint`, because its executor is 'python'"
     ]
 
 
-def test_the_dbt_model_template_defaults_and_is_in_the_schema(lab_repo: Path):
-    assert load_settings(lab_repo).values.conventions.names.dbt_model == "{dataproduct}__{table}"
+def test_the_dbt_model_template_defaults_and_is_in_the_schema(jaffle_repo: Path):
+    assert load_settings(jaffle_repo).values.conventions.names.dbt_model == "{dataproduct}__{table}"
     assert "dbt_model" in schemas.json_schema("root")["$defs"]["NamesConvention"]["properties"]
 
 
@@ -167,4 +167,4 @@ def test_the_dbt_settings_decide_where_the_project_and_profiles_are(dbt_repo: Pa
 def test_a_project_dir_inside_the_repo_makes_the_selection_relative_to_it(dbt_repo: Path):
     write(dbt_repo, "datapatchbay.yaml", "schema_version: 1\ndbt:\n  project_dir: dataproducts\n")
     call = dbt_call_of(dbt_repo)
-    assert (call.select, call.project_dir) == (PurePosixPath("agg_lab_turnaround/models"), "..")
+    assert (call.select, call.project_dir) == (PurePosixPath("agg_order_turnaround/models"), "..")

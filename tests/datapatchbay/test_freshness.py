@@ -64,7 +64,7 @@ def _make_product(
         _write(
             root,
             f"{dp}/inputs/{folder}_in/port.yaml",
-            f'schema_version: 1\nkind: table\nsource: ilab\nschedule: "{schedule}"\n',
+            f'schema_version: 1\nkind: table\nsource: jaffle_shop\nschedule: "{schedule}"\n',
         )
         _write(root, f"{dp}/inputs/{folder}_in/t_in.yaml", _table("t_in"))
         _write(root, f"{dp}/src/t_in.py", "def build(): ...\n")

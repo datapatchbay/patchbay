@@ -7,22 +7,22 @@ from plugin_fakes import FakeOrchestrator, register
 from datapatchbay.generate import generate_repo
 
 PROJECT = "dbt_project.yml"
-PROPERTIES = f"{DP}/models/agg_lab_turnaround__turnaround.yml"
+PROPERTIES = f"{DP}/models/agg_order_turnaround__turnaround.yml"
 GROUP = f"{DP}/models/_group.yml"
 SOURCES = f"{DP}/models/_sources.yml"
 
 
 @pytest.fixture
-def synced_repo(lab_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def synced_repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     register(monkeypatch, "orchestrator", "fake", FakeOrchestrator)
-    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
-    product = lab_repo / DP / "dataproduct.yaml"
+    (jaffle_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
+    product = jaffle_repo / DP / "dataproduct.yaml"
     product.write_text(product.read_text() + "executor: dbt\n")
-    write(lab_repo, f"{DP}/outputs/agg_lab_turnaround/turnaround.yaml", TABLE_YAML)
-    write(lab_repo, MODEL, "select 1 as days\n")
-    write(lab_repo, PROJECT, "name: lab\nversion: '1.0'\nprofile: lab\n")
-    generate_repo(lab_repo)
-    return lab_repo
+    write(jaffle_repo, f"{DP}/outputs/agg_order_turnaround/turnaround.yaml", TABLE_YAML)
+    write(jaffle_repo, MODEL, "select 1 as days\n")
+    write(jaffle_repo, PROJECT, "name: jaffle_shop\nversion: '1.0'\nprofile: jaffle_shop\n")
+    generate_repo(jaffle_repo)
+    return jaffle_repo
 
 
 def snapshot(repo: Path) -> dict[str, bytes]:
@@ -33,12 +33,12 @@ def test_files_made_by_generate_pass(synced_repo: Path):
     assert rendered(synced_repo) == []
 
 
-def test_a_repo_without_dbt_tables_needs_nothing(lab_repo: Path):
-    assert rendered(lab_repo) == []
+def test_a_repo_without_dbt_tables_needs_nothing(jaffle_repo: Path):
+    assert rendered(jaffle_repo) == []
 
 
 def test_a_changed_table_file_makes_the_properties_stale(synced_repo: Path):
-    table = synced_repo / DP / "outputs/agg_lab_turnaround/turnaround.yaml"
+    table = synced_repo / DP / "outputs/agg_order_turnaround/turnaround.yaml"
     table.write_text(table.read_text() + "  - name: extra\n    type: text\n")
     problems = rendered(synced_repo)
     assert len(problems) == 1
@@ -61,7 +61,9 @@ def test_a_missing_properties_file_fails(synced_repo: Path):
 
 
 def test_stale_model_paths_fail(synced_repo: Path):
-    (synced_repo / PROJECT).write_text("name: lab\nversion: '1.0'\nprofile: lab\nmodel-paths: [models]\n")
+    (synced_repo / PROJECT).write_text(
+        "name: jaffle_shop\nversion: '1.0'\nprofile: jaffle_shop\nmodel-paths: [models]\n"
+    )
     problems = rendered(synced_repo)
     assert len(problems) == 1
     assert problems[0].startswith(f"{PROJECT}: ")
@@ -76,11 +78,11 @@ def test_a_missing_dbt_project_fails(synced_repo: Path):
 
 @pytest.mark.parametrize("location", [f"{DP}/models/extra.yml", f"{DP}/models/sub/more.yaml"])
 def test_a_hand_written_entry_for_a_built_model_is_a_duplicate(synced_repo: Path, location: str):
-    write(synced_repo, location, "models:\n  - name: other\n  - name: agg_lab_turnaround__turnaround\n")
+    write(synced_repo, location, "models:\n  - name: other\n  - name: agg_order_turnaround__turnaround\n")
     problems = rendered(synced_repo)
     assert len(problems) == 1
     assert problems[0].startswith(f"{location}:3: ")
-    assert "agg_lab_turnaround__turnaround" in problems[0]
+    assert "agg_order_turnaround__turnaround" in problems[0]
     assert PROPERTIES in problems[0]
 
 
@@ -92,7 +94,7 @@ def test_other_models_in_other_files_are_fine(synced_repo: Path):
 
 def test_validate_writes_nothing(synced_repo: Path):
     (synced_repo / PROPERTIES).write_text("stale\n")
-    write(synced_repo, f"{DP}/models/extra.yml", "models:\n  - name: agg_lab_turnaround__turnaround\n")
+    write(synced_repo, f"{DP}/models/extra.yml", "models:\n  - name: agg_order_turnaround__turnaround\n")
     write(synced_repo, "target/manifest.json", '{"nodes": {}}')
     before = snapshot(synced_repo)
     assert rendered(synced_repo)
@@ -107,7 +109,7 @@ def test_generate_still_repairs_stale_files(synced_repo: Path):
 
 def _remove_the_dbt_table(repo: Path) -> None:
     """The table stays but python builds it, so dbt builds no table and the generated files are left behind."""
-    table = repo / DP / "outputs/agg_lab_turnaround/turnaround.yaml"
+    table = repo / DP / "outputs/agg_order_turnaround/turnaround.yaml"
     table.write_text(table.read_text() + "build:\n  entrypoint: src/turnaround.py:build\n")
     write(repo, f"{DP}/src/turnaround.py", "def build():\n    pass\n")
     (repo / MODEL).unlink()
@@ -153,20 +155,20 @@ def test_stale_model_paths_of_data_products_fail_when_no_table_is_built_by_dbt(s
 
 def test_other_model_paths_survive_when_no_table_is_built_by_dbt(synced_repo: Path):
     _remove_the_dbt_table(synced_repo)
-    (synced_repo / PROJECT).write_text(f"name: lab\nversion: '1.0'\nmodel-paths: [models, {DP}/models]\n")
+    (synced_repo / PROJECT).write_text(f"name: jaffle_shop\nversion: '1.0'\nmodel-paths: [models, {DP}/models]\n")
     generate_repo(synced_repo)
     assert "model-paths: [models]" in (synced_repo / PROJECT).read_text()
 
 
 def test_generate_lists_the_repo_files_it_wrote(synced_repo: Path):
     (synced_repo / PROPERTIES).write_text("stale\n")
-    (synced_repo / PROJECT).write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
+    (synced_repo / PROJECT).write_text("name: jaffle_shop\nversion: '1.0'\nprofile: jaffle_shop\n")
     result = generate_repo(synced_repo)
     assert [path.as_posix() for path in result.committed] == [GROUP, SOURCES, PROPERTIES, PROJECT]
 
 
-TURNAROUND = f"{DP}/outputs/agg_lab_turnaround/turnaround.yaml"
-TEST_FILE = f"{DP}/tests/agg_lab_turnaround__turnaround__row_count.sql"
+TURNAROUND = f"{DP}/outputs/agg_order_turnaround/turnaround.yaml"
+TEST_FILE = f"{DP}/tests/agg_order_turnaround__turnaround__row_count.sql"
 
 
 @pytest.fixture
