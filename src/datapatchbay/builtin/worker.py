@@ -43,6 +43,8 @@ def _dbt_build_task(task_id, project_dir, profiles_dir, select):
 class WorkerRuntime:
     """Call the entrypoint inside an Airflow task, so it runs on the worker."""
 
+    runs_dbt = True
+
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
         """Render a task that calls the function, or runs `dbt build` on the worker for a `DbtCall`.
 

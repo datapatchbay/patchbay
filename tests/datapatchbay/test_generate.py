@@ -332,11 +332,15 @@ def test_the_dbt_settings_reach_the_dbt_build_task(lab_dbt_repo: Path):
     assert '_dbt_build_task("build_dbt", "/opt/lab", "/etc/dbt", "dataproducts/agg_lab_weekly/models")' in dag
 
 
-def test_a_dbt_table_on_a_container_runtime_fails_naming_the_data_product(lab_dbt_repo: Path):
+def test_a_dbt_table_on_a_container_runtime_is_reported_by_validation_and_nothing_is_generated(lab_dbt_repo: Path):
     table = lab_dbt_repo / "dataproducts/agg_lab_weekly/outputs/agg_lab_weekly/weekly_summary.yaml"
     table.write_text(table.read_text().replace("build:\n", "build:\n  runtime: docker\n  image: lab:1\n"))
-    with pytest.raises(GenerationError, match=r"data product 'agg_lab_weekly': .*docker runtime cannot run dbt"):
-        generate_repo(lab_dbt_repo)
+    result = generate_repo(lab_dbt_repo)
+    assert [problem.render() for problem in result.report.problems] == [
+        f"{table.relative_to(lab_dbt_repo)}:9: runtime 'docker' cannot run dbt "
+        "(data product 'agg_lab_weekly', table 'weekly_summary'); set `runtime: worker` for the tables built by dbt"
+    ]
+    assert result.files == ()
 
 
 def test_the_dag_with_a_dbt_task_is_byte_identical_and_does_not_import_datapatchbay(lab_dbt_repo: Path):

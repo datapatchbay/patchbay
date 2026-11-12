@@ -310,7 +310,8 @@ class Runtime(Protocol):
     """Renders the build task of a table, so it runs in the place this runtime stands for.
 
     A runtime that runs a container image may set the class attribute `needs_image = True`; `dpb validate` then
-    reports a table whose resolved `image` is not set.
+    reports a table whose resolved `image` is not set. A runtime that can run `dbt build` sets `runs_dbt = True`;
+    `dpb validate` reports a table built by dbt whose runtime does not.
     """
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:

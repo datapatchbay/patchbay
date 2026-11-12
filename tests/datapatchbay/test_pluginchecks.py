@@ -88,3 +88,25 @@ def test_validate_accepts_an_image_set_at_any_level(lab_repo: Path):
     path = lab_repo / INGESTED
     path.write_text(path.read_text().replace("build:\n", "build:\n  runtime: docker\n"))
     assert rendered(lab_repo) == []
+
+
+DBT_TABLE = "dataproducts/agg_lab_weekly/outputs/agg_lab_weekly/weekly_summary.yaml"
+PYTHON_TABLE = "dataproducts/agg_lab_weekly/outputs/agg_lab_weekly/weekly.yaml"
+
+
+def test_validate_fails_a_dbt_table_on_a_runtime_that_cannot_run_dbt(lab_dbt_repo: Path):
+    path = lab_dbt_repo / DBT_TABLE
+    path.write_text(path.read_text().replace("build:\n", "build:\n  runtime: docker\n  image: lab:1\n"))
+    assert rendered(lab_dbt_repo) == [
+        f"{DBT_TABLE}:9: runtime 'docker' cannot run dbt (data product 'agg_lab_weekly', table 'weekly_summary'); "
+        "set `runtime: worker` for the tables built by dbt"
+    ]
+
+
+def test_validate_fails_a_table_that_needs_a_dbt_table(lab_dbt_repo: Path):
+    path = lab_dbt_repo / PYTHON_TABLE
+    path.write_text(path.read_text().replace("needs: [", "needs: [weekly_summary, "))
+    problems = rendered(lab_dbt_repo)
+    assert len(problems) == 1
+    assert problems[0].startswith(f"{PYTHON_TABLE}:")
+    assert "table 'weekly' needs table 'weekly_summary', which dbt builds after the Python tables" in problems[0]
