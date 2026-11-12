@@ -1,4 +1,4 @@
-# Run a data product without Airflow
+# Run a data product without an orchestrator
 
 With `orchestrator: local`, `dpb generate` writes one Python script per data product. The script builds the data product once: it runs the builds, the audits and then the SQL of the warehouse. Use it to run a data product by hand, from cron or in CI, with no orchestrator.
 
