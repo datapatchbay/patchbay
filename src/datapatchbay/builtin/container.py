@@ -16,7 +16,7 @@ from datapatchbay.plugins import BuildTask, PythonCall, UnsupportedCombinationEr
 ENTRYPOINT_LOADER = """\
 import importlib.util, json, sys
 file, function, params = sys.argv[1:4]
-spec = importlib.util.spec_from_file_location("patchbay_build", file)
+spec = importlib.util.spec_from_file_location("datapatchbay_build", file)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 getattr(module, function)(**json.loads(params))"""

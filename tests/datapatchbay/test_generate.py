@@ -1,3 +1,4 @@
+import ast
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -25,7 +26,7 @@ def _build_task(task_id, path, function, params):
 
     @task(task_id=task_id)
     def build():
-        spec = importlib.util.spec_from_file_location(f"patchbay_{task_id}", DATAPRODUCT_DIR / path)
+        spec = importlib.util.spec_from_file_location(f"datapatchbay_{task_id}", DATAPRODUCT_DIR / path)
         if spec is None or spec.loader is None:
             raise ImportError(f"cannot load {path}")
         module = importlib.util.module_from_spec(spec)
@@ -41,13 +42,13 @@ with DAG(
     start_date=datetime(2025, 1, 1),
     catchup=False,
     default_args={"owner": "Jane Doe"},
-    tags=["patchbay"],
+    tags=["datapatchbay"],
 ):
     build_ingested_orders = _build_task("build_ingested_orders", "src/ingested.py", "build", {"limit": 100})
     build_orders = _build_task("build_orders", "src/orders.py", "build", {})
     build_ingested_orders >> build_orders
 
-    @task(task_id="publish_outputs", outlets=[Asset(name="sa_ilab_orders", uri="x-patchbay://sa_ilab_orders")])
+    @task(task_id="publish_outputs", outlets=[Asset(name="sa_ilab_orders", uri="x-datapatchbay://sa_ilab_orders")])
     def publish_outputs():
         """Mark the output ports as updated; Airflow does so when this task succeeds."""
 
@@ -58,7 +59,7 @@ with DAG(
 AGG_SCHEDULE_AND_OUTLETS = """\
 with DAG(
     dag_id="agg_lab_turnaround",
-    schedule=[Asset(name="sa_ilab_orders", uri="x-patchbay://sa_ilab_orders")],
+    schedule=[Asset(name="sa_ilab_orders", uri="x-datapatchbay://sa_ilab_orders")],
 """
 
 
@@ -109,21 +110,29 @@ def test_generate_honours_the_output_dir_setting_and_the_override(lab_repo: Path
     assert '/ "../repo/dataproducts/sa_ilab_orders"' in (elsewhere / "sa_ilab_orders.py").read_text()
 
 
-def test_generated_files_do_not_mention_datapatchbay_outside_the_header_comment(lab_repo: Path):
+def _imported_modules(code: str) -> set[str]:
+    modules: set[str] = set()
+    for node in ast.walk(ast.parse(code)):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.add(node.module)
+    return modules
+
+
+def test_generated_files_do_not_import_datapatchbay(lab_repo: Path):
     generate_repo(lab_repo)
     files = list((lab_repo / "generated").iterdir())
     assert files
     for path in files:
-        code = "\n".join(line for line in path.read_text().splitlines() if not line.startswith("#"))
-        assert "datapatchbay" not in code
-        assert "dpb" not in code
+        assert not {m for m in _imported_modules(path.read_text()) if m.split(".")[0] in {"datapatchbay", "dpb"}}
 
 
 def test_a_data_product_that_reads_another_runs_when_its_output_port_is_updated(lab_repo: Path):
     generate_repo(lab_repo)
     text = generated(lab_repo, "agg_lab_turnaround.py")
     assert AGG_SCHEDULE_AND_OUTLETS in text
-    assert 'outlets=[Asset(name="agg_lab_turnaround", uri="x-patchbay://agg_lab_turnaround")]' in text
+    assert 'outlets=[Asset(name="agg_lab_turnaround", uri="x-datapatchbay://agg_lab_turnaround")]' in text
 
 
 def test_a_data_product_with_a_source_and_a_read_runs_on_the_schedule_and_when_the_assets_are_updated(lab_repo: Path):
@@ -132,7 +141,7 @@ def test_a_data_product_with_a_source_and_a_read_runs_on_the_schedule_and_when_t
     text = generated(lab_repo, "agg_lab_weekly.py")
     assert (
         '    schedule=AssetOrTimeSchedule(timetable=CronTriggerTimetable("30 6 * * 1", timezone="UTC"), '
-        'assets=[Asset(name="sa_ilab_orders", uri="x-patchbay://sa_ilab_orders")]),\n'
+        'assets=[Asset(name="sa_ilab_orders", uri="x-datapatchbay://sa_ilab_orders")]),\n'
     ) in text
     assert "from airflow.sdk import Asset, AssetOrTimeSchedule, CronTriggerTimetable, DAG, task" in text
     assert "AssetAndTimeSchedule" not in text
@@ -239,7 +248,7 @@ def test_a_warehouse_plugin_adds_audit_and_apply_tasks_that_run_through_the_conn
     assert "from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator\n" in text
     body = text[text.index("with DAG(") :]
     assert body.split("tags=")[1] == (
-        '["patchbay"],\n'
+        '["datapatchbay"],\n'
         "):\n"
         '    build_ingested_orders = _build_task("build_ingested_orders", "src/ingested.py", "build", {"limit": 100})\n'
         "    audit_ingested_orders = SQLExecuteQueryOperator(\n"
@@ -263,7 +272,7 @@ def test_a_warehouse_plugin_adds_audit_and_apply_tasks_that_run_through_the_conn
         "    )\n"
         "    audit_orders >> apply_grants\n"
         "\n"
-        '    @task(task_id="publish_outputs", outlets=[Asset(name="sa_ilab_orders", uri="x-patchbay://sa_ilab_orders")])\n'
+        '    @task(task_id="publish_outputs", outlets=[Asset(name="sa_ilab_orders", uri="x-datapatchbay://sa_ilab_orders")])\n'
         "    def publish_outputs():\n"
         '        """Mark the output ports as updated; Airflow does so when this task succeeds."""\n'
         "\n"
@@ -348,4 +357,4 @@ def test_the_dag_with_a_dbt_task_is_byte_identical_and_does_not_import_datapatch
     dag = generated(lab_dbt_repo, "agg_lab_weekly.py")
     generate_repo(lab_dbt_repo)
     assert dag == generated(lab_dbt_repo, "agg_lab_weekly.py")
-    assert "datapatchbay" not in dag.split("\n", 1)[1]
+    assert not {m for m in _imported_modules(dag) if m.split(".")[0] == "datapatchbay"}

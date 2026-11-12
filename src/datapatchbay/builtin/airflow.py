@@ -84,7 +84,7 @@ class _DagFile:
             f"{_INDENT}start_date=datetime(2025, 1, 1),",
             f"{_INDENT}catchup=False,",
             f'{_INDENT}default_args={{"owner": {python_literal(plan.owner)}}},',
-            f'{_INDENT}tags=["patchbay"],',
+            f'{_INDENT}tags=["datapatchbay"],',
             "):",
         ]
         body = [f"{_INDENT}{line}" if line else "" for line in self._body] or [f"{_INDENT}pass"]
@@ -274,7 +274,7 @@ class _DagFile:
 
 
 def _asset(name: str) -> str:
-    return f"Asset(name={python_literal(name)}, uri={python_literal(f'x-patchbay://{name}')})"
+    return f"Asset(name={python_literal(name)}, uri={python_literal(f'x-datapatchbay://{name}')})"
 
 
 def _render_imports(imports: set[str]) -> str:
