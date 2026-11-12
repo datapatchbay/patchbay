@@ -4,9 +4,19 @@ Data products as code. Declare owners, ports and freshness in YAML, then scaffol
 
 ## Coding standards
 
-Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `uv run pytest`, `uv run ty check`, `uv run ruff check` and `uv run ruff format --check`.
+Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `scripts/check`: ruff, ty and the unit tests in parallel, in about ten seconds. The pre-push hook runs it once `git config core.hooksPath .githooks` is set.
 
 `uv run pytest` runs the unit tests only (DuckDB, no server, no Docker). Integration tests (a real Postgres) live in `tests/datapatchbay/integration/` and run with one command, `scripts/integration-tests`, which needs Docker. Run it before pushing a change to the Postgres SQL or to the generated DAGs (it loads them in Airflow 3 and runs the example). CI does not run it.
+
+## Pull requests
+
+Open the pull request, turn on auto-merge and move on. Do not wait for CI:
+
+```sh
+gh pr merge --auto --squash
+```
+
+GitHub merges it once the `ci ok` check passes, the only check the ruleset on `main` requires. The branch need not be up to date with `main`; CI on `main` after the merge checks the combination. If the command fails, or `gh pr view --json mergeable -q .mergeable` prints `CONFLICTING`, rebase onto `origin/main`, resolve the conflict, push and run the command again. A pull request whose checks fail stays open with auto-merge on, and the push that fixes it merges it.
 
 ## Agent skills
 

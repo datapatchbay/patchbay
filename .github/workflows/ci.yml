@@ -14,8 +14,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A pull request that only changes the docs site or the agent notes skips every other job. Pushes to main and manual
+  # runs always run everything. The list of paths mirrors what docs.yml builds from, minus the files the tests read.
+  changes:
+    name: what changed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$PR" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files="$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')"
+          echo "$files"
+          # An empty list counts as code, so a failure to list the files never skips the checks.
+          if grep -qvE '^(docs/|assets/|README\.md$|GLOSSARY\.md$|AGENTS\.md$|CODING_STANDARDS\.md$|LICENSE$|\.github/workflows/docs\.yml$)' <<<"$files"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   pytest:
     name: pytest (Python ${{ matrix.python-version }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -31,10 +62,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run tests
-        run: uv run --locked pytest
+        run: uv run --locked pytest -n auto
 
   ty:
     name: ty
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -49,6 +82,8 @@ jobs:
 
   ruff:
     name: ruff
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -65,6 +100,8 @@ jobs:
 
   dbt:
     name: dbt parse
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -78,4 +115,16 @@ jobs:
       - name: Parse the generated dbt properties and tests
         env:
           DPB_REQUIRE_DBT: "1"  # a missing dbt fails the test instead of skipping it
-        run: uv run --locked --group dbt pytest -m dbt
+        run: uv run --locked --group dbt pytest -n auto -m dbt
+
+  # The one check the ruleset on main requires, so that the list of jobs can change without touching the ruleset.
+  # A skipped job (a docs-only pull request) counts as passed.
+  ci-ok:
+    name: ci ok
+    needs: [changes, pytest, ty, ruff, dbt]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
