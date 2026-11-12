@@ -90,7 +90,7 @@ def _check_builds(dataproduct: DataProduct) -> Iterator[Problem]:
         file = table.file
         build = file.model.build
         if build is None:
-            continue  # built by dbt, or reported by the build checks
+            continue  # built from its own files, or reported by the executor's checks
         if (path_text := table.entrypoint_path) is not None:
             target = (dataproduct.directory / path_text).resolve()
             line = file.line("build", "entrypoint")

@@ -15,6 +15,6 @@ We chose this so that adding an orchestrator, executor, runtime or warehouse is 
 ## Consequences
 
 - Moving a module changes only its path, not its behaviour: the generated files and the output of `validate`, `describe`, `list` and `config` are unchanged.
-- The imports of dbt that the core still has are removed one by one, by putting dbt behind the executor interface, until only the documented exceptions are left.
-- One shared folder still imports an integration: `plugins/sql/audit_sql.py` imports the dbt executor name, so that warehouse audits skip tables dbt owns. The boundary test lists it in its allow-list; this import goes with the dbt capability work above.
+- The core imports no integration except `dpb new --from-dbt`. What it needs of an executor it gets through capabilities: committed files, checks, batching builds, owning quality rules and scaffolding. A third-party executor gets the same powers by implementing the same protocols.
+- `DbtCall` and the `dbt:` settings block resolved into the plan (`DbtLocation`, `TablePlan.dbt`) stay in `datapatchbay.plugins` until the generic command call replaces them.
 - The tests mirror the layout, in `tests/datapatchbay/integrations/<technology>/`.
