@@ -57,9 +57,22 @@ dataproducts/
     src/
       ingested_orders.py
       orders.py
+  agg_lab_turnaround/
+    dataproduct.yaml
+    inputs/
+      sa_ilab_orders/
+        port.yaml
+    outputs/
+      agg_lab_turnaround/
+        port.yaml
+        turnaround.yaml
+    models/
+      agg_lab_turnaround__turnaround.sql
+      agg_lab_turnaround__turnaround.yml   # generated, committed
+dbt_project.yml                            # only for dbt
 ```
 
-There are four kinds of file: `datapatchbay.yaml` at the root, and per data product one `dataproduct.yaml`, one `port.yaml` per port and one YAML per table. The Python code of a data product lives in its folder.
+There are four kinds of file: `datapatchbay.yaml` at the root, and per data product one `dataproduct.yaml`, one `port.yaml` per port and one YAML per table. The build code of a data product lives in its folder: Python modules in `src/`, dbt models in `models/` (ADR-0015). A team chooses Python or dbt per data product, or per table.
 
 ## The schema, version 1
 
@@ -183,6 +196,8 @@ build:
 - Severity is `error` (the run fails), `warning` (the run continues and reports) or `none` (the rule is ignored).
 - `needs` lists the tables of the same data product that must be built first.
 
+With the dbt executor, planned for milestone 2, a table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher. Its SQL is the dbt model `models/<dbt_model>.sql`, named by a `dbt_model` naming template that milestone 2 adds to `conventions.names`, by default `{dataproduct}__{table}`, and its order comes from the model's `ref()` calls instead of `needs`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand (ADR-0013).
+
 ## What `dpb validate` enforces
 
 - Every file matches the schema; unknown keys fail. Errors name the file and line, and all errors are reported at once.
@@ -194,7 +209,9 @@ build:
 - A data product that reads an output port is among that port's readers.
 - `needs` refers to existing tables and contains no cycle.
 - An output port does not promise fresher data than its inputs deliver: its freshness is compared with the schedule of source input ports and the freshness of the output ports it reads.
-- `executor` is `python`. Other executors arrive as plugins.
+- `executor` is `python` or `dbt`. Other executors arrive as plugins.
+- Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest (ADR-0014).
+- The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds.
 
 ## Commands
 
@@ -213,7 +230,7 @@ build:
 
 ## What `dpb generate` writes
 
-Generated files are build output of CD and are not committed.
+Generated files are build output of CD and are not committed, with one exception: the dbt properties and the `model-paths` of `dbt_project.yml` are committed, because dbt reads them on every run.
 
 **One Airflow 3 DAG per data product.** Each table gets a build task followed by an audit task. Task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
 
@@ -223,7 +240,9 @@ Generated files are build output of CD and are not committed.
 
 **Views and grants for Postgres.** The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else. Readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access.
 
-**Audit tasks.** Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run; `warning` reports and continues; `none` is skipped. In milestone 1 the audit runs after the table is built, so the data is already visible when a rule fails. Write-audit-publish in milestone 2 closes that gap.
+**Audit tasks.** Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run; `warning` reports and continues; `none` is skipped. In milestone 1 the audit runs after the table is built, so the data is already visible when a rule fails. Write-audit-publish closes that gap. For a table built by dbt, the quality rules run as dbt data tests during the dbt build instead.
+
+**dbt properties.** For each table built by dbt, a properties file next to the model with its description, columns and types, quality rules as dbt data tests, an enforced dbt model contract, its alias and schema, and its data product's dbt group. `dpb generate` also keeps the `model-paths` of the root `dbt_project.yml` in step with the data product folders.
 
 ## Settings and defaults
 
@@ -233,13 +252,13 @@ Defaults ship inside the package in one file with the same shape as `datapatchba
 
 ## Plugins
 
-Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python and Postgres support is written against the same interfaces. The interface is declared stable once the dbt executor has proven it.
+Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt and Postgres support is written against the same interfaces. The interface is declared stable once the dbt executor has proven it.
 
 ## Roadmap
 
 1. **Milestone 1.** Schema version 1, all eight commands, Airflow 3 DAGs for the Python executor on three runtimes, Postgres views and grants, audit tasks with severity, the plugin interfaces.
-2. **Write-audit-publish.** Build into a staging table, audit, then publish. Configurable at all four levels.
-3. **dbt executor.** Uses the existing dbt profile for connections.
+2. **dbt executor.** Choose Python or dbt per data product or per table. dbt properties generated from the table files, models in the data product's folder, and the check that build code reads other data products only through their output ports. Uses the existing dbt profile for connections.
+3. **Write-audit-publish.** Build into a staging table, audit, then publish. Configurable at all four levels.
 4. **Semantic language.** datapatchbay's own format for measures, dimensions and joins, translated to other semantic model standards.
 5. **Metadata and live freshness.** Data product metadata published either as tags at schema or table level, or as a separate data product with a configurable name. Freshness measured against real data.
 

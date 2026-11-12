@@ -20,6 +20,19 @@ dataproducts/
     src/
       ingested_orders.py
       orders.py
+  agg_lab_turnaround/
+    dataproduct.yaml
+    inputs/
+      sa_ilab_orders/
+        port.yaml
+    outputs/
+      agg_lab_turnaround/
+        port.yaml
+        turnaround.yaml
+    models/
+      agg_lab_turnaround__turnaround.sql
+      agg_lab_turnaround__turnaround.yml   # generated, committed
+dbt_project.yml                            # only for dbt
 ```
 
 There are four kinds of file:
@@ -29,7 +42,7 @@ There are four kinds of file:
 - one `port.yaml` per port
 - one YAML file per table
 
-The Python code of a data product lives in its folder.
+The build code of a data product lives in its folder: Python modules in `src/`, dbt models in `models/`. A team chooses Python or dbt per data product, or per table.
 
 Every file carries `schema_version`, and unknown keys fail validation. Every file also accepts a free-form `meta` map for a team's own extras.
 
@@ -58,6 +71,8 @@ conventions:
     private_port: "{kind.prefix}_{name}_private"
     role: "dp_{kind.prefix}_{name}"
 ```
+
+A naming template may use `{name}` (the data product's bare name), `{kind.prefix}` and `{kind.name}`. `dpb validate` compares the folder name, the default output port name and the private port name with what the templates produce, so changing a prefix or a template changes what it expects.
 
 See [Settings and plugins](settings.md) for how these values merge with the defaults and with settings lower down.
 
@@ -156,6 +171,8 @@ build:
 - `build.executor` is optional and defaults to the setting of the levels above it (`python` unless changed). `entrypoint` is `path/to/file.py:function`, relative to the data product folder.
 - `needs` lists the tables of the same data product that must be built first, in any of its ports. It must not contain a cycle.
 - Table names are unique within a data product.
+
+With the dbt executor, planned for milestone 2, a table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher. Its SQL is the dbt model `models/<dbt_model>.sql`, named by a `dbt_model` naming template that milestone 2 adds to `conventions.names`, by default `{dataproduct}__{table}`, and its order comes from the model's `ref()` calls instead of `needs`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand.
 
 ## JSON Schema
 

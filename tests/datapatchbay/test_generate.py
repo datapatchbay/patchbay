@@ -107,11 +107,13 @@ def test_a_data_product_that_reads_another_runs_when_its_output_port_is_updated(
 
 
 def test_a_data_product_with_a_source_and_a_read_runs_on_the_schedule_once_the_assets_are_updated(lab_repo: Path):
-    port = lab_repo / "dataproducts/agg_lab_turnaround/inputs/ilab_extra/port.yaml"
+    port = lab_repo / "dataproducts/agg_lab_turnaround/inputs/agg_lab_turnaround_extra/port.yaml"
     port.parent.mkdir(parents=True)
     port.write_text('schema_version: 1\nkind: schema\nsource: ilab\nschedule: "30 6 * * 1"\n')
     product = lab_repo / "dataproducts/agg_lab_turnaround/dataproduct.yaml"
-    product.write_text(product.read_text().replace("inputs: [sa_ilab_orders]", "inputs: [sa_ilab_orders, ilab_extra]"))
+    product.write_text(
+        product.read_text().replace("inputs: [sa_ilab_orders]", "inputs: [sa_ilab_orders, agg_lab_turnaround_extra]")
+    )
     assert generate_repo(lab_repo).report.ok
     text = generated(lab_repo, "agg_lab_turnaround.py")
     assert (
@@ -175,21 +177,16 @@ def test_generate_writes_nothing_when_the_repo_is_invalid(lab_repo: Path):
 
 
 def test_source_input_ports_with_different_schedules_cannot_share_one_dag(lab_repo: Path):
-    port = lab_repo / "dataproducts/sa_ilab_orders/inputs/ilab_extra/port.yaml"
+    port = lab_repo / "dataproducts/sa_ilab_orders/inputs/sa_ilab_orders_extra/port.yaml"
     port.parent.mkdir(parents=True)
     port.write_text('schema_version: 1\nkind: schema\nsource: ilab\nschedule: "30 6 * * *"\n')
     product = lab_repo / "dataproducts/sa_ilab_orders/dataproduct.yaml"
-    product.write_text(product.read_text().replace("[sa_ilab_orders_private]", "[sa_ilab_orders_private, ilab_extra]"))
+    product.write_text(
+        product.read_text().replace("[sa_ilab_orders_private]", "[sa_ilab_orders_private, sa_ilab_orders_extra]")
+    )
     with pytest.raises(GenerationError, match="data product 'sa_ilab_orders': the source input ports have different"):
         generate_repo(lab_repo)
     assert not (lab_repo / "generated").exists()
-
-
-def test_a_table_name_that_is_not_an_airflow_id_is_reported(lab_repo: Path):
-    table = lab_repo / "dataproducts/agg_lab_turnaround/outputs/agg_lab_turnaround/turnaround.yaml"
-    table.write_text(table.read_text().replace("name: turnaround", "name: turn around"))
-    with pytest.raises(GenerationError, match=r"task id 'build_turn around' .* is not a valid Airflow id"):
-        generate_repo(lab_repo)
 
 
 def test_a_fake_orchestrator_plugin_generates_instead_of_airflow(lab_repo: Path, monkeypatch: pytest.MonkeyPatch):

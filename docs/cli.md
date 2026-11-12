@@ -11,7 +11,26 @@
 | `dpb generate` | Writes the orchestrator files and the warehouse SQL. Meant for CD |
 | `dpb upgrade` | Rewrites files to the current schema version, keeping comments |
 
-`validate`, `list`, `describe` and `config` take `--json`.
+`new`, `validate`, `list`, `describe` and `config` take `--json`.
+
+## `dpb new`
+
+`dpb new` creates `dataproducts/<folder>/` with a `dataproduct.yaml`, the default output port with its `port.yaml` and one example table, and a stub Python function per table that the table's `build` block points at. The result passes `dpb validate` without edits. The folder and port names come from the naming templates in the effective settings. It never overwrites: if the folder exists, it fails and writes nothing.
+
+```sh
+dpb new                                                     # asks for what is missing
+dpb new --name ilab_orders --kind source-aligned --domain lab \
+  --owner "Jane Doe" --technical-owner "Joe Dev" --no-input
+dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --schedule "0 5 * * *"
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--name`, `--kind`, `--domain`, `--owner`, `--technical-owner` | The answers. Each one given as a flag is not asked. `domain` and `technical-owner` can be left empty, except that `domain` is required when the conventions declare domains |
+| `--source` | Also creates the private input port, fed by this source, with a schedule and one ingested table. The example table `needs` it |
+| `--schedule` | Cron expression of the source's deliveries. Default `0 5 * * *`. Only used with `--source` |
+| `--no-input` | Never prompts. Fails with exit code 2 and lists the missing values |
+| `--json` | Prints `{"created": [...]}` on stdout: the files it created, relative to the repo root |
 
 ## `dpb validate`
 
@@ -28,10 +47,14 @@
 - `freshness_column` names a column of its table.
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
+- `kind` is one of the kinds in the conventions. `domain` is in the domain list when the list is not empty, and is accepted as written when it is empty.
+- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name starts with the data product's derived name. An input port that reads another data product keeps the name of the output port it reads.
+- Data product, port, table and column names are snake_case.
+- Derived data product names and port names are unique across the repo.
+- A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
 - `executor`, `runtime`, `image` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
 - Every orchestrator, executor, runtime and warehouse named in the settings has a plugin. The message names the data product and, for an executor or runtime, the table, and points at the line where the name is written. A name set at the root or on a data product is reported for each table it applies to.
 - In the `build` block, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
-- Every derived name matches its naming template, and every name is snake_case. Port names and data product names are unique across the repo. `kind` is a declared kind. `domain` is in the domain list when one is declared. These rules arrive with later releases.
 
 `dpb validate` looks for `datapatchbay.yaml` in the working directory and its parents, and fails with exit code 2 and a message when it finds none. It exits 0 when every file is valid and 1 when there are problems. Each problem is one line, `file:line: message`, on stderr.
 
@@ -48,6 +71,11 @@ With `--json`, stdout holds only this document:
 ```
 
 A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
+
+With the dbt executor, planned for milestone 2, `dpb validate` also checks that:
+
+- Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest, so CI runs `dbt parse` first (ADR-0014).
+- The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013).
 
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
@@ -83,7 +111,7 @@ With `--json`, stdout holds one object with the same content. Its keys are `fold
 
 ## `dpb generate`
 
-Generated files are build output of CD and are not committed.
+Generated files are build output of CD and are not committed, with one exception: the dbt properties and the `model-paths` of `dbt_project.yml` are committed, because dbt reads them on every run.
 
 `dpb generate` validates the repo first, exactly like `dpb validate`. When anything is wrong it prints the problems on stderr, writes nothing and exits 1. Otherwise it writes one file per data product into the folder of the `output_dir` setting (`generated` by default, relative to the repo root) and lists the files. `--output <folder>` (`-o`) writes into another folder, relative to the working directory. Files from an earlier run that no longer have a data product are not removed. A failure while generating, such as a table name Airflow cannot use as an id, exits 2 with a message that names the data product, and nothing is written.
 
@@ -107,7 +135,10 @@ Views and grants for Postgres
 : The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else, and readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access.
 
 Audit tasks
-: Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run, `warning` reports and continues, and `none` is skipped.
+: Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run, `warning` reports and continues, and `none` is skipped. For a table built by dbt, the rules run as dbt data tests during the dbt build instead.
+
+dbt properties
+: For each table built by dbt, a properties file next to the model with its description, columns and types, quality rules as dbt data tests, an enforced dbt model contract, its alias and schema, and its data product's dbt group. `dpb generate` also keeps the `model-paths` of the root `dbt_project.yml` in step with the data product folders.
 
 The generated DAG files do not import datapatchbay, so the orchestrator needs neither datapatchbay nor its dependencies installed.
 
@@ -128,7 +159,7 @@ If any file cannot be upgraded, because its `schema_version` is newer than `dpb`
 
 ## Built for agents
 
-- `--json` output on `validate`, `list`, `describe` and `config`.
+- `--json` output on `new`, `validate`, `list`, `describe` and `config`.
 - `dpb describe` prints a data product with every setting resolved, which is everything an agent needs in one call.
 - `dpb schema` publishes the JSON Schema, so an agent can validate a file before writing it.
 - `--no-input` makes `dpb new` fail instead of prompting.

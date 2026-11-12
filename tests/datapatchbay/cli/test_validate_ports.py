@@ -356,7 +356,10 @@ def test_table_names_are_unique_within_a_data_product(runner: CliRunner, product
 
 def test_same_table_name_in_different_data_products_is_fine(runner: CliRunner, product: None, write_file: Writer):
     other = "dataproducts/sa_other"
-    write_file(f"{other}/dataproduct.yaml", "schema_version: 1\nname: other\nkind: k\nowner: o\noutputs: [sa_other]\n")
+    write_file(
+        f"{other}/dataproduct.yaml",
+        "schema_version: 1\nname: other\nkind: source-aligned\nowner: o\noutputs: [sa_other]\n",
+    )
     write_file(f"{other}/outputs/sa_other/port.yaml", OUTPUT_PORT.replace("    - product: agg_lab_turnaround\n", ""))
     write_file(f"{other}/outputs/sa_other/orders.yaml", ORDERS.replace("  needs: [ingested_orders]\n", ""))
     write_file(f"{other}/src/orders.py", "")

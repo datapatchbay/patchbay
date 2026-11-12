@@ -48,8 +48,8 @@ datapatchbay has four extension points:
 | Extension point | Built in |
 | --- | --- |
 | Orchestrator | Airflow 3 |
-| Executor | Python |
-| Runtime | Worker (Docker and Kubernetes follow) |
+| Executor | Python, dbt |
+| Runtime | Worker, Docker, Kubernetes |
 | Warehouse | Postgres |
 
 Plugins are found through Python entry points, so plugin support adds no dependency. The built-in support is written against the same interfaces and registered the same way. A plugin package registers a class, or a function without arguments that returns the plugin, in one of four groups, and the entry point name is the name used in the settings:
