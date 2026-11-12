@@ -139,7 +139,11 @@ def test_the_dbt_tables_are_one_multi_asset_after_the_python_tables_nothing_need
     assert spec is not None
     assert 'dg.AssetKey(["agg_weekly_orders", "weekly_pod"])' in spec.group()
     assert 'dg.AssetKey(["agg_weekly_orders", "weekly_raw"])' not in spec.group()
-    assert 'build_dbt = _dbt_build_function("../..", "~/.dbt", "dataproducts/agg_weekly_orders/models")' in source
+    assert (
+        'build_dbt = _command_function(["dbt", "build", "--select", '
+        '"path:dataproducts/agg_weekly_orders/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"], '
+        '"../..", {})' in source
+    )
     assert "agg_weekly_orders__build_dbt,\n" in source.split("defs = ", 1)[1]
 
 

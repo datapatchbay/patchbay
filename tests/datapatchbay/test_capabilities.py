@@ -17,7 +17,7 @@ from datapatchbay.plugins import (
     ChecksDataProducts,
     ChecksPlans,
     ChecksTables,
-    DbtCall,
+    CommandCall,
     OwnsQualityRules,
     PlannedRepo,
     PythonCall,
@@ -91,9 +91,9 @@ def test_the_built_in_executors_have_the_capabilities_they_need():
 
 
 def test_a_runtime_lists_the_types_of_call_it_can_run():
-    assert WorkerRuntime.call_types == (PythonCall, DbtCall)
+    assert WorkerRuntime.call_types == (PythonCall, CommandCall)
     assert DockerRuntime.call_types == (PythonCall,)
-    assert DbtExecutor.call_type is DbtCall
+    assert DbtExecutor.call_type is CommandCall
 
 
 def test_the_installed_executors_with_a_capability_come_in_the_order_of_their_names(spark_repo: Path):

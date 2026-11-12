@@ -42,6 +42,29 @@ An executor can do more than say what to call. The core asks for each extra with
 
 An executor without `ChecksTables` gets no check of its table files, so a missing `build.entrypoint` shows up when the build runs. An executor without `ScaffoldsTables` cannot be used by `dpb new`, which stops with an error instead of writing Python stubs.
 
+## What an executor returns: a build call
+
+`call(table)` returns a `BuildCall`, one of two values. A runtime lists the types it can run in `call_types`. A runtime that is handed a call it cannot run refuses it, and `dpb validate` reports it for the tables of a `BatchesBuilds` executor, whose `call_type` it checks.
+
+`PythonCall(file, function, params)`
+: Call a Python function of the data product with keyword parameters. Every runtime can run it.
+
+`CommandCall(argv, cwd=".", env={})`
+: Run a program. `argv` is the program and its arguments, `cwd` is the working directory (an absolute path, or the path from the data product folder) and `env` holds variables to set on top of the worker's environment. The command is run without a shell, with `check=True`, so a non-zero exit code fails the task. The only expansion is a leading `~` of an argument, which becomes the home of the worker's user. Only the `worker` runtime runs command calls; `docker` and `kubernetes` refuse them with "cannot run a CommandCall".
+
+An executor that wraps a command-line tool returns a command call and needs nothing from the runtime. For example, an executor for a tool `mytool` that reads its config from the home of the worker:
+
+```python
+from datapatchbay.plugins import CommandCall, TablePlan
+
+
+class MyToolExecutor:
+    def call(self, table: TablePlan) -> CommandCall:
+        return CommandCall(argv=("mytool", "run", "--config", "~/.mytool"), cwd="../..", env={"MYTOOL_TABLE": table.name})
+```
+
+The built-in `dbt` executor does this: it returns `dbt build --select path:<models> --project-dir . --profiles-dir <profiles>` with the dbt project as the working directory.
+
 ## The SQL toolkit: `datapatchbay.plugins.sql`
 
 For warehouse plugins.

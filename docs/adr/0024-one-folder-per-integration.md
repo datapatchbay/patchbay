@@ -16,5 +16,5 @@ We chose this so that adding an orchestrator, executor, runtime or warehouse is 
 
 - Moving a module changes only its path, not its behaviour: the generated files and the output of `validate`, `describe`, `list` and `config` are unchanged.
 - The core imports no integration except `dpb new --from-dbt`. What it needs of an executor it gets through capabilities: committed files, checks, batching builds, owning quality rules and scaffolding. A third-party executor gets the same powers by implementing the same protocols.
-- `DbtCall` and the `dbt:` settings block resolved into the plan (`DbtLocation`, `TablePlan.dbt`) stay in `datapatchbay.plugins` until the generic command call replaces them.
+- An executor asks a runtime to run a `PythonCall` or a `CommandCall` (argv, working directory, environment); the `worker` runtime renders a command call without knowing which tool it is. The `dbt:` settings block resolved into the plan (`DbtLocation`, `TablePlan.dbt`) stays in `datapatchbay.plugins` as plan data, as a documented exception.
 - The tests mirror the layout, in `tests/datapatchbay/integrations/<technology>/`.

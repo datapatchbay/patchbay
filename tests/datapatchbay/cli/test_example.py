@@ -74,7 +74,7 @@ def test_generate_writes_one_dag_file_per_data_product(runner: CliRunner, in_exa
     assert result.exit_code == 0, result.output
     assert sorted(p.name for p in (tmp_path / "dags").iterdir()) == ["agg_order_turnaround.py", "sa_jaffle_orders.py"]
     dag = (tmp_path / "dags" / "agg_order_turnaround.py").read_text()
-    assert 'build_dbt = _dbt_build_task("build_dbt"' in dag
+    assert 'build_dbt = _command_task("build_dbt"' in dag
 
 
 def test_the_generated_dbt_files_are_committed_and_up_to_date(runner: CliRunner, in_example: Path, tmp_path: Path):

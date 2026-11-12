@@ -5,7 +5,14 @@ orchestrators whose generated file is plain Python, it is rendered as a function
 orchestrator calls when the build has to run.
 """
 
-from datapatchbay.plugins import BuildTask, DbtCall, PythonCall, RenderedTask, RenderKind, UnsupportedCombinationError
+from datapatchbay.plugins import (
+    BuildTask,
+    CommandCall,
+    PythonCall,
+    RenderedTask,
+    RenderKind,
+    UnsupportedCombinationError,
+)
 from datapatchbay.plugins.codegen import python_literal
 
 _AIRFLOW_HELPER = '''\
@@ -23,24 +30,14 @@ def _build_task(task_id, path, function, params):
 
     return build()'''
 
-_AIRFLOW_DBT_HELPER = '''\
-def _dbt_build_task(task_id, project_dir, profiles_dir, select):
-    """Create a task that runs `dbt build` on the models in a folder of the dbt project."""
+_AIRFLOW_COMMAND_HELPER = '''\
+def _command_task(task_id, argv, cwd, env):
+    """Create a task that runs a command on the worker."""
 
     @task(task_id=task_id)
     def build():
-        project = (DATAPRODUCT_DIR / project_dir).resolve()
-        command = [
-            "dbt",
-            "build",
-            "--project-dir",
-            str(project),
-            "--profiles-dir",
-            os.path.expanduser(profiles_dir),
-            "--select",
-            f"path:{select}",
-        ]
-        subprocess.run(command, check=True, cwd=project)
+        command = [os.path.expanduser(argument) for argument in argv]
+        subprocess.run(command, check=True, cwd=(DATAPRODUCT_DIR / cwd).resolve(), env={**os.environ, **env})
 
     return build()'''
 
@@ -58,23 +55,13 @@ def _build_function(task_id, path, function, params):
 
     return build'''
 
-_FUNCTION_DBT_HELPER = '''\
-def _dbt_build_function(project_dir, profiles_dir, select):
-    """Return a function that runs `dbt build` on the models in a folder of the dbt project."""
+_FUNCTION_COMMAND_HELPER = '''\
+def _command_function(argv, cwd, env):
+    """Return a function that runs a command on the worker."""
 
     def build():
-        project = (DATAPRODUCT_DIR / project_dir).resolve()
-        command = [
-            "dbt",
-            "build",
-            "--project-dir",
-            str(project),
-            "--profiles-dir",
-            os.path.expanduser(profiles_dir),
-            "--select",
-            f"path:{select}",
-        ]
-        subprocess.run(command, check=True, cwd=project)
+        command = [os.path.expanduser(argument) for argument in argv]
+        subprocess.run(command, check=True, cwd=(DATAPRODUCT_DIR / cwd).resolve(), env={**os.environ, **env})
 
     return build'''
 
@@ -83,14 +70,14 @@ class WorkerRuntime:
     """Call the entrypoint in the orchestrator's own process, so it runs on the worker."""
 
     needs_image = False
-    call_types: tuple[type, ...] = (PythonCall, DbtCall)
+    call_types: tuple[type, ...] = (PythonCall, CommandCall)
     render_kinds: frozenset[RenderKind] = frozenset({"task", "function"})
 
     def render_build_task(self, task: BuildTask, *, kind: RenderKind, variable: str) -> RenderedTask:
-        """Render a task that calls the function, or runs `dbt build` on the worker for a `DbtCall`.
+        """Render a task that calls the function, or runs the command of a `CommandCall` on the worker.
 
-        The module is imported when the build runs, not while the orchestrator loads the file; `dbt` is run as a
-        command of the worker.
+        The module is imported when the build runs, not while the orchestrator loads the file; a command is run as a
+        subprocess of the worker, with the working directory and environment of the call.
 
         For the kind `task`, `variable` is assigned an Airflow task. For the kind `function` it is assigned a
         function with no arguments that runs the build and raises when the build fails. In both cases the
@@ -107,8 +94,8 @@ class WorkerRuntime:
         raise UnsupportedCombinationError(f"the worker runtime cannot render tasks of kind '{kind}'")
 
 
-def _dbt_arguments(call: DbtCall) -> list[str]:
-    return [python_literal(value) for value in (call.project_dir, call.profiles_dir, str(call.select))]
+def _command_arguments(call: CommandCall) -> list[str]:
+    return [python_literal(list(call.argv)), python_literal(call.cwd), python_literal(dict(call.env))]
 
 
 def _python_arguments(task: BuildTask, call: PythonCall) -> list[str]:
@@ -122,12 +109,12 @@ def _python_arguments(task: BuildTask, call: PythonCall) -> list[str]:
 
 def _airflow_task(task: BuildTask, variable: str) -> RenderedTask:
     call = task.call
-    if isinstance(call, DbtCall):
-        arguments = ", ".join([python_literal(task.task_id), *_dbt_arguments(call)])
+    if isinstance(call, CommandCall):
+        arguments = ", ".join([python_literal(task.task_id), *_command_arguments(call)])
         return RenderedTask(
             imports=("import os", "import subprocess", "from airflow.sdk import task"),
-            helpers=(_AIRFLOW_DBT_HELPER,),
-            lines=(f"{variable} = _dbt_build_task({arguments})",),
+            helpers=(_AIRFLOW_COMMAND_HELPER,),
+            lines=(f"{variable} = _command_task({arguments})",),
         )
     return RenderedTask(
         imports=("import importlib.util", "from airflow.sdk import task"),
@@ -138,11 +125,11 @@ def _airflow_task(task: BuildTask, variable: str) -> RenderedTask:
 
 def _plain_function(task: BuildTask, variable: str) -> RenderedTask:
     call = task.call
-    if isinstance(call, DbtCall):
+    if isinstance(call, CommandCall):
         return RenderedTask(
             imports=("import os", "import subprocess"),
-            helpers=(_FUNCTION_DBT_HELPER,),
-            lines=(f"{variable} = _dbt_build_function({', '.join(_dbt_arguments(call))})",),
+            helpers=(_FUNCTION_COMMAND_HELPER,),
+            lines=(f"{variable} = _command_function({', '.join(_command_arguments(call))})",),
         )
     return RenderedTask(
         imports=("import importlib.util",),

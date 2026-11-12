@@ -371,9 +371,9 @@ def test_docker_and_kubernetes_tables_sit_in_one_dag_with_other_runtimes(jaffle_
 def test_the_dbt_tables_of_a_data_product_build_in_one_dbt_build_task_after_its_python_tables(jaffle_dbt_repo: Path):
     generate_repo(jaffle_dbt_repo)
     dag = generated(jaffle_dbt_repo, "agg_weekly_orders.py")
-    assert dag.count("_dbt_build_task(") == 2  # the helper and the one task
+    assert dag.count("_command_task(") == 2  # the helper and the one task
     assert (
-        '    build_dbt = _dbt_build_task("build_dbt", "../..", "~/.dbt", "dataproducts/agg_weekly_orders/models")\n'
+        '    build_dbt = _command_task("build_dbt", ["dbt", "build", "--select", "path:dataproducts/agg_weekly_orders/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"], "../..", {})\n'
         in dag
     )
     assert "    build_weekly_pod >> build_dbt\n" in dag
@@ -391,9 +391,7 @@ def test_the_dbt_settings_reach_the_dbt_build_task(jaffle_dbt_repo: Path):
     table.write_text(table.read_text().replace("build:\n", "build:\n  runtime: worker\n"))
     generate_repo(jaffle_dbt_repo)
     dag = generated(jaffle_dbt_repo, "agg_weekly_orders.py")
-    assert (
-        '_dbt_build_task("build_dbt", "/opt/jaffle_shop", "/etc/dbt", "dataproducts/agg_weekly_orders/models")' in dag
-    )
+    assert '"--project-dir", ".", "--profiles-dir", "/etc/dbt"], "/opt/jaffle_shop", {})' in dag
 
 
 def test_a_dbt_table_on_a_container_runtime_is_reported_by_validation_and_nothing_is_generated(jaffle_dbt_repo: Path):
