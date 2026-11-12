@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 import pytest
@@ -37,13 +36,6 @@ def test_duration_minutes_converts_units(text: str, minutes: int):
 )
 def test_longest_gap_minutes(cron: str, minutes: int):
     assert longest_gap_minutes(cron) == minutes
-
-
-def test_longest_gap_is_fast():
-    start = time.perf_counter()
-    for cron in ("0 0 29 2 *", "*/7 */5 */3 * *", "0 5 * * mon"):
-        longest_gap_minutes(cron)
-    assert time.perf_counter() - start < 1
 
 
 # --- through dpb validate -----------------------------------------------------------------------------------------

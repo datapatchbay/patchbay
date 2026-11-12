@@ -9,9 +9,10 @@ from collections.abc import Iterator
 from datetime import date, timedelta
 from functools import cache
 
+from datapatchbay.crosschecks import find_other_output
 from datapatchbay.models import OutputPortFile, SourceInputPortFile
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import DataProduct, Port, Repo
+from datapatchbay.repomodel import DataProduct, Repo
 
 _UNIT_MINUTES = {"m": 1, "h": 60, "d": 1440}
 _MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
@@ -122,8 +123,8 @@ def _check_dataproduct(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem
                         f'(schedule "{source.schedule}")',
                     )
                 continue
-            upstream = _read_output(repo, dataproduct, port)
-            if upstream is None or not isinstance(upstream.file.model, OutputPortFile):
+            upstream = find_other_output(repo, dataproduct, port.reads_port) if port.reads_port else None
+            if upstream is None or upstream == "unreadable" or not isinstance(upstream.file.model, OutputPortFile):
                 continue
             upstream_freshness = upstream.file.model.freshness
             if upstream_freshness is not None and promised < duration_minutes(upstream_freshness):
@@ -133,14 +134,3 @@ def _check_dataproduct(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem
                     f"output port '{output.name}' promises freshness {model.freshness}, but the output port "
                     f"'{upstream.name}' that it reads (input port '{port.name}') promises only {upstream_freshness}",
                 )
-
-
-def _read_output(repo: Repo, reader: DataProduct, input_port: Port) -> Port | None:
-    """Find the output port of another data product that an input port reads, if it loaded."""
-    for other in repo.dataproducts:
-        if other is reader:
-            continue
-        for port in other.outputs:
-            if port.name == input_port.reads_port:
-                return port
-    return None
