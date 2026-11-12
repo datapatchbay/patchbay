@@ -8,7 +8,6 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.models.base import Severity
 from datapatchbay.models.table import (
     AcceptedValuesRule,
@@ -39,11 +38,8 @@ class Dialect:
 def audit_tasks(table: TablePlan, dialect: Dialect) -> Sequence[AuditTask]:
     """Return one audit task for the table's quality rules, or none when no rule has to run.
 
-    A rule with severity `none` is left out, so a table whose rules are all `none` gets no task. The rules of a table
-    that dbt builds run as dbt data tests, so such a table gets no audit task either.
+    A rule with severity `none` is left out, so a table whose rules are all `none` gets no task.
     """
-    if table.executor == DBT_EXECUTOR:
-        return ()
     checks = audit_checks(table, dialect)
     return (AuditTask(f"audit_{table.name}", checks),) if checks else ()
 

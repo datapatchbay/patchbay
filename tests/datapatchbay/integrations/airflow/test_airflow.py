@@ -82,8 +82,8 @@ def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_pro
 
 
 @pytest.mark.parametrize("runtime", [DockerRuntime(), KubernetesRuntime()])
-def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_the_worker(jaffle_dbt_repo: Path, runtime):
-    with pytest.raises(UnsupportedCombinationError, match=r"cannot run dbt: set `runtime: worker`"):
+def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_another_runtime(jaffle_dbt_repo: Path, runtime):
+    with pytest.raises(UnsupportedCombinationError, match=r"cannot run a DbtCall: set a runtime that can"):
         runtime.render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
 
 

@@ -14,11 +14,13 @@ from datapatchbay.plugins.plan import TablePlan
 __all__ = [
     "AuditCheck",
     "AuditTask",
+    "BuildCall",
     "BuildTask",
     "DbtCall",
     "GeneratedFile",
     "PythonCall",
     "RenderedTask",
+    "ScaffoldedTable",
     "SqlTask",
 ]
 
@@ -55,6 +57,10 @@ class DbtCall:
     profiles_dir: str
 
 
+type BuildCall = PythonCall | DbtCall
+"""What an executor asks a runtime to run. The union is closed until the generic command call replaces `DbtCall`."""
+
+
 @dataclass(frozen=True, slots=True)
 class BuildTask:
     """What a runtime renders: a build and how the executor wants it called.
@@ -65,7 +71,7 @@ class BuildTask:
 
     task_id: str
     table: TablePlan
-    call: PythonCall | DbtCall
+    call: BuildCall
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,3 +153,16 @@ class GeneratedFile:
 
     path: PurePosixPath
     content: str
+
+
+@dataclass(frozen=True, slots=True)
+class ScaffoldedTable:
+    """What an executor adds to a new table for `dpb new`.
+
+    Attributes:
+        build: The `build` block of the table file, or `None` when the executor needs none.
+        files: Files for the new data product, by path relative to its folder, such as the stub of the build code.
+    """
+
+    build: Mapping[str, Any] | None
+    files: Mapping[str, str]

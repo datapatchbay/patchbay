@@ -86,7 +86,7 @@ class WorkerRuntime:
     """Call the entrypoint in the orchestrator's own process, so it runs on the worker."""
 
     needs_image = False
-    runs_dbt = True
+    call_types: tuple[type, ...] = (PythonCall, DbtCall)
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
         """Render a task that calls the function, or runs `dbt build` on the worker for a `DbtCall`.

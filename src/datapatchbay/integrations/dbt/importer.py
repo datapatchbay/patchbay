@@ -10,18 +10,21 @@ reported, never dropped silently. Nothing here imports or runs dbt (ADR-0004).
 """
 
 import re
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.genheader import generated_from
+from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.integrations.dbt.properties import SEVERITY
 from datapatchbay.models.base import Severity
-from datapatchbay.naming import is_snake_case
+from datapatchbay.naming import derive_names, is_snake_case, render_name
+from datapatchbay.scaffold import ImportedTable, NewDataProduct
+from datapatchbay.settings import ResolvedConventions
 from datapatchbay.yamlio import YamlLoadError, load_mapping
 
 DEFAULT_TYPE = "text"
@@ -99,6 +102,67 @@ class DbtImport:
     skipped: list[Skipped] = field(default_factory=list)
     untyped: list[UntypedColumn] = field(default_factory=list)
     unrewritten_refs: list[UnrewrittenRef] = field(default_factory=list)
+
+    option: ClassVar[str] = "--from-dbt"
+    executor: ClassVar[str] = DBT_EXECUTOR
+
+    def problems(self, conventions: ResolvedConventions, new: NewDataProduct) -> Sequence[str]:
+        """Return what stops the models from becoming tables: none found, or two with the same model name."""
+        if not self.models:
+            return ["--from-dbt found no model with both a .sql file and properties with columns"]
+        dataproduct = derive_names(conventions, name=new.name, kind_name=new.kind).dataproduct
+        names = [_model_name(conventions, new, dataproduct, model.name) for model in self.models]
+        if len(set(names)) < len(names):
+            return ["`conventions.names.dbt_model` gives two imported models the same name; include `{table}` in it"]
+        return []
+
+    def tables(self, conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str) -> list[ImportedTable]:
+        """Return a table per model, and its model file renamed by the `dbt_model` template, refs rewritten."""
+        renamed = {m.name: _model_name(conventions, new, dataproduct, m.name) for m in self.models}
+        return [
+            ImportedTable(
+                model.name,
+                model.description,
+                model.columns,
+                {f"models/{renamed[model.name]}.sql": rename_refs(model.sql, renamed)},
+            )
+            for model in self.models
+        ]
+
+    def left_out(self) -> dict[str, list[Any]]:
+        """Return what was not imported, by kind, as plain data for `--json`."""
+        return {
+            "unmapped_tests": [asdict(item) for item in self.unmapped],
+            "skipped": [asdict(item) for item in self.skipped],
+            "untyped_columns": [asdict(item) for item in self.untyped],
+            "unrewritten_refs": [asdict(item) for item in self.unrewritten_refs],
+        }
+
+    def left_out_lines(self) -> list[str]:
+        """Return what was not imported as lines for the terminal."""
+        lines = []
+        for test in self.unmapped:
+            where = f"{test.model}.{test.column}" if test.column else test.model
+            lines.append(f"not imported: {where} {test.test}: {test.reason}")
+        lines.extend(f"skipped {skipped.model}: {skipped.reason}" for skipped in self.skipped)
+        lines.extend(
+            f"no data_type: {untyped.model}.{untyped.column} is written as '{DEFAULT_TYPE}'; set the real type"
+            for untyped in self.untyped
+        )
+        lines.extend(
+            f"ref not renamed: {ref.model} {ref.call}: {ref.reason}; edit it by hand" for ref in self.unrewritten_refs
+        )
+        return lines
+
+
+def _model_name(conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str, model: str) -> str:
+    return render_name(
+        conventions.names.dbt_model,
+        name=new.name,
+        kind_name=new.kind,
+        kind=conventions.kinds[new.kind],
+        extra={"dataproduct": dataproduct, "table": model},
+    )
 
 
 def read_dbt_models(path: Path, *, default_severity: Severity = "error") -> DbtImport:

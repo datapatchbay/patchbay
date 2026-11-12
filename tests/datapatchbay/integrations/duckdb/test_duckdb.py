@@ -2,11 +2,9 @@ from pathlib import Path
 
 import pytest
 from audit_support import audit_of, columns_yaml
-from plan_helpers import plan_all
 
 from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.duckdb.warehouse import DuckDbWarehouse
-from datapatchbay.loading import load_repo
 
 RULES = (
     columns_yaml(
@@ -37,15 +35,6 @@ def test_duckdb_audits_with_the_same_task_id_rules_and_severities_as_postgres(ja
 
 def test_a_table_without_rules_gets_no_audit_task_on_duckdb(jaffle_repo: Path):
     assert audit_of(jaffle_repo, columns_yaml(), warehouse=DuckDbWarehouse()) is None
-
-
-def test_a_table_built_by_dbt_gets_no_audit_task_on_duckdb(jaffle_dbt_repo: Path):
-    repo, problems = load_repo(jaffle_dbt_repo)
-    assert problems == []
-    plan = next(p for p in plan_all(repo, jaffle_dbt_repo) if p.folder == "agg_weekly_orders")
-    table = next(t for t in plan.tables if t.executor == "dbt")
-    assert table.source.file.model.columns[0].rules
-    assert DuckDbWarehouse().audit_tasks(table) == ()
 
 
 @pytest.mark.parametrize("name", ["duckdb", "postgres"])

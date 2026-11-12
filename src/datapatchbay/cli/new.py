@@ -1,14 +1,12 @@
 """The `dpb new` command."""
 
 import json
-from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 
-from datapatchbay.integrations.dbt.importer import DEFAULT_TYPE, DbtImport, read_dbt_models
-from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
+from datapatchbay.integrations.dbt.importer import read_dbt_models
 from datapatchbay.repo import find_repo_root
 from datapatchbay.scaffold import DEFAULT_SCHEDULE, NewDataProduct, ScaffoldError, missing_answers, scaffold
 from datapatchbay.settings import ResolvedConventions, load_settings
@@ -80,45 +78,22 @@ def new(
             name=answers["name"],
             kind=answers["kind"],
             owner=answers["owner"],
+            executor=settings.values.executor,
             domain=answers["domain"] or None,
             technical_owner=answers["technical_owner"] or None,
             source=source,
             schedule=schedule,
-            dbt=settings.values.executor == DBT_EXECUTOR,
             imported=imported,
         ),
     )
     if json_output:
         report: dict[str, object] = {"created": [path.as_posix() for path in created]}
         if imported is not None:
-            report |= {key: [asdict(item) for item in items] for key, items in _left_out(imported).items()}
+            report |= imported.left_out()
         typer.echo(json.dumps(report, indent=2))
     else:
         for path in created:
             typer.echo(f"created {path.as_posix()}")
         if imported is not None:
-            _echo_left_out(imported)
-
-
-def _left_out(imported: DbtImport) -> dict[str, list[Any]]:
-    return {
-        "unmapped_tests": imported.unmapped,
-        "skipped": imported.skipped,
-        "untyped_columns": imported.untyped,
-        "unrewritten_refs": imported.unrewritten_refs,
-    }
-
-
-def _echo_left_out(imported: DbtImport) -> None:
-    for test in imported.unmapped:
-        where = f"{test.model}.{test.column}" if test.column else test.model
-        typer.echo(f"not imported: {where} {test.test}: {test.reason}", err=True)
-    for skipped in imported.skipped:
-        typer.echo(f"skipped {skipped.model}: {skipped.reason}", err=True)
-    for untyped in imported.untyped:
-        typer.echo(
-            f"no data_type: {untyped.model}.{untyped.column} is written as '{DEFAULT_TYPE}'; set the real type",
-            err=True,
-        )
-    for ref in imported.unrewritten_refs:
-        typer.echo(f"ref not renamed: {ref.model} {ref.call}: {ref.reason}; edit it by hand", err=True)
+            for line in imported.left_out_lines():
+                typer.echo(line, err=True)

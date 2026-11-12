@@ -13,9 +13,12 @@ from datapatchbay.models.base import Severity
 from datapatchbay.naming import DerivedNames
 from datapatchbay.problems import Report
 from datapatchbay.repomodel import DataProduct, Port, Repo, Table
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings import EffectiveSettings, ResolvedConventions
 
-__all__ = ["DataProductPlan", "DbtLocation", "PlannedRepo", "SourceSchedule", "TablePlan"]
+__all__ = ["DataProductPlan", "DbtLocation", "NewTable", "PlannedRepo", "SourceSchedule", "TablePlan"]
+
+MODELS_FOLDER = "models"
+"""The folder of a data product that holds the models of the `dbt:` settings block."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,3 +150,24 @@ class PlannedRepo:
     def report(self) -> Report:
         """The report of a repo with no problems."""
         return Report(dataproducts_checked=self.repo.dataproduct_dirs, problems=[])
+
+
+@dataclass(frozen=True, slots=True)
+class NewTable:
+    """A table that `dpb new` is about to write, for the executor that builds it.
+
+    Attributes:
+        name: Name of the table.
+        needs: Names of the tables of the same data product that are built first.
+        dataproduct: Folder name of the new data product.
+        dataproduct_name: The bare name given to `dpb new`.
+        kind: Kind of the data product.
+        conventions: The conventions in the effective settings, which hold the naming templates.
+    """
+
+    name: str
+    needs: tuple[str, ...]
+    dataproduct: str
+    dataproduct_name: str
+    kind: str
+    conventions: ResolvedConventions

@@ -21,8 +21,8 @@ from datapatchbay.integrations.dagster.helpers import (
 )
 from datapatchbay.plugins import (
     AuditTask,
+    BuildCall,
     DataProductPlan,
-    DbtCall,
     GeneratedFile,
     GenerationContext,
     PythonCall,
@@ -30,7 +30,7 @@ from datapatchbay.plugins import (
     TablePlan,
     UnsupportedCombinationError,
 )
-from datapatchbay.plugins.codegen import check_rows, plan_builds, python_literal, render_build
+from datapatchbay.plugins.codegen import Batch, check_rows, plan_builds, python_literal, render_build, warehouse_audits
 
 _NAME = re.compile(r"[A-Za-z0-9_]+")
 _INDENT = "    "
@@ -53,8 +53,8 @@ class DagsterOrchestrator:
         reads is materialized.
 
         Raises:
-            UnsupportedCombinationError: If a name is not usable in Dagster, a Python table needs a table that dbt
-                builds, the tables built by dbt have different runtimes, or a plugin cannot render a task.
+            UnsupportedCombinationError: If a name is not usable in Dagster, a table needs a table of a batch it is
+                not in, the tables of a batch have different runtimes, or a plugin cannot render a task.
         """
         return [GeneratedFile(PurePosixPath(f"{plan.folder}.py"), _Module(plan, context).render())]
 
@@ -146,10 +146,10 @@ class _Module:
         return connection
 
     def _tables(self) -> None:
-        """Add the asset of every Python table with its checks, then the one asset for the tables dbt builds.
+        """Add the asset of every Python table with its checks, then one asset per batch of tables.
 
-        The tables built by dbt share one multi-asset that depends on the Python tables no other table needs,
-        because `dbt build` runs their models and data tests together.
+        The tables of a batch share one multi-asset that depends on the Python tables no other table needs,
+        because their executor builds them and runs their rules together.
         """
         builds = plan_builds(self._plan, self._context)
         for table in self._plan.tables:
@@ -161,11 +161,11 @@ class _Module:
             assert isinstance(call, PythonCall)
             self._python_table(table, call)
             needed.update(table.needs)
-        if builds.dbt_call is not None:
-            leaves = [table.name for table in builds.python_tables if table.name not in needed]
-            self._dbt_tables(builds.dbt_tables, builds.dbt_call, leaves)
+        leaves = [table.name for table in builds.python_tables if table.name not in needed]
+        for batch in builds.batches:
+            self._batch(batch, leaves)
 
-    def _build(self, table: TablePlan, call: PythonCall | DbtCall, *, task_id: str, where: str) -> str:
+    def _build(self, table: TablePlan, call: BuildCall, *, task_id: str, where: str) -> str:
         """Add the build function that the runtime renders; return its name."""
         variable = self._variable(task_id)
         rendered = render_build(
@@ -211,9 +211,8 @@ class _Module:
         self._audits(table)
 
     def _audits(self, table: TablePlan) -> None:
-        warehouse = self._context.warehouse
         used: set[str] = set()
-        for audit in warehouse.audit_tasks(table) if warehouse is not None else ():
+        for audit in warehouse_audits(self._context, table):
             where = f"audit of table '{table.name}'"
             op = self._claim_name(f"{self._plan.folder}__{audit.task_id}", where)
             variable = self._variable(audit.task_id)
@@ -244,11 +243,12 @@ class _Module:
         self._helper(AUDIT_CHECK_HELPER)
         self._checks.extend(_call(f"{variable} = _audit_check", arguments))
 
-    def _dbt_tables(self, tables: Sequence[TablePlan], call: DbtCall, leaves: list[str]) -> None:
-        """Add the one multi-asset that builds the dbt tables with `dbt build`, after the Python tables."""
+    def _batch(self, batch: Batch, leaves: list[str]) -> None:
+        """Add the one multi-asset that builds the tables of a batch, after the Python tables."""
         plan = self._plan
-        op = self._claim_name(f"{plan.folder}__build_dbt", "tables built by dbt")
-        build = self._build(tables[0], call, task_id="build_dbt", where="tables built by dbt")
+        tables = batch.tables
+        op = self._claim_name(f"{plan.folder}__{batch.task_id}", batch.where)
+        build = self._build(tables[0], batch.call, task_id=batch.task_id, where=batch.where)
         function = self._variable(op)
         deps = self._deps(leaves, reads=True)
         specs = [self._spec(self._key(t.name), deps) for t in tables]

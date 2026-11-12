@@ -2,13 +2,11 @@
 
 from pathlib import Path
 
+from datapatchbay.capabilities import check_executor_files, check_executor_plans, committed_outputs
 from datapatchbay.cascade import ResolvedCascade, resolve_cascade
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.freshness import check_freshness
-from datapatchbay.integrations.dbt.layout import check_dbt
-from datapatchbay.integrations.dbt.manifest import check_dbt_reads
-from datapatchbay.integrations.dbt.output import build_dbt_output
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.pluginchecks import check_plugins
@@ -23,7 +21,7 @@ def plan_repo(root: Path) -> PlannedRepo | Report:
     """Stage 1: load and check `datapatchbay.yaml`, every data product, every port and every table, then plan.
 
     Every file is checked even when an earlier one has problems, so one run reports everything. Cross-file checks
-    run on whatever loaded and skip what depends on a file that did not. The convention, plugin and dbt checks need
+    run on whatever loaded and skip what depends on a file that did not. The convention, plugin and executor checks need
     valid settings, so they are skipped when `datapatchbay.yaml` is invalid, which the report already says.
 
     Returns:
@@ -39,7 +37,7 @@ def plan_repo(root: Path) -> PlannedRepo | Report:
         cascade = resolve_cascade(repo, settings)
         problems.extend(check_conventions(repo, settings, repo.root_file.data))
         problems.extend(check_plugins(repo, settings, cascade, repo.root_file.data))
-        problems.extend(check_dbt(repo, settings, cascade))
+        problems.extend(check_executor_files(repo, settings, cascade))
     if settings is None or cascade is None or problems:
         return Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)
     return PlannedRepo(repo, settings, plan_dataproducts(repo, settings, cascade))
@@ -49,18 +47,18 @@ def validate_repo(root: Path) -> Report:
     """Validate a repo and return the report. See `plan_repo`.
 
     Once stage 1 passes, stage 2 runs every check on the shared plans and reports all problems in one run: the
-    committed dbt files are compared with what `dpb generate` would write, what the dbt models read is compared with
-    the input ports (the dbt manifest must exist), the data products are rendered in memory to find what would make
-    `dpb generate` fail, such as a table named `dbt` next to tables built by dbt, or source input ports with different
-    schedules, and stale output files are looked for. Nothing is written.
+    committed files of the executors are compared with what `dpb generate` would write, the executors check the plans
+    against what is on disk (what their models read against the input ports), the data products are rendered in
+    memory to find what would make `dpb generate` fail, such as source input ports with different schedules, and
+    stale output files are looked for. Nothing is written.
     """
     planned = plan_repo(root)
     if isinstance(planned, Report):
         return planned
     target = root / planned.settings.values.output_dir
     problems = [
-        *build_dbt_output(planned).problems(),
-        *check_dbt_reads(planned),
+        *committed_outputs(planned).problems(),
+        *check_executor_plans(planned),
         *render_dataproducts(planned, target).problems,
         *check_stale_output(planned),
     ]

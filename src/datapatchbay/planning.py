@@ -5,10 +5,10 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.cascade import ResolvedCascade
-from datapatchbay.integrations.dbt.layout import MODELS_FOLDER
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
 from datapatchbay.naming import DerivedNames, derive_names
 from datapatchbay.plugins import DataProductPlan, DbtLocation, SourceSchedule, TablePlan
+from datapatchbay.plugins.plan import MODELS_FOLDER
 from datapatchbay.repomodel import DataProduct, Repo
 from datapatchbay.settings import EffectiveSettings
 
@@ -107,7 +107,7 @@ def _plan(
 
 
 def _dbt_location(dataproduct: DataProduct, settings: EffectiveSettings, root: Path) -> DbtLocation:
-    """Place the models of a data product in the dbt project, which the `dbt.project_dir` setting locates."""
+    """Place the models of a data product in the project that the `dbt:` settings block locates."""
     dbt = settings.values.dbt
     models = dataproduct.directory / MODELS_FOLDER
     if PurePosixPath(dbt.project_dir).is_absolute():

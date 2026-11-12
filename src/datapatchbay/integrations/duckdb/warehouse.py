@@ -42,6 +42,6 @@ class DuckDbWarehouse:
     def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
         """Return one audit task for the table's quality rules, or none when no rule has to run.
 
-        The tasks, rules and severities are the same as on Postgres (ADR-0010). A table that dbt builds gets none.
+        The tasks, rules and severities are the same as on Postgres (ADR-0010).
         """
         return audit_tasks(table, DUCKDB_DIALECT)
