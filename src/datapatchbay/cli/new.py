@@ -6,6 +6,7 @@ from typing import Annotated
 
 import typer
 
+from datapatchbay.dbt import DBT_EXECUTOR
 from datapatchbay.repo import find_repo_root
 from datapatchbay.scaffold import DEFAULT_SCHEDULE, NewDataProduct, ScaffoldError, missing_answers, scaffold
 from datapatchbay.settings import ResolvedConventions, load_settings
@@ -48,7 +49,8 @@ def new(
 ) -> None:
     """Scaffold a data product folder that follows the conventions."""
     root = find_repo_root(Path.cwd())
-    conventions = load_settings(root).values.conventions
+    settings = load_settings(root)
+    conventions = settings.values.conventions
     given = {"name": name, "kind": kind, "domain": domain, "owner": owner, "technical_owner": technical_owner}
     answers = {key: value or "" for key, value in given.items()}
     if no_input:
@@ -71,6 +73,7 @@ def new(
             technical_owner=answers["technical_owner"] or None,
             source=source,
             schedule=schedule,
+            dbt=settings.values.executor == DBT_EXECUTOR,
         ),
     )
     if json_output:
