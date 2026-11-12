@@ -52,7 +52,7 @@ This file holds the settings that apply to all data products. Defaults ship insi
 
 ```yaml
 schema_version: 1
-warehouse: postgres       # postgres | duckdb (duckdb: audits only, no views yet)
+warehouse: postgres       # postgres | duckdb (duckdb: no roles, no grants)
 orchestrator: airflow
 executor: python
 runtime: worker            # worker | docker | kubernetes

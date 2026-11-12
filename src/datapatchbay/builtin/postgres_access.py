@@ -15,8 +15,10 @@ How one output port is applied:
    private schema: the views read it with their owner's privileges.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
+from datapatchbay.builtin.audit_sql import Dialect, standard_identifier, standard_literal
+from datapatchbay.builtin.port_views import output_ports, view_sql
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import OutputPortFile, ProductReader
 from datapatchbay.plugins import DataProductPlan, TablePlan
@@ -39,8 +41,7 @@ END
 {tag};"""
 
 
-def _identifier(name: str) -> str:
-    return '"' + name.replace('"', '""') + '"'
+_DIALECT = Dialect(identifier=standard_identifier, literal=standard_literal)
 
 
 def _dollar_tag(text: str) -> str:
@@ -57,32 +58,30 @@ def _literal(text: str) -> str:
 
 def access_sql(plan: DataProductPlan) -> str:
     """Return the statements that apply the views and grants of every output port, or `""` when there are none."""
-    ports = [port for port in plan.source.outputs if port.name in plan.outputs]
-    return "\n\n".join(_port_sql(plan, port) for port in ports)
+    return "\n\n".join(_port_sql(plan, port, tables) for port, tables in output_ports(plan))
 
 
-def _port_sql(plan: DataProductPlan, port: Port) -> str:
+def _port_sql(plan: DataProductPlan, port: Port, tables: Sequence[TablePlan]) -> str:
     model = port.file.model
     assert isinstance(model, OutputPortFile)
     readers = {_role_of(plan, reader) for reader in model.access.readers}
     pii_readers = sorted(set(model.access.pii_readers))
     everyone = sorted(readers | set(pii_readers))
-    schema = _identifier(port.name)
+    schema = _DIALECT.identifier(port.name)
     statements = [
         f"-- Output port {' '.join(port.name.split())}",
         f"CREATE SCHEMA IF NOT EXISTS {schema};",
         _REVOKE_SCHEMA_GRANTS.format(schema_literal=_literal(port.name), tag=_dollar_tag(port.name)),
     ]
-    tables = [table for table in plan.tables if table.port == port.name]
     for table in tables:
         statements += [
-            f"DROP VIEW IF EXISTS {schema}.{_identifier(table.name)};",
-            _view_sql(plan, table, pii_readers),
+            f"DROP VIEW IF EXISTS {schema}.{_DIALECT.identifier(table.name)};",
+            _view_sql(table, pii_readers),
         ]
     if everyone:
-        roles = ", ".join(_identifier(role) for role in everyone)
+        roles = ", ".join(_DIALECT.identifier(role) for role in everyone)
         statements.append(f"GRANT USAGE ON SCHEMA {schema} TO {roles};")
-        statements += [f"GRANT SELECT ON {schema}.{_identifier(table.name)} TO {roles};" for table in tables]
+        statements += [f"GRANT SELECT ON {schema}.{_DIALECT.identifier(table.name)} TO {roles};" for table in tables]
     return "\n".join(statements)
 
 
@@ -94,15 +93,10 @@ def _role_of(plan: DataProductPlan, reader: str | ProductReader) -> str:
     return plan.roles[reader.product]
 
 
-def _view_sql(plan: DataProductPlan, table: TablePlan, pii_readers: Iterable[str]) -> str:
+def _view_sql(table: TablePlan, pii_readers: Iterable[str]) -> str:
     is_pii_reader = " OR ".join(f"pg_has_role(current_user, {_literal(role)}, 'member')" for role in pii_readers)
-    columns = []
-    for column in table.source.file.model.columns:
-        name = _identifier(column.name)
-        if column.pii:
-            columns.append(f"CASE WHEN {is_pii_reader or 'false'} THEN {name} ELSE NULL END AS {name}")
-        else:
-            columns.append(name)
-    private = f"{_identifier(table.schema)}.{_identifier(table.name)}"
-    view = f"{_identifier(table.port)}.{_identifier(table.name)}"
-    return f"CREATE VIEW {view} AS SELECT {', '.join(columns) or '*'} FROM {private};"
+    return view_sql(
+        table,
+        _DIALECT,
+        lambda name: f"CASE WHEN {is_pii_reader or 'false'} THEN {name} ELSE NULL END AS {name}",
+    )
