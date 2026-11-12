@@ -91,7 +91,7 @@ datapatchbay has four extension points:
 | Orchestrator | Airflow 3 |
 | Executor | Python, dbt |
 | Runtime | Worker, Docker, Kubernetes |
-| Warehouse | Postgres |
+| Warehouse | Postgres, DuckDB |
 
 Plugins are found through Python entry points, so plugin support adds no dependency. The built-in support is written against the same interfaces and registered the same way. A plugin package registers a class, or a function without arguments that returns the plugin, in one of four groups, and the entry point name is the name used in the settings:
 
@@ -103,6 +103,10 @@ airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
 The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatchbay.runtimes` and `datapatchbay.warehouses`. The interfaces are the `Protocol` classes in `datapatchbay.plugins`. The orchestrator composes the DAG from what the others contribute: the executor says what to call, the runtime renders the build task, and the warehouse returns SQL tasks that the orchestrator runs through its own connection.
 
 The plugin interface is not declared stable yet.
+
+## DuckDB enforces no access
+
+On DuckDB the warehouse enforces no access: it has no roles and no grants, so readers and PII readers are accepted and applied to nothing, and a PII column always shows NULL in the view, to everyone. DuckDB is meant for local development and tests. The same files work on both warehouses, so a team can develop on DuckDB and deploy on Postgres by changing the `warehouse` setting ([ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)).
 
 ## Where the generated files go
 
