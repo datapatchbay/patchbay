@@ -46,6 +46,18 @@ A missing `schema_version`, or one newer than the installed `dpb` knows, is repo
 
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
+## `dpb config`
+
+`dpb config` prints the effective settings: the packaged defaults with `datapatchbay.yaml` merged over them. Each line holds a setting, its value and where the value comes from, `(defaults)` or `(datapatchbay.yaml)`. Maps are listed leaf by leaf, with dotted names such as `conventions.kinds.aggregate.prefix`.
+
+```text
+warehouse                            postgres        (defaults)
+runtime                              docker          (datapatchbay.yaml)
+conventions.domains                  []              (defaults)
+```
+
+With `--json`, stdout holds one object from setting name to `{"value": ..., "origin": "defaults" | "datapatchbay.yaml"}`. An invalid `datapatchbay.yaml` is reported as `file:line: message` and exits with code 2.
+
 ## `dpb generate`
 
 Generated files are build output of CD and are not committed.

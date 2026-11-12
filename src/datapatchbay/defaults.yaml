@@ -1,0 +1,20 @@
+# Packaged defaults: every setting, in the same shape as a repo's datapatchbay.yaml.
+# A repo's file holds only the changes and is merged over this one (ADR-0008).
+schema_version: 1
+warehouse: postgres
+orchestrator: airflow
+executor: python
+runtime: worker            # worker | docker | kubernetes
+severity: error            # default severity of quality rules
+connection: warehouse      # the orchestrator's connection to the warehouse
+conventions:
+  kinds:
+    source-aligned: {prefix: sa}
+    aggregate: {prefix: agg}
+    consumer-aligned: {prefix: ca}
+  domains: []              # empty means any domain is accepted
+  names:
+    dataproduct: "{kind.prefix}_{name}"
+    output_port: "{kind.prefix}_{name}"
+    private_port: "{kind.prefix}_{name}_private"
+    role: "dp_{kind.prefix}_{name}"
