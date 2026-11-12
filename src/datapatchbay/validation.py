@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from datapatchbay.crosschecks import check_repo
+from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
 from datapatchbay.problems import Report
 
@@ -15,4 +16,5 @@ def validate_repo(root: Path) -> Report:
     """
     repo, problems = load_repo(root)
     problems.extend(check_repo(repo))
+    problems.extend(check_freshness(repo))
     return Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)
