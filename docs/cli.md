@@ -11,7 +11,26 @@
 | `dpb generate` | Writes the orchestrator files and the warehouse SQL. Meant for CD |
 | `dpb upgrade` | Rewrites files to the current schema version, keeping comments |
 
-`validate`, `list`, `describe` and `config` take `--json`.
+`new`, `validate`, `list`, `describe` and `config` take `--json`.
+
+## `dpb new`
+
+`dpb new` creates `dataproducts/<folder>/` with a `dataproduct.yaml`, the default output port with its `port.yaml` and one example table, and a stub Python function per table that the table's `build` block points at. The result passes `dpb validate` without edits. The folder and port names come from the naming templates in the effective settings. It never overwrites: if the folder exists, it fails and writes nothing.
+
+```sh
+dpb new                                                     # asks for what is missing
+dpb new --name ilab_orders --kind source-aligned --domain lab \
+  --owner "Jane Doe" --technical-owner "Joe Dev" --no-input
+dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --schedule "0 5 * * *"
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--name`, `--kind`, `--domain`, `--owner`, `--technical-owner` | The answers. Each one given as a flag is not asked. `domain` and `technical-owner` can be left empty, except that `domain` is required when the conventions declare domains |
+| `--source` | Also creates the private input port, fed by this source, with a schedule and one ingested table. The example table `needs` it |
+| `--schedule` | Cron expression of the source's deliveries. Default `0 5 * * *`. Only used with `--source` |
+| `--no-input` | Never prompts. Fails with exit code 2 and lists the missing values |
+| `--json` | Prints `{"created": [...]}` on stdout: the files it created, relative to the repo root |
 
 ## `dpb validate`
 
