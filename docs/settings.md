@@ -26,7 +26,7 @@ The root level is `datapatchbay.yaml` over the packaged defaults. On a data prod
 ```yaml
 # dataproduct.yaml
 runtime: docker
-image: registry.example.com/lab:1
+image: registry.example.com/jaffle-shop:1
 ```
 
 ```yaml

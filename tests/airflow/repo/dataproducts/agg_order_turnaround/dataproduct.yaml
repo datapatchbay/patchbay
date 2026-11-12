@@ -1,0 +1,6 @@
+schema_version: 1
+name: order_turnaround
+kind: aggregate
+owner: Ann
+inputs: [sa_jaffle_orders]
+outputs: [agg_order_turnaround]

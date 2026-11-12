@@ -1,0 +1,16 @@
+schema_version: 1
+name: ingested_orders
+description: Orders exactly as the shop's order system delivers them
+columns:
+  - name: order_id
+    type: text
+  - name: customer_id
+    type: text
+  - name: status
+    type: text
+  - name: ordered_at
+    type: timestamp
+  - name: completed_at
+    type: timestamp
+build:
+  entrypoint: src/ingested_orders.py:build

@@ -1,0 +1,26 @@
+schema_version: 1
+name: orders
+description: One row per jaffle shop order
+columns:
+  - name: order_id
+    type: text
+    rules: [not_null, unique]
+  - name: customer_id
+    type: text
+    pii: true
+  - name: status
+    type: text
+    rules:
+      - rule: accepted_values
+        values: [placed, shipped, completed, return_pending, returned]
+  - name: ordered_at
+    type: timestamp
+  - name: completed_at
+    type: timestamp
+freshness_column: ordered_at
+rules:
+  - rule: row_count
+    min: 1
+build:
+  entrypoint: src/orders.py:build
+  needs: [ingested_orders]

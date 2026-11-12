@@ -8,6 +8,8 @@ from typing import Any
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
+from datapatchbay.dbt import DBT_EXECUTOR
+from datapatchbay.dbt_import import DbtImport, rename_refs
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models.base import SCHEMA_VERSION
 from datapatchbay.models.port import check_cron
@@ -45,6 +47,8 @@ class NewDataProduct:
         source: The source that feeds a private input port, or `None` for a data product without one.
         schedule: The cron expression of the source's deliveries; only used with a `source`.
         dbt: Whether the effective executor is dbt: the tables get a dbt model in `models/` instead of build code.
+        imported: The models and properties of an existing dbt project (`--from-dbt`): the tables and models come
+            from it instead of the example, and the data product is built by dbt whatever the repo's executor.
     """
 
     name: str
@@ -55,6 +59,7 @@ class NewDataProduct:
     source: str | None = None
     schedule: str = DEFAULT_SCHEDULE
     dbt: bool = False
+    imported: DbtImport | None = None
 
 
 def missing_answers(conventions: ResolvedConventions, answers: Mapping[str, str]) -> list[str]:
@@ -95,6 +100,11 @@ def check_answers(conventions: ResolvedConventions, new: NewDataProduct) -> None
             check_cron(new.schedule)
         except ValueError as exc:
             problems.append(str(exc))
+    if new.imported is not None:
+        if new.source is not None:
+            problems.append("--source cannot be combined with --from-dbt: the imported models are the tables")
+        if not problems:  # the names need a valid kind
+            problems.extend(_model_name_problems(conventions, new))
     if problems:
         raise ScaffoldError("\n".join(problems))
 
@@ -133,11 +143,15 @@ def render_files(conventions: ResolvedConventions, new: NewDataProduct) -> dict[
     product["owner"] = new.owner
     if new.technical_owner:
         product["technical_owner"] = new.technical_owner
+    if new.imported is not None:
+        product["executor"] = DBT_EXECUTOR
     if new.source is not None:
         product["inputs"] = [names.private_port]
     product["outputs"] = [names.output_port]
 
     files = {f"{folder}/{DATAPRODUCT_FILE}": _yaml(product)}
+    if new.imported is not None:
+        return files | _imported_files(conventions, new, names.dataproduct, names.output_port, product_folder=folder)
     tables = ["example"]
     if new.source is not None:
         private = f"{folder}/inputs/{names.private_port}"
@@ -205,3 +219,32 @@ def _model_sql(table: str, conventions: ResolvedConventions, new: NewDataProduct
         upstream = _model_name(conventions, new, dataproduct, "ingested")
         return f"select id from {{{{ ref('{upstream}') }}}}\n"
     return "select cast(null as text) as id where false\n"
+
+
+def _imported_files(
+    conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str, output_port: str, *, product_folder: str
+) -> dict[str, str]:
+    """The output port, a table file per imported model and its model file, renamed by the `dbt_model` template."""
+    assert new.imported is not None
+    renamed = {m.name: _model_name(conventions, new, dataproduct, m.name) for m in new.imported.models}
+    output = f"{product_folder}/outputs/{output_port}"
+    files = {f"{output}/port.yaml": _yaml({"kind": "schema"})}
+    for model in new.imported.models:
+        table: dict[str, Any] = {"name": model.name}
+        if model.description is not None:
+            table["description"] = model.description
+        table["columns"] = model.columns
+        files[f"{output}/{model.name}.yaml"] = _yaml(table)
+        files[f"{product_folder}/models/{renamed[model.name]}.sql"] = rename_refs(model.sql, renamed)
+    return files
+
+
+def _model_name_problems(conventions: ResolvedConventions, new: NewDataProduct) -> list[str]:
+    assert new.imported is not None
+    if not new.imported.models:
+        return ["--from-dbt found no model with both a .sql file and properties with columns"]
+    dataproduct = derive_names(conventions, name=new.name, kind_name=new.kind).dataproduct
+    names = [_model_name(conventions, new, dataproduct, model.name) for model in new.imported.models]
+    if len(set(names)) < len(names):
+        return ["`conventions.names.dbt_model` gives two imported models the same name; include `{table}` in it"]
+    return []

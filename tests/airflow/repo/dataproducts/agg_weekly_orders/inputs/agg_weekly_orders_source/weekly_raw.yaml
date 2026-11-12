@@ -1,0 +1,14 @@
+schema_version: 1
+name: weekly_raw
+columns:
+  - name: week
+    type: text
+build:
+  entrypoint: src/weekly_raw.py:build
+  runtime: docker
+  image: registry.example.com/jaffle-shop:1
+  container:
+    environment:
+      PGHOST: warehouse.example.com
+      PGPASSWORD: "{{ conn.warehouse.password }}"
+    mem_limit: 1g

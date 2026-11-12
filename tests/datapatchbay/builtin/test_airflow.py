@@ -34,47 +34,47 @@ def context_of(root: Path) -> GenerationContext:
     )
 
 
-def test_a_data_product_folder_that_is_not_an_airflow_id_is_refused(lab_repo: Path):
-    plan = replace(plan_of(lab_repo, "sa_ilab_orders"), folder="sa ilab orders")
+def test_a_data_product_folder_that_is_not_an_airflow_id_is_refused(jaffle_repo: Path):
+    plan = replace(plan_of(jaffle_repo, "sa_jaffle_orders"), folder="sa jaffle orders")
     with pytest.raises(
-        UnsupportedCombinationError, match=r"data product 'sa ilab orders' .* is not a valid Airflow id"
+        UnsupportedCombinationError, match=r"data product 'sa jaffle orders' .* is not a valid Airflow id"
     ):
-        AirflowOrchestrator().generate(plan, context_of(lab_repo))
+        AirflowOrchestrator().generate(plan, context_of(jaffle_repo))
 
 
-def test_an_output_port_name_that_is_not_an_airflow_id_is_refused(lab_repo: Path):
-    plan = replace(plan_of(lab_repo, "sa_ilab_orders"), outputs=("sa/ilab/orders",))
-    with pytest.raises(UnsupportedCombinationError, match=r"port 'sa/ilab/orders' \(asset name\) is not a valid"):
-        AirflowOrchestrator().generate(plan, context_of(lab_repo))
+def test_an_output_port_name_that_is_not_an_airflow_id_is_refused(jaffle_repo: Path):
+    plan = replace(plan_of(jaffle_repo, "sa_jaffle_orders"), outputs=("sa/jaffle/orders",))
+    with pytest.raises(UnsupportedCombinationError, match=r"port 'sa/jaffle/orders' \(asset name\) is not a valid"):
+        AirflowOrchestrator().generate(plan, context_of(jaffle_repo))
 
 
-def test_the_worker_runtime_only_renders_for_airflow(lab_repo: Path):
-    plan = plan_of(lab_repo, "sa_ilab_orders")
+def test_the_worker_runtime_only_renders_for_airflow(jaffle_repo: Path):
+    plan = plan_of(jaffle_repo, "sa_jaffle_orders")
     table = plan.tables[0]
     task = BuildTask("build_x", table, PythonExecutor().call(table))
     with pytest.raises(UnsupportedCombinationError, match="orchestrator 'prefect'"):
         WorkerRuntime().render_build_task(task, orchestrator="prefect", variable="x")
 
 
-def test_the_python_executor_calls_the_entrypoint_function_with_the_params(lab_repo: Path):
-    ingested = plan_of(lab_repo, "sa_ilab_orders").tables[0]
+def test_the_python_executor_calls_the_entrypoint_function_with_the_params(jaffle_repo: Path):
+    ingested = plan_of(jaffle_repo, "sa_jaffle_orders").tables[0]
     call = PythonExecutor().call(ingested)
     assert (str(call.file), call.function, dict(call.params)) == ("src/ingested.py", "build", {"limit": 100})
 
 
 def dbt_task_of(root: Path) -> BuildTask:
-    weekly = plan_of(root, "agg_lab_weekly")
+    weekly = plan_of(root, "agg_weekly_orders")
     table = next(t for t in weekly.tables if t.executor == "dbt")
     return BuildTask("build_dbt", table, DbtExecutor().call(table))
 
 
 def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_profiles_of_the_settings(
-    lab_dbt_repo: Path,
+    jaffle_dbt_repo: Path,
 ):
-    rendered = WorkerRuntime().render_build_task(dbt_task_of(lab_dbt_repo), orchestrator="airflow", variable="dbt")
+    rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
     assert rendered.imports == ("import os", "import subprocess", "from airflow.sdk import task")
     assert rendered.lines == (
-        'dbt = _dbt_build_task("build_dbt", "../..", "~/.dbt", "dataproducts/agg_lab_weekly/models")',
+        'dbt = _dbt_build_task("build_dbt", "../..", "~/.dbt", "dataproducts/agg_weekly_orders/models")',
     )
     [helper] = rendered.helpers
     assert '"build",\n            "--project-dir",' in helper
@@ -83,36 +83,36 @@ def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_pro
 
 
 @pytest.mark.parametrize("runtime", [DockerRuntime(), KubernetesRuntime()])
-def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_the_worker(lab_dbt_repo: Path, runtime):
+def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_the_worker(jaffle_dbt_repo: Path, runtime):
     with pytest.raises(UnsupportedCombinationError, match=r"cannot run dbt: set `runtime: worker`"):
-        runtime.render_build_task(dbt_task_of(lab_dbt_repo), orchestrator="airflow", variable="dbt")
+        runtime.render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
 
 
-def test_the_dbt_executor_fails_for_a_table_without_a_dbt_location(lab_dbt_repo: Path):
-    table = replace(dbt_task_of(lab_dbt_repo).table, dbt=None)
+def test_the_dbt_executor_fails_for_a_table_without_a_dbt_location(jaffle_dbt_repo: Path):
+    table = replace(dbt_task_of(jaffle_dbt_repo).table, dbt=None)
     with pytest.raises(UnsupportedCombinationError, match="table 'weekly_summary' has no dbt location"):
         DbtExecutor().call(table)
 
 
-def test_a_python_table_cannot_need_a_table_that_dbt_builds(lab_dbt_repo: Path):
-    plan = plan_of(lab_dbt_repo, "agg_lab_weekly")
+def test_a_python_table_cannot_need_a_table_that_dbt_builds(jaffle_dbt_repo: Path):
+    plan = plan_of(jaffle_dbt_repo, "agg_weekly_orders")
     tables = tuple(replace(t, needs=("weekly_summary",)) if t.name == "weekly_pod" else t for t in plan.tables)
     with pytest.raises(UnsupportedCombinationError, match="table 'weekly_pod' needs table 'weekly_summary', which dbt"):
-        AirflowOrchestrator().generate(replace(plan, tables=tables), context_of(lab_dbt_repo))
+        AirflowOrchestrator().generate(replace(plan, tables=tables), context_of(jaffle_dbt_repo))
 
 
-def test_tables_built_by_dbt_in_one_task_need_the_same_runtime(lab_dbt_repo: Path):
-    plan = plan_of(lab_dbt_repo, "agg_lab_weekly")
+def test_tables_built_by_dbt_in_one_task_need_the_same_runtime(jaffle_dbt_repo: Path):
+    plan = plan_of(jaffle_dbt_repo, "agg_weekly_orders")
     first = next(t for t in plan.tables if t.executor == "dbt")
     second = replace(first, name="other", runtime="docker")
     with pytest.raises(UnsupportedCombinationError, match="'weekly_summary' and 'other' are built by dbt in one task"):
-        AirflowOrchestrator().generate(replace(plan, tables=(*plan.tables, second)), context_of(lab_dbt_repo))
+        AirflowOrchestrator().generate(replace(plan, tables=(*plan.tables, second)), context_of(jaffle_dbt_repo))
 
 
-def test_a_data_product_with_only_dbt_tables_has_just_the_dbt_task_before_the_publish(lab_dbt_repo: Path):
-    plan = plan_of(lab_dbt_repo, "agg_lab_weekly")
+def test_a_data_product_with_only_dbt_tables_has_just_the_dbt_task_before_the_publish(jaffle_dbt_repo: Path):
+    plan = plan_of(jaffle_dbt_repo, "agg_weekly_orders")
     tables = tuple(t for t in plan.tables if t.executor == "dbt")
-    [file] = AirflowOrchestrator().generate(replace(plan, tables=tables), context_of(lab_dbt_repo))
+    [file] = AirflowOrchestrator().generate(replace(plan, tables=tables), context_of(jaffle_dbt_repo))
     body = file.content.split("with DAG(", 1)[1]
     assert body.count("_dbt_build_task(") == 1
     assert "build_weekly" not in body
@@ -120,7 +120,7 @@ def test_a_data_product_with_only_dbt_tables_has_just_the_dbt_task_before_the_pu
 
 
 def test_the_dbt_task_runs_the_dbt_command_in_the_project(
-    lab_dbt_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    jaffle_dbt_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     runs: list[tuple[list[str], Path]] = []
 
@@ -130,8 +130,8 @@ def test_the_dbt_task_runs_the_dbt_command_in_the_project(
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setenv("HOME", "/home/airflow")
-    rendered = WorkerRuntime().render_build_task(dbt_task_of(lab_dbt_repo), orchestrator="airflow", variable="dbt")
-    product = lab_dbt_repo / "dataproducts/agg_lab_weekly"
+    rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
+    product = jaffle_dbt_repo / "dataproducts/agg_weekly_orders"
     # Airflow's `task` turns the function into an operator; here it just hands the function back when called.
     namespace: dict[str, Any] = {
         "os": os,
@@ -148,12 +148,12 @@ def test_the_dbt_task_runs_the_dbt_command_in_the_project(
                 "dbt",
                 "build",
                 "--project-dir",
-                str(lab_dbt_repo.resolve()),
+                str(jaffle_dbt_repo.resolve()),
                 "--profiles-dir",
                 "/home/airflow/.dbt",
                 "--select",
-                "path:dataproducts/agg_lab_weekly/models",
+                "path:dataproducts/agg_weekly_orders/models",
             ],
-            lab_dbt_repo.resolve(),
+            jaffle_dbt_repo.resolve(),
         )
     ]

@@ -10,27 +10,27 @@ from datapatchbay.plugins import UnsupportedCombinationError
 PROJECT = "dbt_project.yml"
 
 HEADER = """# the team's dbt project
-name: lab   # inline comment
+name: jaffle_shop   # inline comment
 version: "1.0"
-profile: lab
+profile: jaffle_shop
 model-paths: ["models"]
 models:
-  lab:
+  jaffle_shop:
     +materialized: table
 """
 
 
 @pytest.fixture
-def dbt_repo(lab_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def dbt_repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # No orchestrator builds dbt tables into a DAG yet, so a fake one stands in; only dbt_project.yml is under test.
     register(monkeypatch, "orchestrator", "fake", FakeOrchestrator)
-    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
-    product = lab_repo / DP / "dataproduct.yaml"
+    (jaffle_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
+    product = jaffle_repo / DP / "dataproduct.yaml"
     product.write_text(product.read_text() + "executor: dbt\n")
-    write(lab_repo, f"{DP}/outputs/agg_lab_turnaround/turnaround.yaml", TABLE_YAML)
-    write(lab_repo, MODEL, "select 1 as days\n")
-    write(lab_repo, PROJECT, HEADER)
-    return lab_repo
+    write(jaffle_repo, f"{DP}/outputs/agg_order_turnaround/turnaround.yaml", TABLE_YAML)
+    write(jaffle_repo, MODEL, "select 1 as days\n")
+    write(jaffle_repo, PROJECT, HEADER)
+    return jaffle_repo
 
 
 def test_model_paths_lists_the_models_folder_of_each_data_product_with_a_dbt_table(dbt_repo: Path):
@@ -66,12 +66,12 @@ def test_test_paths_keeps_the_style_of_an_existing_list(dbt_repo: Path):
     assert f"test-paths: [{DP}/tests]" in (dbt_repo / PROJECT).read_text()
 
 
-def test_a_repo_without_a_dbt_table_leaves_dbt_project_alone_and_does_not_need_one(lab_repo: Path):
-    assert generate_repo(lab_repo).report.ok
-    assert not (lab_repo / PROJECT).exists()
-    write(lab_repo, PROJECT, HEADER)
-    generate_repo(lab_repo)
-    assert (lab_repo / PROJECT).read_text() == HEADER
+def test_a_repo_without_a_dbt_table_leaves_dbt_project_alone_and_does_not_need_one(jaffle_repo: Path):
+    assert generate_repo(jaffle_repo).report.ok
+    assert not (jaffle_repo / PROJECT).exists()
+    write(jaffle_repo, PROJECT, HEADER)
+    generate_repo(jaffle_repo)
+    assert (jaffle_repo / PROJECT).read_text() == HEADER
 
 
 def test_a_dbt_table_without_a_root_dbt_project_fails_naming_where_it_is_expected(dbt_repo: Path):
@@ -89,10 +89,10 @@ def test_the_same_input_gives_byte_identical_output(dbt_repo: Path):
 
 
 def test_a_missing_model_paths_key_is_added_at_the_end(dbt_repo: Path):
-    (dbt_repo / PROJECT).write_text("name: lab\nprofile: lab\n")
+    (dbt_repo / PROJECT).write_text("name: jaffle_shop\nprofile: jaffle_shop\n")
     generate_repo(dbt_repo)
     assert (dbt_repo / PROJECT).read_text() == (
-        f"name: lab\nprofile: lab\nmodel-paths:\n  - {DP}/models\ntest-paths:\n  - {DP}/tests\n"
+        f"name: jaffle_shop\nprofile: jaffle_shop\nmodel-paths:\n  - {DP}/models\ntest-paths:\n  - {DP}/tests\n"
     )
 
 
@@ -104,11 +104,11 @@ def test_a_file_already_in_step_is_not_rewritten(dbt_repo: Path):
 
 
 def test_a_scalar_model_paths_is_replaced_by_the_list(dbt_repo: Path):
-    (dbt_repo / PROJECT).write_text("name: lab\nmodel-paths: models\n")
+    (dbt_repo / PROJECT).write_text("name: jaffle_shop\nmodel-paths: models\n")
     generate_repo(dbt_repo)
     assert (
         dbt_repo / PROJECT
-    ).read_text() == f"name: lab\nmodel-paths:\n  - {DP}/models\ntest-paths:\n  - {DP}/tests\n"
+    ).read_text() == f"name: jaffle_shop\nmodel-paths:\n  - {DP}/models\ntest-paths:\n  - {DP}/tests\n"
 
 
 def test_a_dbt_project_that_is_not_a_mapping_fails_naming_the_file(dbt_repo: Path):

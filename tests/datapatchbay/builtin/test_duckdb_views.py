@@ -15,24 +15,24 @@ from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import DataProductPlan
 from datapatchbay.settings import load_settings
 
-PORT = "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml"
-ORDERS = "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml"
+PORT = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml"
+ORDERS = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
 PORT_FILE = """\
 schema_version: 1
 kind: schema
 freshness: 24h
 access:
   readers:
-    - grp-lab-reporting
-    - product: agg_lab_turnaround
-    - product: agg_lab_weekly
-  pii_readers: [grp-lab-doctors]
+    - grp-shop-reporting
+    - product: agg_order_turnaround
+    - product: agg_weekly_orders
+  pii_readers: [grp-shop-support]
 """
 ORDERS_HEAD = "schema_version: 1\nname: orders\ncolumns:\n"
 ORDERS_COLUMNS = """\
   - name: order_id
     type: text
-  - name: patient_id
+  - name: customer_id
     type: text
     pii: true
   - name: status
@@ -45,16 +45,16 @@ ORDERS_TAIL = "build:\n  entrypoint: src/orders.py:build\n  needs: [ingested_ord
 def db() -> Iterator[duckdb.DuckDBPyConnection]:
     with duckdb.connect(":memory:") as connection:
         connection.execute(f"CREATE SCHEMA {SCHEMA}")
-        connection.execute(f"CREATE TABLE {SCHEMA}.orders (order_id text, patient_id text, status text)")
-        connection.execute(f"INSERT INTO {SCHEMA}.orders VALUES ('o1', 'p1', 'new'), ('o2', 'p2', 'done')")
+        connection.execute(f"CREATE TABLE {SCHEMA}.orders (order_id text, customer_id text, status text)")
+        connection.execute(f"INSERT INTO {SCHEMA}.orders VALUES ('o1', 'c1', 'new'), ('o2', 'c2', 'done')")
         yield connection
 
 
 @pytest.fixture
-def repo(lab_repo: Path) -> Path:
-    (lab_repo / PORT).write_text(PORT_FILE)
-    write_orders(lab_repo, ORDERS_COLUMNS)
-    return lab_repo
+def repo(jaffle_repo: Path) -> Path:
+    (jaffle_repo / PORT).write_text(PORT_FILE)
+    write_orders(jaffle_repo, ORDERS_COLUMNS)
+    return jaffle_repo
 
 
 def write_orders(root: Path, columns: str) -> None:
@@ -64,7 +64,7 @@ def write_orders(root: Path, columns: str) -> None:
 def plan_of(root: Path) -> DataProductPlan:
     loaded, problems = load_repo(root)
     assert problems == []
-    return next(p for p in plan_dataproducts(loaded, load_settings(root)) if p.folder == "sa_ilab_orders")
+    return next(p for p in plan_dataproducts(loaded, load_settings(root)) if p.folder == "sa_jaffle_orders")
 
 
 def apply_sql(root: Path) -> str:
@@ -77,28 +77,28 @@ def test_the_views_of_a_port_read_the_private_table_with_the_columns_of_the_tabl
     repo: Path, db: duckdb.DuckDBPyConnection
 ):
     db.execute(apply_sql(repo))
-    result = db.execute("SELECT * FROM sa_ilab_orders.orders ORDER BY order_id")
-    assert [d[0] for d in result.description] == ["order_id", "patient_id", "status"]
+    result = db.execute("SELECT * FROM sa_jaffle_orders.orders ORDER BY order_id")
+    assert [d[0] for d in result.description] == ["order_id", "customer_id", "status"]
     assert [(r[0], r[2]) for r in result.fetchall()] == [("o1", "new"), ("o2", "done")]
 
 
 def test_a_pii_column_shows_null_to_everyone_and_keeps_its_type(repo: Path, db: duckdb.DuckDBPyConnection):
     db.execute(apply_sql(repo))
-    assert db.execute("SELECT patient_id FROM sa_ilab_orders.orders").fetchall() == [(None,), (None,)]
-    assert db.execute("SELECT typeof(patient_id) FROM sa_ilab_orders.orders LIMIT 1").fetchone() == ("VARCHAR",)
+    assert db.execute("SELECT customer_id FROM sa_jaffle_orders.orders").fetchall() == [(None,), (None,)]
+    assert db.execute("SELECT typeof(customer_id) FROM sa_jaffle_orders.orders LIMIT 1").fetchone() == ("VARCHAR",)
 
 
 def test_readers_and_pii_readers_create_no_grants_and_no_roles(repo: Path):
     text = apply_sql(repo)
-    for word in ("GRANT", "REVOKE", "grp-lab", "dp_agg_lab_turnaround"):
+    for word in ("GRANT", "REVOKE", "grp-shop", "dp_agg_order_turnaround"):
         assert word not in text
 
 
 def test_applying_again_gives_the_same_result(repo: Path, db: duckdb.DuckDBPyConnection):
     db.execute(apply_sql(repo))
-    first = db.execute("SELECT * FROM sa_ilab_orders.orders ORDER BY order_id").fetchall()
+    first = db.execute("SELECT * FROM sa_jaffle_orders.orders ORDER BY order_id").fetchall()
     db.execute(apply_sql(repo))
-    assert db.execute("SELECT * FROM sa_ilab_orders.orders ORDER BY order_id").fetchall() == first
+    assert db.execute("SELECT * FROM sa_jaffle_orders.orders ORDER BY order_id").fetchall() == first
 
 
 def test_a_column_removed_from_the_table_file_is_gone_from_the_view_after_the_next_apply(
@@ -107,16 +107,16 @@ def test_a_column_removed_from_the_table_file_is_gone_from_the_view_after_the_ne
     db.execute(apply_sql(repo))
     write_orders(repo, ORDERS_COLUMNS.replace("  - name: status\n    type: text\n", ""))
     db.execute(apply_sql(repo))
-    result = db.execute("SELECT * FROM sa_ilab_orders.orders")
-    assert [d[0] for d in result.description] == ["order_id", "patient_id"]
+    result = db.execute("SELECT * FROM sa_jaffle_orders.orders")
+    assert [d[0] for d in result.description] == ["order_id", "customer_id"]
 
 
 def test_a_view_of_a_table_that_left_the_port_is_gone_after_the_next_apply(repo: Path, db: duckdb.DuckDBPyConnection):
     db.execute(f"CREATE TABLE {SCHEMA}.leftover (a integer)")
-    db.execute("CREATE SCHEMA sa_ilab_orders")
-    db.execute(f"CREATE VIEW sa_ilab_orders.leftover AS SELECT * FROM {SCHEMA}.leftover")
+    db.execute("CREATE SCHEMA sa_jaffle_orders")
+    db.execute(f"CREATE VIEW sa_jaffle_orders.leftover AS SELECT * FROM {SCHEMA}.leftover")
     db.execute(apply_sql(repo))
-    rows = db.execute("SELECT view_name FROM duckdb_views() WHERE schema_name = 'sa_ilab_orders'").fetchall()
+    rows = db.execute("SELECT view_name FROM duckdb_views() WHERE schema_name = 'sa_jaffle_orders'").fetchall()
     assert {row[0] for row in rows} == {"orders"}
 
 
@@ -131,21 +131,22 @@ def test_a_data_product_without_output_ports_applies_nothing(repo: Path):
 
 def test_generate_ends_the_dag_with_the_apply_task_before_publishing_the_outputs(repo: Path):
     (repo / "datapatchbay.yaml").write_text("schema_version: 1\nwarehouse: duckdb\n")
-    assert generate_repo(repo).report.ok
-    dag = (repo / "generated/sa_ilab_orders.py").read_text()
+    report = generate_repo(repo).report
+    assert report.ok, report
+    dag = (repo / "generated/sa_jaffle_orders.py").read_text()
     assert "apply_access" in dag
     assert dag.index("apply_access") < dag.rindex("publish_outputs")
 
 
 def test_a_failing_apply_leaves_the_previous_views(repo: Path, db: duckdb.DuckDBPyConnection):
     db.execute(apply_sql(repo))
-    before = db.execute("SELECT * FROM sa_ilab_orders.orders ORDER BY order_id").fetchall()
+    before = db.execute("SELECT * FROM sa_jaffle_orders.orders ORDER BY order_id").fetchall()
     db.execute(f"ALTER TABLE {SCHEMA}.orders DROP COLUMN status")
     with pytest.raises(duckdb.Error):
         db.execute(apply_sql(repo))
     db.execute("ROLLBACK")
     db.execute(f"ALTER TABLE {SCHEMA}.orders ADD COLUMN status text")
-    rows = db.execute("SELECT order_id, patient_id, status FROM sa_ilab_orders.orders ORDER BY order_id").fetchall()
+    rows = db.execute("SELECT order_id, customer_id, status FROM sa_jaffle_orders.orders ORDER BY order_id").fetchall()
     assert [(r[0], r[1]) for r in rows] == [(r[0], r[1]) for r in before]
 
 

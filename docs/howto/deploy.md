@@ -27,10 +27,10 @@ The simplest way is to deploy the whole repo, with `generated/` in it, as the DA
 <DAG bundle>/
   datapatchbay.yaml
   dataproducts/
-    sa_ilab_orders/
+    sa_jaffle_orders/
       src/orders.py        the DAG loads this file
   generated/
-    sa_ilab_orders.py      the DAG file
+    sa_jaffle_orders.py    the DAG file
 ```
 
 Tables on the `docker` or `kubernetes` runtime do not read the repo on the worker. Their build code is in the image. See [Run build code in a container](containers.md).

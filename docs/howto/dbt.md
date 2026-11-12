@@ -2,7 +2,7 @@
 
 A table is built by a Python function unless its executor is `dbt`. With dbt, the table file still holds the contract, the SQL is a dbt model in the data product folder, and `dpb generate` writes the dbt properties, sources and tests from the files.
 
-This guide builds the table `turnaround` of the data product `agg_lab_turnaround` with dbt. The data product has an input port on the output port `sa_ilab_orders`.
+This guide builds the table `turnaround` of the data product `agg_order_turnaround` with dbt. The data product has an input port on the output port `sa_jaffle_orders`.
 
 ## 1. Choose dbt
 
@@ -26,7 +26,7 @@ When `executor: dbt` is set in `datapatchbay.yaml`, `dpb new` scaffolds a stub m
 The table file has the same contract as any other table, and no `entrypoint`, `params` or `needs`. dbt takes the order of the models from their `ref()` calls.
 
 ```yaml
-# dataproducts/agg_lab_turnaround/outputs/agg_lab_turnaround/turnaround.yaml
+# dataproducts/agg_order_turnaround/outputs/agg_order_turnaround/turnaround.yaml
 schema_version: 1
 name: turnaround
 description: Hours between the order and its completion, one row per completed order
@@ -47,11 +47,11 @@ rules:
 The model is `models/<data product>__<table>.sql` in the data product folder. The name comes from the `dbt_model` naming template.
 
 ```sql+jinja
--- dataproducts/agg_lab_turnaround/models/agg_lab_turnaround__turnaround.sql
+-- dataproducts/agg_order_turnaround/models/agg_order_turnaround__turnaround.sql
 select
     order_id,
     extract(epoch from completed_at - ordered_at) / 3600 as turnaround_hours
-from {{ source('sa_ilab_orders', 'orders') }}
+from {{ source('sa_jaffle_orders', 'orders') }}
 where completed_at is not null
 ```
 
@@ -62,9 +62,9 @@ A model reads another data product's output port with `source('<port>', '<table>
 `dpb` expects a `dbt_project.yml` at the repo root. If the repo has none, create one:
 
 ```yaml
-name: lab
+name: jaffle_shop
 version: "1.0"
-profile: lab
+profile: jaffle_shop
 ```
 
 For models to land in the private schema of their data product, the project must also override the `generate_schema_name` macro. See the [table file reference](../files.md#table-file) for the macro.
@@ -77,10 +77,10 @@ $ dpb generate
 
 Besides the DAG files, this writes inside the repo:
 
-- `models/agg_lab_turnaround__turnaround.yml`: the model's description, columns and types, an enforced model contract, and the column rules as dbt data tests.
+- `models/agg_order_turnaround__turnaround.yml`: the model's description, columns and types, an enforced model contract, and the column rules as dbt data tests.
 - `models/_group.yml`: the dbt group of the data product, with its owner.
 - `models/_sources.yml`: a dbt source for each output port that the data product reads, with the tables and columns of that port.
-- `tests/agg_lab_turnaround__turnaround__row_count.sql`: one singular dbt data test per table rule. It selects the rows that break the rule.
+- `tests/agg_order_turnaround__turnaround__row_count.sql`: one singular dbt data test per table rule. It selects the rows that break the rule.
 - The `model-paths` and `test-paths` keys of `dbt_project.yml`, with the `models/` and `tests/` folders of every data product that has a table built by dbt.
 
 Commit all of them. dbt reads them on every run. Never edit them by hand: change the table file and run `dpb generate` again.
@@ -102,7 +102,7 @@ The order matters in a new repo: `dpb generate` first, because dbt cannot parse 
 From now on `dpb validate` fails when a committed dbt file does not match the table file:
 
 ```text
-dataproducts/agg_lab_turnaround/models/agg_lab_turnaround__turnaround.yml: dbt properties file does not match its table file; run `dpb generate` to refresh it
+dataproducts/agg_order_turnaround/models/agg_order_turnaround__turnaround.yml: dbt properties file does not match its table file; run `dpb generate` to refresh it
 ```
 
 When you remove a table rule or a table, run `dpb generate` again. It removes the generated files that nothing produces any more and lists them as removed. It never touches a file that you wrote by hand.

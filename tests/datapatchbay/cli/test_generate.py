@@ -8,71 +8,71 @@ from datapatchbay.cli import app
 
 
 @pytest.fixture
-def in_lab_repo(lab_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.chdir(lab_repo)
-    return lab_repo
+def in_jaffle_repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.chdir(jaffle_repo)
+    return jaffle_repo
 
 
-def test_generate_writes_the_dag_files_and_lists_them(runner: CliRunner, in_lab_repo: Path):
+def test_generate_writes_the_dag_files_and_lists_them(runner: CliRunner, in_jaffle_repo: Path):
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 0, result.output
-    assert f"wrote {in_lab_repo.resolve() / 'generated' / 'sa_ilab_orders.py'}" in result.stdout
+    assert f"wrote {in_jaffle_repo.resolve() / 'generated' / 'sa_jaffle_orders.py'}" in result.stdout
     assert "ok: 3 file(s) written" in result.stdout
-    assert (in_lab_repo / "generated/sa_ilab_orders.py").is_file()
+    assert (in_jaffle_repo / "generated/sa_jaffle_orders.py").is_file()
 
 
 def test_generate_output_flag_overrides_the_folder_relative_to_the_working_directory(
-    runner: CliRunner, in_lab_repo: Path, monkeypatch: pytest.MonkeyPatch
+    runner: CliRunner, in_jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    monkeypatch.chdir(in_lab_repo / "dataproducts")
+    monkeypatch.chdir(in_jaffle_repo / "dataproducts")
     result = runner.invoke(app, ["generate", "--output", "out"])
     assert result.exit_code == 0, result.output
-    assert (in_lab_repo / "dataproducts/out/agg_lab_turnaround.py").is_file()
-    assert not (in_lab_repo / "generated").exists()
+    assert (in_jaffle_repo / "dataproducts/out/agg_order_turnaround.py").is_file()
+    assert not (in_jaffle_repo / "generated").exists()
 
 
-def test_generate_validates_first_and_writes_nothing_when_the_repo_is_invalid(runner: CliRunner, in_lab_repo: Path):
-    (in_lab_repo / "dataproducts/sa_ilab_orders/dataproduct.yaml").write_text("schema_version: 1\nnam: x\n")
+def test_generate_validates_first_and_writes_nothing_when_the_repo_is_invalid(runner: CliRunner, in_jaffle_repo: Path):
+    (in_jaffle_repo / "dataproducts/sa_jaffle_orders/dataproduct.yaml").write_text("schema_version: 1\nnam: x\n")
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 1
-    assert "dataproducts/sa_ilab_orders/dataproduct.yaml:2: unknown key 'nam'" in result.stderr
+    assert "dataproducts/sa_jaffle_orders/dataproduct.yaml:2: unknown key 'nam'" in result.stderr
     assert "nothing was written" in result.stderr
-    assert not (in_lab_repo / "generated").exists()
+    assert not (in_jaffle_repo / "generated").exists()
 
 
 def test_generate_fails_for_a_runtime_without_a_plugin_and_names_data_product_and_table(
-    runner: CliRunner, in_lab_repo: Path
+    runner: CliRunner, in_jaffle_repo: Path
 ):
-    (in_lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: podman\n")
+    (in_jaffle_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: podman\n")
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 1
-    assert "runtime 'podman' has no plugin (data product 'sa_ilab_orders', table 'orders')" in result.stderr
-    assert not (in_lab_repo / "generated").exists()
+    assert "runtime 'podman' has no plugin (data product 'sa_jaffle_orders', table 'orders')" in result.stderr
+    assert not (in_jaffle_repo / "generated").exists()
 
 
-def test_generate_reports_a_generation_failure_as_a_message_with_exit_code_two(runner: CliRunner, in_lab_repo: Path):
-    table = in_lab_repo / "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml"
+def test_generate_reports_a_generation_failure_as_a_message_with_exit_code_two(runner: CliRunner, in_jaffle_repo: Path):
+    table = in_jaffle_repo / "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
     table.write_text(table.read_text().replace("  needs:", "  params:\n    since: 2025-01-01\n  needs:"))
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 2
-    assert result.stderr.startswith("error: data product 'sa_ilab_orders': table 'orders':")
+    assert result.stderr.startswith("error: data product 'sa_jaffle_orders': table 'orders':")
     assert "Traceback" not in result.output
 
 
-def test_generate_lists_the_dbt_files_it_wrote_into_the_repo(runner: CliRunner, lab_dbt_repo: Path, monkeypatch):
-    monkeypatch.chdir(lab_dbt_repo)
-    (lab_dbt_repo / "dbt_project.yml").write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
+def test_generate_lists_the_dbt_files_it_wrote_into_the_repo(runner: CliRunner, jaffle_dbt_repo: Path, monkeypatch):
+    monkeypatch.chdir(jaffle_dbt_repo)
+    (jaffle_dbt_repo / "dbt_project.yml").write_text("name: jaffle_shop\nversion: '1.0'\nprofile: jaffle_shop\n")
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 0, result.output
-    properties = "dataproducts/agg_lab_weekly/models/agg_lab_weekly__weekly_summary.yml"
-    assert f"wrote {lab_dbt_repo.resolve() / properties}" in result.stdout
-    assert f"wrote {lab_dbt_repo.resolve() / 'dbt_project.yml'}" in result.stdout
+    properties = "dataproducts/agg_weekly_orders/models/agg_weekly_orders__weekly_summary.yml"
+    assert f"wrote {jaffle_dbt_repo.resolve() / properties}" in result.stdout
+    assert f"wrote {jaffle_dbt_repo.resolve() / 'dbt_project.yml'}" in result.stdout
 
 
-def test_generate_lists_what_it_removed(runner: CliRunner, lab_dbt_repo: Path, monkeypatch):
-    monkeypatch.chdir(lab_dbt_repo)
+def test_generate_lists_what_it_removed(runner: CliRunner, jaffle_dbt_repo: Path, monkeypatch):
+    monkeypatch.chdir(jaffle_dbt_repo)
     runner.invoke(app, ["generate"])
-    orphan = lab_dbt_repo / "dataproducts/agg_lab_weekly/models/agg_lab_weekly__gone.yml"
+    orphan = jaffle_dbt_repo / "dataproducts/agg_weekly_orders/models/agg_weekly_orders__gone.yml"
     orphan.write_text("# Generated by datapatchbay from x.yaml. Do not edit: `dpb generate` overwrites this file.\n")
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 0, result.output
@@ -80,21 +80,21 @@ def test_generate_lists_what_it_removed(runner: CliRunner, lab_dbt_repo: Path, m
     assert not orphan.exists()
 
 
-def test_generate_json_lists_the_files_by_kind(runner: CliRunner, lab_dbt_repo: Path, monkeypatch):
-    monkeypatch.chdir(lab_dbt_repo)
-    (lab_dbt_repo / "dbt_project.yml").write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
+def test_generate_json_lists_the_files_by_kind(runner: CliRunner, jaffle_dbt_repo: Path, monkeypatch):
+    monkeypatch.chdir(jaffle_dbt_repo)
+    (jaffle_dbt_repo / "dbt_project.yml").write_text("name: jaffle_shop\nversion: '1.0'\nprofile: jaffle_shop\n")
     result = runner.invoke(app, ["generate", "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.stdout)
-    assert data["output_dir"] == str((lab_dbt_repo / "generated").resolve())
-    assert "agg_lab_weekly.py" in data["files"]
+    assert data["output_dir"] == str((jaffle_dbt_repo / "generated").resolve())
+    assert "agg_weekly_orders.py" in data["files"]
     assert "dbt_project.yml" in data["committed"]
-    assert "dataproducts/agg_lab_weekly/models/_group.yml" in data["committed"]
+    assert "dataproducts/agg_weekly_orders/models/_group.yml" in data["committed"]
     assert data["removed"] == []
 
 
-def test_a_write_failure_is_a_message_with_exit_code_two(runner: CliRunner, in_lab_repo: Path):
-    (in_lab_repo / "generated").write_text("a file where the output folder should be\n")
+def test_a_write_failure_is_a_message_with_exit_code_two(runner: CliRunner, in_jaffle_repo: Path):
+    (in_jaffle_repo / "generated").write_text("a file where the output folder should be\n")
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 2
     assert result.stderr.startswith("error: cannot write ")
