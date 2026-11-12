@@ -17,4 +17,5 @@ The executor plugin reports what each table's build code reads. The rules themse
 
 - `dpb validate` needs an up-to-date dbt manifest for data products built by dbt. Reading it is reading a file; ADR-0001 still holds.
 - An executor that cannot report its reads, such as Python, gets no code check. For those, the warehouse is the only enforcement, which works only if each build runs as its data product's role.
+- A model reads an output port through a generated source, never through `ref()` (ADR-0018), so a `ref()` into another data product's models is always a private read.
 - A table name hard-coded in SQL instead of a `ref()` or `source()` is invisible to the check.

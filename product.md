@@ -200,7 +200,7 @@ build:
 - Severity is `error` (the run fails), `warning` (the run continues and reports) or `none` (the rule is ignored).
 - `needs` lists the tables of the same data product that must be built first.
 
-A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. A table rule (`primary_key`, `row_count`, `sql`) fails on it with "not supported for dbt yet", until the mapping of table rules to dbt is decided. Any other table needs a `build.entrypoint`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand (ADR-0013, ADR-0015).
+A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. A table rule (`primary_key`, `row_count`, `sql`) becomes a generated singular dbt data test, one SQL file per rule in the data product's `tests/` folder (ADR-0019); until `dpb generate` writes them, a table rule on a table built by dbt fails with "not supported for dbt yet". Any other table needs a `build.entrypoint`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand (ADR-0013, ADR-0015). A dbt model reads another data product's output port with `source('<port>', '<table>')`: for each input port that reads an output port, `dpb generate` writes a dbt source named after the port, pointing at the output port's schema and listing the producer's tables and columns from its table files (ADR-0018). A `ref()` into another data product's models is a read of a private table and fails the boundary check.
 
 ## What `dpb validate` enforces
 
@@ -214,7 +214,7 @@ A table built by dbt has the same contract and no `build` block when `executor: 
 - `needs` refers to existing tables and contains no cycle.
 - An output port does not promise fresher data than its inputs deliver: its freshness is compared with the schedule of source input ports and the freshness of the output ports it reads.
 - `executor` is `python` or `dbt`. Other executors arrive as plugins. A table built by dbt has no `entrypoint`, `params` or `needs`, and its model file exists in the data product's `models/` folder.
-- Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest (ADR-0014).
+- Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest (ADR-0014). A model reads an output port through a generated `source()` (ADR-0018), so every `ref()` into another data product's models is a private read.
 - The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds.
 
 ## Commands
@@ -234,7 +234,7 @@ A table built by dbt has the same contract and no `build` block when `executor: 
 
 ## What `dpb generate` writes
 
-Generated files are build output of CD and are not committed, with one exception: the dbt properties and the `model-paths` of `dbt_project.yml` are committed, because dbt reads them on every run.
+Generated files are build output of CD and are not committed, with one exception: the dbt properties and the `model-paths` and `test-paths` of `dbt_project.yml` are committed, because dbt reads them on every run.
 
 **One Airflow 3 DAG per data product.** Each table gets a build task followed by an audit task. Task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
 
@@ -246,7 +246,7 @@ Generated files are build output of CD and are not committed, with one exception
 
 **Audit tasks.** Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run; `warning` reports and continues; `none` is skipped. In milestone 1 the audit runs after the table is built, so the data is already visible when a rule fails. Write-audit-publish closes that gap. For a table built by dbt, the quality rules run as dbt data tests during the dbt build instead.
 
-**dbt properties.** For each table built by dbt, a properties file next to the model with its description, columns and types, quality rules as dbt data tests, an enforced dbt model contract, its alias and schema, and its data product's dbt group. `dpb generate` also keeps the `model-paths` of the root `dbt_project.yml` in step with the data product folders.
+**dbt properties.** For each table built by dbt, a properties file next to the model with its description, columns and types, quality rules as dbt data tests (table rules as generated singular tests, ADR-0019), an enforced dbt model contract, its alias and schema, and its data product's dbt group, plus a dbt source for each output port the data product reads (ADR-0018). `dpb generate` also keeps the `model-paths` and `test-paths` of the root `dbt_project.yml` in step with the data product folders.
 
 ## Settings and defaults
 
