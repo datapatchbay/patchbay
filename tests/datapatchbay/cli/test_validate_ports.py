@@ -91,7 +91,11 @@ build:
 
 @pytest.fixture
 def product(write_file: Writer) -> None:
-    """A valid data product with a private input port and a default output port."""
+    """A valid data product with a private input port and a default output port.
+
+    Its output port lists `agg_lab_turnaround` as a reader, so that data product exists too, without any input.
+    """
+    write_file(f"{READER_DP}/dataproduct.yaml", "schema_version: 1\nname: lab_turnaround\nkind: aggregate\nowner: o\n")
     write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT)
     write_file(f"{PRIVATE}/port.yaml", SOURCE_PORT)
     write_file(f"{PRIVATE}/ingested_orders.yaml", INGESTED)
@@ -103,7 +107,7 @@ def product(write_file: Writer) -> None:
 
 @pytest.fixture
 def reader(product: None, write_file: Writer) -> None:
-    """A second data product that reads the output port of the first."""
+    """A second data product that reads the output port of the first, which lists it among its readers."""
     write_file(f"{READER_DP}/dataproduct.yaml", READER_PRODUCT)
     write_file(READER_PORT, FROM_PORT)
 

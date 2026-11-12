@@ -97,6 +97,18 @@ def test_private_port_must_be_the_derived_name_or_start_with_it(tmp_path: Path, 
     assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "private port 'sa_ilab_orders_private'")
 
 
+def test_a_further_port_needs_an_underscore_after_the_derived_name(tmp_path: Path, write: Writer):
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [sa_ilab_orders2]\n"))
+    write(f"{DP}/inputs/sa_ilab_orders2/port.yaml", SOURCE_PORT)
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "private port 'sa_ilab_orders_private'")
+
+
+def test_the_derived_name_itself_is_a_valid_port_name(tmp_path: Path, write: Writer):
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [sa_ilab_orders]\n"))
+    write(f"{DP}/inputs/sa_ilab_orders/port.yaml", SOURCE_PORT)
+    assert not [p for p in validate_repo(tmp_path).problems if "private port" in p.message]
+
+
 def test_input_port_reading_another_data_product_keeps_its_name(tmp_path: Path, write: Writer):
     write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_ilab_orders]\n"))
     write(f"{DP}/outputs/sa_ilab_orders/port.yaml", OUTPUT_PORT + "access:\n  readers:\n    - product: agg_report\n")

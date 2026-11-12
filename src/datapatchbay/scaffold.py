@@ -11,7 +11,7 @@ from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models.base import SCHEMA_VERSION
 from datapatchbay.models.port import check_cron
-from datapatchbay.naming import derive_names, is_snake_case
+from datapatchbay.naming import derive_names, is_snake_case, render_name
 from datapatchbay.repo import DATAPRODUCT_FILE, DATAPRODUCTS_DIR
 from datapatchbay.settings import ResolvedConventions
 from datapatchbay.yamlio import dump_mapping
@@ -44,6 +44,7 @@ class NewDataProduct:
         technical_owner: The person who builds the data product, or `None` when not given.
         source: The source that feeds a private input port, or `None` for a data product without one.
         schedule: The cron expression of the source's deliveries; only used with a `source`.
+        dbt: Whether the effective executor is dbt: the tables get a dbt model in `models/` instead of build code.
     """
 
     name: str
@@ -53,6 +54,7 @@ class NewDataProduct:
     technical_owner: str | None = None
     source: str | None = None
     schedule: str = DEFAULT_SCHEDULE
+    dbt: bool = False
 
 
 def missing_answers(conventions: ResolvedConventions, answers: Mapping[str, str]) -> list[str]:
@@ -101,12 +103,15 @@ def _yaml(data: dict[str, Any]) -> str:
     return dump_mapping(CommentedMap({"schema_version": SCHEMA_VERSION, **data}))
 
 
-def _table(name: str, description: str, needs: list[str]) -> str:
-    build: dict[str, Any] = {"entrypoint": f"src/{name}.py:build"}
-    if needs:
-        build["needs"] = needs
+def _table(name: str, description: str, needs: list[str], *, dbt: bool) -> str:
     column = {"name": "id", "type": "text", "description": "Identifier of the row.", "rules": ["not_null", "unique"]}
-    return _yaml({"name": name, "description": description, "columns": [column], "build": build})
+    table: dict[str, Any] = {"name": name, "description": description, "columns": [column]}
+    if not dbt:  # dbt builds the table from its model and takes the order from `ref()`
+        build: dict[str, Any] = {"entrypoint": f"src/{name}.py:build"}
+        if needs:
+            build["needs"] = needs
+        table["build"] = build
+    return _yaml(table)
 
 
 def render_files(conventions: ResolvedConventions, new: NewDataProduct) -> dict[str, str]:
@@ -139,14 +144,22 @@ def render_files(conventions: ResolvedConventions, new: NewDataProduct) -> dict[
         files[f"{private}/port.yaml"] = _yaml(
             {"kind": "schema", "source": new.source, "schedule": DoubleQuotedScalarString(new.schedule)}
         )
-        files[f"{private}/ingested.yaml"] = _table("ingested", f"Data delivered by {new.source}, as received.", [])
+        files[f"{private}/ingested.yaml"] = _table(
+            "ingested", f"Data delivered by {new.source}, as received.", [], dbt=new.dbt
+        )
         tables.insert(0, "ingested")
     output = f"{folder}/outputs/{names.output_port}"
     files[f"{output}/port.yaml"] = _yaml({"kind": "schema"})
     needs = ["ingested"] if new.source is not None else []
-    files[f"{output}/example.yaml"] = _table("example", "Example table; rename it and describe one row.", needs)
+    files[f"{output}/example.yaml"] = _table(
+        "example", "Example table; rename it and describe one row.", needs, dbt=new.dbt
+    )
     for table in tables:
-        files[f"{folder}/src/{table}.py"] = _STUB.format(table=table)
+        if new.dbt:
+            model = _model_name(conventions, new, names.dataproduct, table)
+            files[f"{folder}/models/{model}.sql"] = _model_sql(table, conventions, new, names.dataproduct)
+        else:
+            files[f"{folder}/src/{table}.py"] = _STUB.format(table=table)
     return files
 
 
@@ -174,3 +187,21 @@ def scaffold(root: Path, conventions: ResolvedConventions, new: NewDataProduct) 
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
     return [Path(relative) for relative in files]
+
+
+def _model_name(conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str, table: str) -> str:
+    return render_name(
+        conventions.names.dbt_model,
+        name=new.name,
+        kind_name=new.kind,
+        kind=conventions.kinds[new.kind],
+        extra={"dataproduct": dataproduct, "table": table},
+    )
+
+
+def _model_sql(table: str, conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str) -> str:
+    """The stub dbt model of a table: `example` reads `ingested` when the data product has a source."""
+    if table == "example" and new.source is not None:
+        upstream = _model_name(conventions, new, dataproduct, "ingested")
+        return f"select id from {{{{ ref('{upstream}') }}}}\n"
+    return "select cast(null as text) as id where false\n"

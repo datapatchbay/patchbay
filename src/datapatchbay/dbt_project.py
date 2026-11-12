@@ -1,17 +1,18 @@
-"""Keeping the `model-paths` of the root `dbt_project.yml` in step with the data product folders (ADR-0015).
+"""Keeping the `model-paths` and `test-paths` of the root `dbt_project.yml` in step with the data product folders.
 
 One dbt project spans the folders of several data products. dbt resolves `model-paths` relative to the folder of
 `dbt_project.yml`, which sits at the repo root, so each entry is the `models/` folder of a data product relative to the
-repo root. Only that key is changed.
+repo root, and the same for the `tests/` folders in `test-paths` (ADR-0015, ADR-0019). Only those keys are changed.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from ruamel.yaml.comments import CommentedSeq
 
 from datapatchbay.cascade import resolve_setting
-from datapatchbay.dbt import DBT_EXECUTOR, MODELS_FOLDER
+from datapatchbay.dbt import DBT_EXECUTOR, MODELS_FOLDER, TESTS_FOLDER
 from datapatchbay.errors import DatapatchbayError
+from datapatchbay.repo import DATAPRODUCTS_DIR
 from datapatchbay.repomodel import Repo
 from datapatchbay.settings import EffectiveSettings
 from datapatchbay.yamlio import YamlLoadError, dump_mapping, load_mapping
@@ -19,7 +20,8 @@ from datapatchbay.yamlio import YamlLoadError, dump_mapping, load_mapping
 DBT_PROJECT_FILE = "dbt_project.yml"
 """The name of the dbt project file, expected at the repo root."""
 
-_KEY = "model-paths"
+_MODEL_KEY = "model-paths"
+_TEST_KEY = "test-paths"
 
 
 class DbtProjectError(DatapatchbayError):
@@ -32,8 +34,17 @@ def model_paths(repo: Repo, settings: EffectiveSettings) -> list[str]:
     Returns:
         The folders relative to the repo root, in posix form, sorted.
     """
+    return _folders(repo, settings, MODELS_FOLDER)
+
+
+def test_paths(repo: Repo, settings: EffectiveSettings) -> list[str]:
+    """List the `tests/` folder of every data product that has a table built by dbt, like `model_paths`."""
+    return _folders(repo, settings, TESTS_FOLDER)
+
+
+def _folders(repo: Repo, settings: EffectiveSettings, name: str) -> list[str]:
     paths = {
-        (dataproduct.directory / MODELS_FOLDER).relative_to(repo.root).as_posix()
+        (dataproduct.directory / name).relative_to(repo.root).as_posix()
         for dataproduct in repo.dataproducts
         for port in dataproduct.ports
         for table in port.tables
@@ -45,16 +56,22 @@ def model_paths(repo: Repo, settings: EffectiveSettings) -> list[str]:
 def synced_dbt_project(repo: Repo, settings: EffectiveSettings) -> tuple[Path, str] | None:
     """Work out the new text of the root `dbt_project.yml`, without writing it.
 
+    Once any table is built by dbt, `model-paths` and `test-paths` are owned by `dpb generate`: they are
+    replaced, not merged, so a hand-set entry is lost. When no table is built by dbt any more, only the entries that
+    point at the `models/` or `tests/` folder of a data product are removed (a key too when none is left), and
+    nothing else is touched.
+
     Returns:
-        The path and the new text, or `None` when no table is built by dbt or the file is already in step.
+        The path and the new text, or `None` when the file is already in step, or missing or unreadable while no
+        table is built by dbt.
 
     Raises:
         DbtProjectError: If tables are built by dbt and the root `dbt_project.yml` is missing or not a YAML mapping.
     """
-    wanted = model_paths(repo, settings)
-    if not wanted:
-        return None
+    wanted = {_MODEL_KEY: model_paths(repo, settings), _TEST_KEY: test_paths(repo, settings)}
     path = repo.root / DBT_PROJECT_FILE
+    if not wanted[_MODEL_KEY]:
+        return _without_stale_paths(path)
     if not path.is_file():
         raise DbtProjectError(
             f"tables are built by dbt, so a {DBT_PROJECT_FILE} is expected at the repo root ({path}); "
@@ -64,11 +81,43 @@ def synced_dbt_project(repo: Repo, settings: EffectiveSettings) -> tuple[Path, s
         data = load_mapping(path)
     except YamlLoadError as exc:
         raise DbtProjectError(f"{path}: {exc}") from exc
-    current = data.get(_KEY)
-    if isinstance(current, CommentedSeq):
-        if list(current) == wanted:
-            return None
-        current[:] = wanted  # in place, so the comments and the flow or block style of the list stay
-    else:
-        data[_KEY] = wanted
-    return path, dump_mapping(data)
+    changed = False
+    for key, folders in wanted.items():
+        current = data.get(key)
+        if isinstance(current, CommentedSeq):
+            if list(current) != folders:
+                current[:] = folders  # in place, so the comments and the flow or block style of the list stay
+                changed = True
+        else:
+            data[key] = folders
+            changed = True
+    return (path, dump_mapping(data)) if changed else None
+
+
+def _is_data_product_folder(entry: object) -> bool:
+    if not isinstance(entry, str):
+        return False
+    parts = PurePosixPath(entry).parts
+    return len(parts) == 3 and parts[0] == DATAPRODUCTS_DIR and parts[2] in (MODELS_FOLDER, TESTS_FOLDER)
+
+
+def _without_stale_paths(path: Path) -> tuple[Path, str] | None:
+    """No table is built by dbt: drop the `model-paths` and `test-paths` entries `dpb generate` once wrote."""
+    if not path.is_file():
+        return None
+    try:
+        data = load_mapping(path)
+    except YamlLoadError:
+        return None  # dbt is not used, so a project file that is not ours to read is not a problem
+    changed = False
+    for key in (_MODEL_KEY, _TEST_KEY):
+        current = data.get(key)
+        if not isinstance(current, CommentedSeq) or not any(_is_data_product_folder(entry) for entry in current):
+            continue
+        kept = [entry for entry in current if not _is_data_product_folder(entry)]
+        if kept:
+            current[:] = kept
+        else:
+            del data[key]
+        changed = True
+    return (path, dump_mapping(data)) if changed else None

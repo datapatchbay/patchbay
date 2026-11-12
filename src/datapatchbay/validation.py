@@ -11,9 +11,11 @@ from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
 from datapatchbay.pluginchecks import check_plugins
 from datapatchbay.problems import Report
+from datapatchbay.rendering import check_generation
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import Repo
 from datapatchbay.settings import InvalidSettingsError, load_settings
+from datapatchbay.staleoutput import check_stale_output
 from datapatchbay.yamlio import load_mapping
 
 
@@ -45,13 +47,19 @@ def validate_repo(root: Path) -> Report:
     """Validate a repo and return the report. See `load_and_validate`.
 
     On top of that, once everything else is valid, the committed dbt files are compared with what `dpb generate`
-    would write, and what the dbt models read is compared with the input ports (the dbt manifest must exist).
-    `dpb generate` uses `load_and_validate` and skips both, because it is what refreshes the files, and a manifest is
-    not needed to generate. Nothing is written.
+    would write, what the dbt models read is compared with the input ports (the dbt manifest must exist), and the data
+    products are generated in memory to find what would make `dpb generate` fail, such as a table named `dbt` next to
+    tables built by dbt, or source input ports with different schedules. `dpb generate` uses `load_and_validate` and
+    skips all of these, because it is what refreshes the files and reports the failures itself. Nothing is written.
     """
     repo, report = load_and_validate(root)
     if not report.ok:
         return report
     settings = load_settings(root)
-    problems = [*check_dbt_files(repo, settings), *check_dbt_reads(repo, settings)]
+    problems = [
+        *check_dbt_files(repo, settings),
+        *check_dbt_reads(repo, settings),
+        *check_generation(repo, settings, root),
+        *check_stale_output(repo, settings),
+    ]
     return Report(dataproducts_checked=report.dataproducts_checked, problems=problems)

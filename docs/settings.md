@@ -102,7 +102,7 @@ airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
 
 The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatchbay.runtimes` and `datapatchbay.warehouses`. The interfaces are the `Protocol` classes in `datapatchbay.plugins`. The orchestrator composes the DAG from what the others contribute: the executor says what to call, the runtime renders the build task, and the warehouse returns SQL tasks that the orchestrator runs through its own connection.
 
-The plugin interface is not stable in milestone 1. It is declared stable once the dbt executor, the first second implementation of an extension point, has proven it.
+The plugin interface is not declared stable yet.
 
 ## Where the generated files go
 
