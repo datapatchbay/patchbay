@@ -21,11 +21,11 @@ from datapatchbay.builtin.local_script import (
     MAIN_HELPER,
     UPSTREAM_HELPER,
 )
+from datapatchbay.builtin.table_builds import plan_builds, render_build
 from datapatchbay.genheader import generated_header
 from datapatchbay.literals import python_literal
 from datapatchbay.plugins import (
     AuditTask,
-    BuildTask,
     DataProductPlan,
     DbtCall,
     GeneratedFile,
@@ -164,33 +164,16 @@ class _Script:
     def _steps(self) -> list[str]:
         """Return the lines of `run()`: the Python tables with their audits, the dbt build, the warehouse's SQL."""
         plan = self._plan
-        context = self._context
-        calls = {table.name: context.executors[table.executor].call(table) for table in plan.tables}
-        dbt_tables = [table for table in plan.tables if isinstance(calls[table.name], DbtCall)]
-        dbt_names = {table.name for table in dbt_tables}
-        warehouse = context.warehouse
+        builds = plan_builds(plan, self._context)
+        warehouse = self._context.warehouse
         lines: list[str] = []
-        for table in plan.tables:
-            if table.name in dbt_names:
-                continue
-            for need in table.needs:
-                if need in dbt_names:
-                    raise UnsupportedCombinationError(
-                        f"table '{table.name}' needs table '{need}', which dbt builds after the Python tables; "
-                        "dbt tables cannot be needed"
-                    )
-            lines += self._build(table, calls[table.name])
+        for table in builds.python_tables:
+            lines += self._build(table, builds.calls[table.name])
             for audit in warehouse.audit_tasks(table) if warehouse is not None else ():
                 lines.append(self._step(audit, f"audit of table '{table.name}'"))
-        if dbt_tables:
-            first = dbt_tables[0]
-            for table in dbt_tables:
-                if table.runtime != first.runtime:
-                    raise UnsupportedCombinationError(
-                        f"tables '{first.name}' and '{table.name}' are built by dbt in one task, "
-                        f"but their runtimes are '{first.runtime}' and '{table.runtime}'"
-                    )
-            lines += self._build(first, calls[first.name], task_id="build_dbt", where="tables built by dbt")
+        if builds.dbt_call is not None:
+            first = builds.dbt_tables[0]
+            lines += self._build(first, builds.dbt_call, task_id="build_dbt", where="tables built by dbt")
         for sql_task in warehouse.apply_tasks(plan) if warehouse is not None else ():
             lines.append(self._step(sql_task, "warehouse"))
         return lines
@@ -201,13 +184,10 @@ class _Script:
         task_id = task_id or f"build_{table.name}"
         where = where or f"table '{table.name}'"
         self._claim_task_id(task_id, where)
-        runtime = self._context.runtimes[table.runtime]
         variable = self._variable(task_id)
-        task = BuildTask(task_id=task_id, table=table, call=call)
-        try:
-            rendered = runtime.render_build_task(task, orchestrator=self._plan.orchestrator, variable=variable)
-        except ValueError as exc:
-            raise UnsupportedCombinationError(f"{where}: {exc}") from exc
+        rendered = render_build(
+            self._context, self._plan.orchestrator, table, call, task_id=task_id, where=where, variable=variable
+        )
         self._imports.update(rendered.imports)
         self._add_helpers(*rendered.helpers)
         return [*rendered.lines, f"_announce({python_literal(task_id)})", f"{variable}()"]
