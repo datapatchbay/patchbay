@@ -37,7 +37,8 @@ def generate_dbt_tests(plans: Sequence[DataProductPlan], settings: EffectiveSett
             if table.executor != DBT_EXECUTOR:
                 continue
             model = model_name(settings, plan.source, table.source)
-            assert model is not None, "dpb validate guarantees a model name for a table built by dbt"
+            if model is None:
+                raise RuntimeError(f"table '{table.name}' is built by dbt but has no model name; validation missed it")
             seen: Counter[str] = Counter()
             for rule in table.source.file.model.rules:
                 seen[rule.rule] += 1

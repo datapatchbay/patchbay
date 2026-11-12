@@ -93,7 +93,8 @@ def expand_cron_field(text: str, field: CronField) -> frozenset[int]:
             first, last = field.low, field.high
         else:
             match = _ATOM.fullmatch(base)
-            assert match is not None  # the field was validated when the port file loaded
+            if match is None:
+                raise ValueError(f"'{text}' is not a valid {field.name} field")  # validated when the port file loaded
             first = _value(match["first"], field)
             last = _value(match["last"], field) if match["last"] else (field.high if step_text else first)
         values.update(range(first, last + 1, step))

@@ -60,7 +60,8 @@ def access_sql(plan: DataProductPlan) -> str:
 
 def _port_sql(plan: DataProductPlan, port: Port, tables: Sequence[TablePlan]) -> str:
     model = port.file.model
-    assert isinstance(model, OutputPortFile)
+    if not isinstance(model, OutputPortFile):
+        raise RuntimeError(f"port '{port.name}' is not an output port")
     readers = {_role_of(plan, reader) for reader in model.access.readers}
     pii_readers = sorted(set(model.access.pii_readers))
     everyone = sorted(readers | set(pii_readers))
@@ -86,7 +87,7 @@ def _role_of(plan: DataProductPlan, reader: str | ProductReader) -> str:
     if not isinstance(reader, ProductReader):
         return reader
     if reader.product not in plan.roles:
-        raise DatapatchbayError(f"Reader product {reader.product!r} is not a data product folder in this repository.")
+        raise DatapatchbayError(f"reader product {reader.product!r} is not a data product folder in this repository")
     return plan.roles[reader.product]
 
 

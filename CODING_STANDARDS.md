@@ -170,7 +170,8 @@ datapatchbay is a CLI first. Its Python API is the plugin interface, which is no
 ## Exceptions
 
 - Invalid arguments and broken internal state SHOULD raise built-in exceptions such as `TypeError`, `ValueError` or
-  `RuntimeError`, at the point of violation.
+  `RuntimeError`, at the point of violation. Package code does not use `assert` for this: it is stripped under
+  `python -O`, and a broken invariant deserves a message. Write messages in lower case without a trailing period.
 - Failures the CLI reports to a user, such as a missing file or an unreadable setting, SHOULD use the package's own
   exceptions, derived from one base class, so the CLI can turn them into a message and an exit code.
 - A translated exception MUST keep its cause with `raise ... from exc`.
