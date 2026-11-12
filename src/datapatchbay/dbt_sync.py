@@ -12,7 +12,8 @@ from ruamel.yaml.comments import CommentedSeq
 
 from datapatchbay.dbt import MODELS_FOLDER
 from datapatchbay.dbt_project import DBT_PROJECT_FILE, DbtProjectError, model_paths, synced_dbt_project
-from datapatchbay.dbt_properties import GROUP_FILE, generate_dbt_properties
+from datapatchbay.dbt_properties import GROUP_FILE
+from datapatchbay.dbt_sources import SOURCES_FILE, generate_dbt_files
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import GeneratedFile
 from datapatchbay.problems import Problem
@@ -31,7 +32,7 @@ def check_dbt_files(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     Returns:
         The problems found, empty when dbt builds no table or the files are in step.
     """
-    generated = generate_dbt_properties(plan_dataproducts(repo, settings), settings)
+    generated = generate_dbt_files(plan_dataproducts(repo, settings), settings)
     problems: list[Problem] = []
     for file in generated:
         path = repo.root / file.path
@@ -57,7 +58,7 @@ def check_dbt_files(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
 
 
 def _duplicates(repo: Repo, settings: EffectiveSettings, generated: Sequence[GeneratedFile]) -> list[Problem]:
-    built = {file.path.stem: file.path for file in generated if file.path.name != GROUP_FILE}
+    built = {file.path.stem: file.path for file in generated if file.path.name not in {GROUP_FILE, SOURCES_FILE}}
     generated_paths = {file.path for file in generated}
     problems: list[Problem] = []
     for folder in model_paths(repo, settings):
