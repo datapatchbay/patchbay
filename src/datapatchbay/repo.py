@@ -31,3 +31,14 @@ def find_repo_root(start: Path) -> Path:
 def find_dataproduct_files(root: Path) -> list[Path]:
     """List every `dataproduct.yaml` under `dataproducts/`, sorted so output is deterministic."""
     return sorted((root / DATAPRODUCTS_DIR).rglob(DATAPRODUCT_FILE))
+
+
+def find_port_and_table_files(root: Path) -> list[Path]:
+    """List every `port.yaml` and table file: the YAML files inside a port folder under `inputs/` and `outputs/`."""
+    files = [
+        path
+        for side in ("inputs", "outputs")
+        for path in (root / DATAPRODUCTS_DIR).glob(f"*/{side}/*/*.yaml")
+        if path.is_file()
+    ]
+    return sorted(files)

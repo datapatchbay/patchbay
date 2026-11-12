@@ -85,6 +85,15 @@ Each schema version bump comes with a migration. `dpb upgrade` rewrites a team's
 
 `dpb` refuses files with a `schema_version` newer than it knows.
 
+`dpb upgrade` covers all four kinds of file: `datapatchbay.yaml`, every `dataproduct.yaml`, every `port.yaml` and every table file. A migration is one step from version n to n+1, and the steps run in order until a file is current. Version 1 is the only version, so for now the command reports that there is nothing to do and exits 0.
+
+```sh
+dpb upgrade             # rewrite files that are behind
+dpb upgrade --dry-run   # show what would change as a diff and write nothing
+```
+
+If any file cannot be upgraded, because its `schema_version` is newer than `dpb` knows, is missing or has no migration, `dpb upgrade` prints a problem for it, writes nothing and exits 1.
+
 ## Built for agents
 
 - `--json` output on `validate`, `list`, `describe` and `config`.
