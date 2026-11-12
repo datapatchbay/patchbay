@@ -18,6 +18,8 @@ from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
 from datapatchbay.builtin.postgres import PostgresWarehouse
+from datapatchbay.builtin.postgres_access import _dollar_tag
+from datapatchbay.errors import DatapatchbayError
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import DataProductPlan
@@ -91,6 +93,17 @@ def test_the_sql_names_roles_through_the_role_template_and_never_grants_on_the_p
 def test_an_identifier_with_a_quote_is_escaped(repo: Path):
     (repo / PORT).write_text(PORT_FILE.replace("grp-lab-reporting", 'we"ird'))
     assert '"we""ird"' in apply_sql(repo)
+
+
+def test_a_dollar_quote_tag_never_occurs_in_the_text_it_wraps():
+    assert _dollar_tag("plain") == "$body$"
+    assert _dollar_tag("a$body$b") not in "a$body$b"
+
+
+def test_a_product_reader_that_is_not_a_data_product_is_an_error(repo: Path):
+    (repo / PORT).write_text(PORT_FILE.replace("agg_lab_turnaround", "nope"))
+    with pytest.raises(DatapatchbayError, match="nope"):
+        apply_sql(repo)
 
 
 # ---- against a real Postgres ---------------------------------------------------------------------------------------

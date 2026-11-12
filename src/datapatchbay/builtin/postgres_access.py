@@ -17,6 +17,7 @@ How one output port is applied:
 
 from collections.abc import Iterable
 
+from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import OutputPortFile, ProductReader
 from datapatchbay.plugins import DataProductPlan, TablePlan
 from datapatchbay.repomodel import Port
@@ -24,7 +25,7 @@ from datapatchbay.repomodel import Port
 __all__ = ["access_sql"]
 
 _REVOKE_SCHEMA_GRANTS = """\
-DO $$
+DO {tag}
 DECLARE granted record;
 BEGIN
     FOR granted IN
@@ -35,11 +36,19 @@ BEGIN
             || CASE WHEN granted.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(granted.grantee)) END;
     END LOOP;
 END
-$$;"""
+{tag};"""
 
 
 def _identifier(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
+
+
+def _dollar_tag(text: str) -> str:
+    """Return a dollar-quote tag that does not occur in `text`, so that text cannot end the quoted body."""
+    tag = "$body$"
+    while tag in text:
+        tag = f"${tag[1:-1]}x$"
+    return tag
 
 
 def _literal(text: str) -> str:
@@ -55,16 +64,14 @@ def access_sql(plan: DataProductPlan) -> str:
 def _port_sql(plan: DataProductPlan, port: Port) -> str:
     model = port.file.model
     assert isinstance(model, OutputPortFile)
-    readers = {
-        plan.roles[reader.product] if isinstance(reader, ProductReader) else reader for reader in model.access.readers
-    }
+    readers = {_role_of(plan, reader) for reader in model.access.readers}
     pii_readers = sorted(set(model.access.pii_readers))
     everyone = sorted(readers | set(pii_readers))
     schema = _identifier(port.name)
     statements = [
-        f"-- Output port {port.name}",
+        f"-- Output port {' '.join(port.name.split())}",
         f"CREATE SCHEMA IF NOT EXISTS {schema};",
-        _REVOKE_SCHEMA_GRANTS.format(schema_literal=_literal(port.name)),
+        _REVOKE_SCHEMA_GRANTS.format(schema_literal=_literal(port.name), tag=_dollar_tag(port.name)),
     ]
     tables = [table for table in plan.tables if table.port == port.name]
     for table in tables:
@@ -77,6 +84,14 @@ def _port_sql(plan: DataProductPlan, port: Port) -> str:
         statements.append(f"GRANT USAGE ON SCHEMA {schema} TO {roles};")
         statements += [f"GRANT SELECT ON {schema}.{_identifier(table.name)} TO {roles};" for table in tables]
     return "\n".join(statements)
+
+
+def _role_of(plan: DataProductPlan, reader: str | ProductReader) -> str:
+    if not isinstance(reader, ProductReader):
+        return reader
+    if reader.product not in plan.roles:
+        raise DatapatchbayError(f"Reader product {reader.product!r} is not a data product folder in this repository.")
+    return plan.roles[reader.product]
 
 
 def _view_sql(plan: DataProductPlan, table: TablePlan, pii_readers: Iterable[str]) -> str:

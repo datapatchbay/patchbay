@@ -1,5 +1,6 @@
 """Turning the loaded repo into the plans that plugins generate from, with settings resolved over the cascade."""
 
+from collections.abc import Mapping
 from pathlib import PurePosixPath
 
 from datapatchbay.cascade import resolve_setting, resolve_settings
@@ -37,7 +38,11 @@ def _names_of(dataproduct: DataProduct, settings: EffectiveSettings) -> DerivedN
 
 
 def _plan(
-    dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: str, names: DerivedNames, roles: dict[str, str]
+    dataproduct: DataProduct,
+    settings: EffectiveSettings,
+    orchestrator: str,
+    names: DerivedNames,
+    roles: Mapping[str, str],
 ) -> DataProductPlan:
     tables = []
     for port in dataproduct.ports:
