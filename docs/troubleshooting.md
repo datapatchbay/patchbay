@@ -2,15 +2,7 @@
 
 Find the message you see, then read the cause and the fix. Messages from `dpb validate` and `dpb generate` have the form `file:line: message`, so start at that line.
 
-## Exit codes
-
-Every command uses the same three exit codes:
-
-| Exit code | Meaning |
-| --- | --- |
-| 0 | The command did what it was asked |
-| 1 | The files have problems. `dpb` lists all of them and writes nothing |
-| 2 | The command could not run: a wrong option, no `datapatchbay.yaml`, an unknown data product, or a failure while writing a file or syncing `dbt_project.yml` |
+Exit code 1 means that the files have problems, and exit code 2 that the command could not run. See [Exit codes](cli.md#exit-codes).
 
 ## Starting a command
 
@@ -79,7 +71,7 @@ Every command uses the same three exit codes:
 `` runtime 'docker' needs an image, but none is set (data product '<folder>', table '<table>'); set `image` at the root, data product, port or table ``
 : A container runtime runs an image. Set `image` at the level where you set `runtime`. See [Run build code in a container](howto/containers.md).
 
-`orchestrator '<name>' has no plugin (data product '<folder>'); available orchestrator plugins: airflow`
+`orchestrator '<name>' has no plugin (data product '<folder>'); available orchestrator plugins: airflow, dagster, local`
 : The name in the settings is not the name of an installed plugin. Correct the name, or install the package that provides the plugin in the same environment as `dpb`. The same message exists for executors, runtimes and warehouses.
 
 A setting does not have the value you expect
@@ -118,7 +110,10 @@ A change to a model is not seen by `dpb validate`
 : dbt runs on the Airflow worker only.
 
 The models land in a schema such as `<target schema>_<private port name>`
-: The dbt project does not override the `generate_schema_name` macro. The views and grants then do not find the tables. See the [table file reference](files.md#table-file) for the macro.
+: The dbt project does not override the `generate_schema_name` macro. The views and grants then do not find the tables. See [The schema name macro](dbt.md#the-schema-name-macro).
+
+`not imported: ...`, `skipped ...`, `no data_type: ...` or `ref not renamed: ...` after `dpb new --from-dbt`
+: These are reports, not errors: the data product was created. Each line names a test, a model, a column or a `ref` that `dpb` could not carry over. See [Import an existing dbt project](howto/import-dbt.md#3-work-through-the-report).
 
 ## When the DAG runs
 

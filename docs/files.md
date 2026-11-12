@@ -32,7 +32,7 @@ dataproducts/
     models/
       agg_order_turnaround__turnaround.sql
       agg_order_turnaround__turnaround.yml   # generated, committed
-dbt_project.yml                              # only for dbt; once any table is built by dbt, `dpb generate` owns its `model-paths` and `test-paths` keys (a hand-set entry is replaced)
+dbt_project.yml                              # only when a table is built by dbt
 ```
 
 There are four kinds of file:
@@ -79,7 +79,7 @@ conventions:
 
 A naming template may use `{name}` (the data product's bare name), `{kind.prefix}` and `{kind.name}`. The `dbt_model` template also has `{dataproduct}` (the data product's derived name) and `{table}`, because dbt model names must be unique across a dbt project. `dpb validate` compares the folder name, the default output port name and the private port name with what the templates produce, so changing a prefix or a template changes what it expects.
 
-The `dbt:` block and the `dbt_model` template are declared by the `dbt` plugin, not by datapatchbay itself: a root section named after an installed plugin is valid only if that plugin declares it, and `dpb validate` fails on any other with "no installed plugin declares a settings section". See [Settings and plugins](settings.md) for how these values merge with the defaults and with settings lower down.
+The `dbt:` block and the `dbt_model` template are declared by the `dbt` plugin, not by datapatchbay itself: a root section named after an installed plugin is valid only if that plugin declares it, and `dpb validate` fails on any other with "no installed plugin declares a settings section". See [Settings](settings.md) for how these values merge with the defaults and with settings lower down.
 
 ## `dataproduct.yaml`
 
@@ -97,7 +97,8 @@ outputs: [sa_jaffle_orders]
 
 - `name` is written without the kind's prefix. Naming templates produce the folder name, the port names and the role name.
 - `owner` and `technical_owner` are people, written as free text and not validated.
-- `kind` must be one of the kinds in the conventions. It is a label, and it does not restrict what a data product may read.
+- `kind` must be one of the kinds in the conventions. It is a label, and it does not restrict what a data product may read. See [Three kinds of data product](data-products.md#three-kinds-of-data-product).
+- `domain` is free text, unless `conventions.domains` lists the domains.
 - `inputs` and `outputs` list port names and must match the folders.
 
 ## `port.yaml`
@@ -133,8 +134,9 @@ from: sa_jaffle_orders
 
 - A data product is identified in `product:` readers by its folder name, such as `agg_order_turnaround`.
 - A port of kind `schema` holds any number of table files. A port of kind `table` has the same folder shape with exactly one table file.
-- A reader is either a plain string, used as the warehouse role name as written, or `product: <data product>`, which maps to that data product's role. On DuckDB readers and PII readers are accepted and applied to nothing, and a PII column shows NULL in the view; see [Concepts](concepts.md).
-- `schedule` is a declared expectation in cron form. The orchestrator runs it, not `dpb`.
+- A reader is either a plain string, used as the warehouse role name as written, or `product: <data product>`, which maps to that data product's role. On DuckDB readers and PII readers are accepted and applied to nothing. See [Readers and personal data](concepts.md#readers-and-personal-data).
+- `source` names the system that delivers the data, as free text. `dpb` connects nothing to it.
+- `schedule` is a declared expectation in cron form: when the source delivers. The orchestrator runs it, not `dpb`.
 
 ## Table file
 
@@ -173,34 +175,29 @@ build:
 - Quality rules on a column: `not_null`, `unique`, `accepted_values`. On a table: `primary_key`, `row_count`, `sql`. A bare rule name uses the default severity.
 - Severity is `error` (the run fails), `warning` (the run continues and reports) or `none` (the rule is ignored).
 - A bare rule name is the short form and only works for `not_null` and `unique`. The long form is a mapping with `rule`, the rule's own keys and an optional `severity`: `values` for `accepted_values`, `columns` for `primary_key`, `min` and `max` for `row_count` and `sql` for `sql`.
+- `freshness_column` names the column that holds the time of the newest data. It must be a column of the table. `dpb describe` shows it, and nothing measures it yet.
 - `build.executor` is optional and defaults to the setting of the levels above it (`python` unless changed). `entrypoint` is `path/to/file.py:function`, relative to the data product folder.
+- `params` are passed to the function as keyword arguments. They must be plain YAML values.
 - `needs` lists the tables of the same data product that must be built first, in any of its ports. It must not contain a cycle.
 - Table names are unique within a data product.
 
-A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. A table rule (`primary_key`, `row_count`, `sql`) becomes a generated singular dbt data test, one SQL file per rule in the data product's `tests/` folder ([ADR-0019](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0019-table-rules-become-generated-singular-dbt-tests.md)). Each rule's SQL selects the rows that break it: `primary_key` rows with a null in a key column or a key that occurs more than once, `row_count` one row when the count is outside `min` and `max`, and `sql` the rule's SELECT as written. Severity maps as for column rules (`error` as `error`, `warning` as `warn`, `none` writes no test). Any other table needs a `build.entrypoint`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand. A dbt model reads another data product's output port with `source('<port>', '<table>')`: for each input port that reads an output port, `dpb generate` writes a dbt source named after the port, pointing at the output port's schema and listing the producer's tables and columns from its table files. A `ref()` into another data product's models is a read of a private table and fails the boundary check.
+### Build code
 
-The generated sources are in `models/_sources.yml` of the reading data product; when several data products read one output port, the source is written once, in the first reader built by dbt in name order. Only the contract is copied (table names, columns and their descriptions), not quality rules or freshness.
+The entrypoint is a plain Python function. It writes its table to the private schema of the data product, and connects to the warehouse by itself:
 
-The generated properties put each model in its data product's private schema with `config: {schema: <private port name>}`. By default dbt does not use that name as written: it builds `<target schema>_<custom schema>`. For models to land in the private schema as written, the team's dbt project must override the `generate_schema_name` macro, for example in `macros/generate_schema_name.sql`:
-
-```jinja
-{% macro generate_schema_name(custom_schema_name, node) -%}
-    {{ custom_schema_name | trim if custom_schema_name is not none else target.schema }}
-{%- endmacro %}
+```python
+# dataproducts/sa_jaffle_orders/src/orders.py
+def build(mode: str = "full") -> None:
+    """Build the table `orders` in the schema `sa_jaffle_orders_private`."""
+    ...
 ```
 
-`dpb generate` does not write or check this macro, because it never reads the macros of the dbt project (the folder is also not a `model-paths` entry). Without it, tables are created in a schema such as `<target schema>_<private port name>` and the grants and masking views, which name the private port, do not find them.
+The [tutorial](tutorial.md#9-write-the-build-code) has two complete functions for DuckDB, and [`examples/jaffle_shop`](https://github.com/datapatchbay/patchbay/tree/main/examples/jaffle_shop) has them for Postgres on Airflow.
+
+### A table built by dbt
+
+A table built by dbt has the same contract and no `build` block, when `executor: dbt` is set on its data product or higher. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, and `dpb generate` writes the model's dbt properties from the table file. `entrypoint`, `params` and `needs` fail on it. See the [dbt reference](dbt.md).
 
 ## JSON Schema
 
-`dpb schema` prints the JSON Schema of the four kinds of file, so an editor or an agent can validate a file before writing it.
-
-```sh
-dpb schema root         # datapatchbay.yaml
-dpb schema dataproduct  # dataproduct.yaml
-dpb schema port         # port.yaml, in its three forms
-dpb schema table        # a table file
-dpb schema              # all four, as one JSON object keyed by kind
-```
-
-The schema is generated from the same models `dpb validate` uses. It accepts the short form of a column rule, a bare `not_null` or `unique`. The schema checks the shape of a file; the cross-file checks of `dpb validate` (names, folders, readers, freshness) are not in it. [Set up your editor](howto/editor.md) shows how to point an editor at the schema.
+`dpb schema` prints the JSON Schema of the four kinds of file. The schema checks the shape of one file, and not the rules across files. See [`dpb schema`](cli.md#dpb-schema) and [Set up your editor](howto/editor.md).
