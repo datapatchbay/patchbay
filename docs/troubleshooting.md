@@ -85,16 +85,19 @@ A setting does not have the value you expect
 ## dbt
 
 `` dbt properties file does not match its table file; run `dpb generate` to refresh it ``
-: The table file changed after the properties were generated, or someone edited the properties by hand. Run `dpb generate` and commit the result. The same fix applies to `dbt properties file is missing`.
+: The table file changed after the properties were generated, or someone edited the properties by hand. Run `dpb generate` and commit the result. The same fix applies to `dbt properties file is missing`, and to the same two messages about a `dbt test file`.
+
+`dbt test file is generated for a table rule that no longer exists; delete it`
+: A table rule was removed, and its generated test in the `tests/` folder is left over. Delete the file. `dpb generate` never deletes files.
+
+`` `model-paths` or `test-paths` does not list the `models/` and `tests/` folders of the data products built by dbt; run `dpb generate` to refresh it ``
+: `dbt_project.yml` is behind the data product folders. Run `dpb generate` and commit the file.
 
 `model file models/<model>.sql does not exist in the folder of data product '<folder>'; table '<table>' is built by dbt`
 : A dbt table needs its model, named by the `dbt_model` naming template. Create the file, or check the spelling of its name.
 
 `tables are built by dbt, so a dbt_project.yml is expected at the repo root`
 : Create `dbt_project.yml` at the repo root with at least `name`, `version` and `profile`.
-
-`table rule 'row_count' is not supported for dbt yet; table '<table>' is built by dbt`
-: Table rules (`primary_key`, `row_count` and `sql`) are not mapped to dbt yet. Remove the rule, or build the table with Python.
 
 `` runtime 'docker' cannot run dbt (data product '<folder>', table '<table>'); set `runtime: worker` for the tables built by dbt ``
 : dbt runs on the Airflow worker only.

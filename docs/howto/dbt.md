@@ -1,8 +1,8 @@
 # Build a table with dbt
 
-A table is built by a Python function unless its executor is `dbt`. With dbt, the table file still holds the contract, the SQL is a dbt model in the data product folder, and `dpb generate` writes the dbt properties from the table file.
+A table is built by a Python function unless its executor is `dbt`. With dbt, the table file still holds the contract, the SQL is a dbt model in the data product folder, and `dpb generate` writes the dbt properties, sources and tests from the files.
 
-This guide builds the table `turnaround` of the data product `agg_lab_turnaround` with dbt.
+This guide builds the table `turnaround` of the data product `agg_lab_turnaround` with dbt. The data product has an input port on the output port `sa_ilab_orders`.
 
 ## 1. Choose dbt
 
@@ -35,6 +35,9 @@ columns:
   - name: turnaround_hours
     type: numeric
     rules: [not_null]
+rules:
+  - rule: row_count
+    min: 1
 ```
 
 ## 3. Write the model
@@ -46,11 +49,11 @@ The model is `models/<data product>__<table>.sql` in the data product folder. Th
 select
     order_id,
     extract(epoch from completed_at - ordered_at) / 3600 as turnaround_hours
-from sa_ilab_orders.orders
+from {{ source('sa_ilab_orders', 'orders') }}
 where completed_at is not null
 ```
 
-A model reads another data product through the views of its output port, here `sa_ilab_orders.orders`. `dpb` does not generate dbt sources, so how the model names that view is up to your dbt project.
+A model reads another data product's output port with `source('<port>', '<table>')`. `dpb generate` writes that dbt source for each input port that reads an output port, so the data product must declare the input port first. Do not use `ref()` on another data product's models: that reads its private tables.
 
 ## 4. Add a dbt project
 
@@ -64,19 +67,21 @@ profile: lab
 
 For models to land in the private schema of their data product, the project must also override the `generate_schema_name` macro. See the [table file reference](../files.md#table-file) for the macro.
 
-## 5. Generate the properties
+## 5. Generate the dbt files
 
 ```console
 $ dpb generate
 ```
 
-Besides the DAG files, this writes three things inside the repo:
+Besides the DAG files, this writes inside the repo:
 
 - `models/agg_lab_turnaround__turnaround.yml`: the model's description, columns and types, an enforced model contract, and the column rules as dbt data tests.
 - `models/_group.yml`: the dbt group of the data product, with its owner.
-- The `model-paths` key of `dbt_project.yml`, with the `models/` folder of every data product that has a table built by dbt.
+- `models/_sources.yml`: a dbt source for each output port that the data product reads, with the tables and columns of that port.
+- `tests/agg_lab_turnaround__turnaround__row_count.sql`: one singular dbt data test per table rule. It selects the rows that break the rule.
+- The `model-paths` and `test-paths` keys of `dbt_project.yml`, with the `models/` and `tests/` folders of every data product that has a table built by dbt.
 
-Commit all three. dbt reads them on every run. Never edit them by hand: change the table file and run `dpb generate` again.
+Commit all of them. dbt reads them on every run. Never edit them by hand: change the table file and run `dpb generate` again.
 
 ## 6. Validate
 
@@ -85,11 +90,13 @@ $ dpb validate
 ok: 2 data product(s) valid
 ```
 
-From now on `dpb validate` fails when the committed properties do not match the table file:
+From now on `dpb validate` fails when a committed dbt file does not match the table file:
 
 ```text
 dataproducts/agg_lab_turnaround/models/agg_lab_turnaround__turnaround.yml: dbt properties file does not match its table file; run `dpb generate` to refresh it
 ```
+
+When you remove a table rule, delete its generated test file too. `dpb generate` does not delete files, and `dpb validate` names the file that is left over.
 
 ## What runs
 
@@ -97,7 +104,6 @@ All dbt tables of a data product share one task in its DAG, `build_dbt`. It runs
 
 ## Limits
 
-- A table rule (`primary_key`, `row_count` or `sql`) fails on a dbt table with "not supported for dbt yet". Column rules work.
 - The runtime of a dbt table must be `worker`. `docker` and `kubernetes` fail in `dpb validate`.
 - A Python table cannot list a dbt table in `needs`, because the Python tables are built first.
 - A `.py` file in a `models/` folder fails, because dbt would read it as a dbt Python model.

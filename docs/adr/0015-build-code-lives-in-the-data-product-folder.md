@@ -12,5 +12,5 @@ The code that builds a data product's tables lives in that data product's folder
 - The data product that owns a dbt model or a Python module is the one whose folder holds it. No ownership key is needed in the code.
 - The boundary check of ADR-0014 can tell private reads from port reads by location alone.
 - Code that builds no table, such as dbt macros or a shared Python library, may live outside the data product folders.
-- One dbt project spans the folders of several data products. Its `dbt_project.yml` sits at the repo root, and `dpb generate` keeps its `model-paths` in step with the data product folders, changing only that key.
+- One dbt project spans the folders of several data products. Its `dbt_project.yml` sits at the repo root, and `dpb generate` keeps its `model-paths` and `test-paths` in step with the data product folders (ADR-0019), changing only those keys.
 - dbt model names must be unique across a dbt project, while table names are unique only within a data product. The model name therefore comes from a naming template (ADR-0006), by default `{dataproduct}__{table}`, and the generated alias keeps the table's own name in the warehouse.

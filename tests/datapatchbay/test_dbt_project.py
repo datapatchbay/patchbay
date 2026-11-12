@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
+from dbt_helpers import DP, MODEL, TABLE_YAML, write
 from plugin_fakes import FakeOrchestrator, register
-from test_dbt import DP, MODEL, TABLE_YAML, write
 
 from datapatchbay.generate import GenerationError, generate_repo
 from datapatchbay.plugins import UnsupportedCombinationError
@@ -55,7 +55,15 @@ def test_model_paths_is_sorted_and_lists_nothing_else(dbt_repo: Path):
 
 def test_comments_key_order_and_other_keys_survive(dbt_repo: Path):
     generate_repo(dbt_repo)
-    assert (dbt_repo / PROJECT).read_text() == HEADER.replace('["models"]', f"[{DP}/models]")
+    assert (dbt_repo / PROJECT).read_text() == HEADER.replace('["models"]', f"[{DP}/models]") + (
+        f"test-paths:\n  - {DP}/tests\n"
+    )
+
+
+def test_test_paths_keeps_the_style_of_an_existing_list(dbt_repo: Path):
+    (dbt_repo / PROJECT).write_text(HEADER + "test-paths: [tests]\n")
+    generate_repo(dbt_repo)
+    assert f"test-paths: [{DP}/tests]" in (dbt_repo / PROJECT).read_text()
 
 
 def test_a_repo_without_a_dbt_table_leaves_dbt_project_alone_and_does_not_need_one(lab_repo: Path):
@@ -83,11 +91,13 @@ def test_the_same_input_gives_byte_identical_output(dbt_repo: Path):
 def test_a_missing_model_paths_key_is_added_at_the_end(dbt_repo: Path):
     (dbt_repo / PROJECT).write_text("name: lab\nprofile: lab\n")
     generate_repo(dbt_repo)
-    assert (dbt_repo / PROJECT).read_text() == f"name: lab\nprofile: lab\nmodel-paths:\n  - {DP}/models\n"
+    assert (dbt_repo / PROJECT).read_text() == (
+        f"name: lab\nprofile: lab\nmodel-paths:\n  - {DP}/models\ntest-paths:\n  - {DP}/tests\n"
+    )
 
 
 def test_a_file_already_in_step_is_not_rewritten(dbt_repo: Path):
-    (dbt_repo / PROJECT).write_text(HEADER.replace('["models"]', f"[{DP}/models]"))
+    (dbt_repo / PROJECT).write_text(HEADER.replace('["models"]', f"[{DP}/models]") + f"test-paths: [{DP}/tests]\n")
     before = (dbt_repo / PROJECT).stat().st_mtime_ns
     generate_repo(dbt_repo)
     assert (dbt_repo / PROJECT).stat().st_mtime_ns == before
@@ -96,7 +106,9 @@ def test_a_file_already_in_step_is_not_rewritten(dbt_repo: Path):
 def test_a_scalar_model_paths_is_replaced_by_the_list(dbt_repo: Path):
     (dbt_repo / PROJECT).write_text("name: lab\nmodel-paths: models\n")
     generate_repo(dbt_repo)
-    assert (dbt_repo / PROJECT).read_text() == f"name: lab\nmodel-paths:\n  - {DP}/models\n"
+    assert (
+        dbt_repo / PROJECT
+    ).read_text() == f"name: lab\nmodel-paths:\n  - {DP}/models\ntest-paths:\n  - {DP}/tests\n"
 
 
 def test_a_dbt_project_that_is_not_a_mapping_fails_naming_the_file(dbt_repo: Path):

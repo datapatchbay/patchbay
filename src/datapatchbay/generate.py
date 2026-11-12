@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
-from datapatchbay.dbt_properties import generate_dbt_properties
+from datapatchbay.dbt_sources import generate_dbt_files
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -48,9 +48,10 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     Nothing is written when the repo is invalid or when any data product fails to generate, so the output folder is
     never left with half a run. Files left from an earlier run are not removed.
 
-    When tables are built by dbt, the `model-paths` of `dbt_project.yml` at the repo root (not in `output_dir`, because
-    the file is committed) are also brought in step, after all other files are written, and only if that is needed.
-    The dbt properties files, also committed, are written just before it, next to the models.
+    When tables are built by dbt, the `model-paths` and `test-paths` of `dbt_project.yml` at the repo root (not in
+    `output_dir`, because the file is committed) are also brought in step, after all other files are written, and only
+    if that is needed. The dbt properties, sources and singular test files, also committed, are written just before
+    it, next to the models.
 
     Args:
         root: The repo root.
@@ -77,8 +78,8 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
                 raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
             files[generated.path] = generated.content
 
-    # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
-    properties = generate_dbt_properties(plans, settings)
+    # The dbt properties, sources and tests are committed source files, not build output, so they go next to the models.
+    dbt_files = generate_dbt_files(plans, settings)
 
     try:
         dbt_project = synced_dbt_project(repo, settings)
@@ -89,7 +90,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
         destination = target / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(content.encode("utf-8"))
-    for generated in properties:
+    for generated in dbt_files:
         destination = root / generated.path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(generated.content.encode("utf-8"))
