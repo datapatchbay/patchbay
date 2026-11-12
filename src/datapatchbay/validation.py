@@ -5,6 +5,7 @@ from pathlib import Path
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.dbt import check_dbt
+from datapatchbay.dbt_manifest import check_dbt_reads
 from datapatchbay.dbt_sync import check_dbt_files
 from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
@@ -46,10 +47,10 @@ def validate_repo(root: Path) -> Report:
     """Validate a repo and return the report. See `load_and_validate`.
 
     On top of that, once everything else is valid, the committed dbt files are compared with what `dpb generate`
-    would write, and the data products are generated in memory to find what would make `dpb generate` fail, such as
-    a table named `dbt` next to tables built by dbt, or source input ports with different schedules. `dpb generate`
-    uses `load_and_validate` and skips both, because it is what refreshes the files and reports the failures itself.
-    Nothing is written.
+    would write, what the dbt models read is compared with the input ports (the dbt manifest must exist), and the data
+    products are generated in memory to find what would make `dpb generate` fail, such as a table named `dbt` next to
+    tables built by dbt, or source input ports with different schedules. `dpb generate` uses `load_and_validate` and
+    skips all of these, because it is what refreshes the files and reports the failures itself. Nothing is written.
     """
     repo, report = load_and_validate(root)
     if not report.ok:
@@ -57,6 +58,7 @@ def validate_repo(root: Path) -> Report:
     settings = load_settings(root)
     problems = [
         *check_dbt_files(repo, settings),
+        *check_dbt_reads(repo, settings),
         *check_generation(repo, settings, root),
         *check_stale_output(repo, settings),
     ]

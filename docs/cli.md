@@ -76,7 +76,12 @@ With `--json`, stdout holds only this document:
 
 A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
 
-Not checked yet: that build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this will be checked against the `ref()` and `source()` calls in the dbt manifest, so CI will run `dbt parse` first (ADR-0014). A model reads an output port through a generated `source()` (ADR-0018), so every `ref()` into another data product's models is a private read.
+For tables built by dbt, `dpb validate` already checks that the model file exists (see the executor settings), and what the dbt models read:
+
+- A dbt model reads another data product only through the generated `source('<port>', '<table>')` of an input port that it has (ADR-0014, ADR-0018). `dpb validate` checks this against the dbt manifest, so CI runs `dbt parse` before `dpb validate`. The manifest is the JSON file at `dbt.manifest` in `datapatchbay.yaml`, by default `target/manifest.json` relative to the repo root. When the repo has tables built by dbt and the file is missing or is not a dbt manifest, validation fails on that file and says to run `dbt parse`. dpb does not run dbt and does not check that the manifest is fresh, so run `dbt parse` after every change to a model. It reads only the standard library `json` and only these fields: `metadata.project_name`, and per node `resource_type`, `name`, `package_name`, `original_file_path` and `depends_on.nodes`, and per source `source_name`, `name` and `schema`; other fields are ignored. A model belongs to the data product whose folder holds its file.
+  - A `ref()` to a model in another data product's folder fails as a read of its private schema, naming both models.
+  - A `source()` of another data product's output port, with no input port on it in the reading data product, fails and names the port. So does a `source()` that points at the private schema of another data product.
+  - Each problem points at the model file and, when the `ref()` or `source()` call can be found in it, at its line. A `source()` of a name that is not an output port of the repo is not a read of a data product and is not checked, and a table name written straight into the SQL is invisible to the check (ADR-0014).
 
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 

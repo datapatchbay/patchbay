@@ -71,6 +71,15 @@ dbt:
 
 The defaults assume that the repo is deployed to the worker with the DAG files (for example as the DAG bundle), that `dbt_project.yml` is at the repo root, and that dbt and the profile are installed for the worker's user. dbt is run as the `dbt` command of the worker's environment; dpb installs nothing. Authenticate through the profile, for example with environment variables on the worker. If the dbt project sits elsewhere on the worker with the layout of the repo, set an absolute `project_dir`. A relative `project_dir` other than `.` must contain the data product folders.
 
+One more setting is read on the machine that runs `dpb validate`, not on the worker:
+
+```yaml
+dbt:
+  manifest: target/manifest.json  # the dbt manifest made by `dbt parse`; relative to the repo root
+```
+
+`dpb validate` reads this file to check what the dbt models read (see [`dpb validate`](cli.md#dpb-validate)). When the repo has tables built by dbt and the file is missing, validation fails and says to run `dbt parse`. Set it if `dbt parse` writes elsewhere, for example with `--target-path`.
+
 All tables built by dbt in a data product share this one task, so they must resolve to the same `runtime`, and it must be `worker`: `docker` and `kubernetes` fail in `dpb validate` (and so in `dpb generate`) at the line of the table's runtime. A Python table cannot list a dbt table in `needs`, because the Python tables are built first; `dpb validate` reports it at the `needs` line.
 
 ## Plugins

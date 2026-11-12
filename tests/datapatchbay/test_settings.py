@@ -96,3 +96,12 @@ def test_dbt_project_and_profiles_locations_have_defaults_and_can_be_set(tmp_pat
     assert (settings.values.dbt.project_dir, settings.values.dbt.profiles_dir) == (".", "/etc/dbt")
     assert settings.origin_of("dbt.profiles_dir") == ROOT_ORIGIN
     assert settings.origin_of("dbt.project_dir") == DEFAULTS_ORIGIN
+
+
+def test_dbt_manifest_location_defaults_to_the_target_folder_and_can_be_set(tmp_path: Path):
+    write_root(tmp_path, "schema_version: 1\n")
+    assert load_settings(tmp_path).values.dbt.manifest == "target/manifest.json"
+    write_root(tmp_path, "schema_version: 1\ndbt:\n  manifest: build/manifest.json\n")
+    settings = load_settings(tmp_path)
+    assert settings.values.dbt.manifest == "build/manifest.json"
+    assert settings.origin_of("dbt.manifest") == ROOT_ORIGIN
