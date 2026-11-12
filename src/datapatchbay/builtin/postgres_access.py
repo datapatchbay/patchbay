@@ -103,6 +103,6 @@ def _view_sql(plan: DataProductPlan, table: TablePlan, pii_readers: Iterable[str
             columns.append(f"CASE WHEN {is_pii_reader or 'false'} THEN {name} ELSE NULL END AS {name}")
         else:
             columns.append(name)
-    private = f"{_identifier(plan.names.private_port)}.{_identifier(table.name)}"
+    private = f"{_identifier(table.schema)}.{_identifier(table.name)}"
     view = f"{_identifier(table.port)}.{_identifier(table.name)}"
     return f"CREATE VIEW {view} AS SELECT {', '.join(columns) or '*'} FROM {private};"
