@@ -212,10 +212,14 @@ def test_round_trip_generate_reproduces_the_imported_properties(runner: CliRunne
         {"unique": {"config": {"severity": "error"}}},
         {"not_null": {"config": {"severity": "warn"}}},
     ]
-    assert columns["status"]["data_tests"] == [{"accepted_values": {"arguments": {"values": ["placed", "shipped"]}}}]
+    assert columns["status"]["data_tests"] == [
+        {"accepted_values": {"arguments": {"values": ["placed", "shipped"]}, "config": {"severity": "error"}}}
+    ]
     assert "data_tests" not in columns["email"]
     totals = {c["name"]: c for c in models["sa_orders__order_totals"]["columns"]}
-    assert totals["id"]["data_tests"] == [{"accepted_values": {"arguments": {"values": [1, 2], "quote": False}}}]
+    assert totals["id"]["data_tests"] == [
+        {"accepted_values": {"arguments": {"values": [1, 2], "quote": False}, "config": {"severity": "error"}}}
+    ]
 
 
 def test_refs_that_cannot_be_renamed_are_reported_and_left_as_written(runner: CliRunner, repo: Path):
