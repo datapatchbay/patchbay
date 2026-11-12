@@ -1,5 +1,6 @@
 """Generating the files of every data product through the plugins named in the settings."""
 
+import contextlib
 import os
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -106,5 +107,6 @@ def _write(destination: Path, content: str) -> None:
         temporary.write_bytes(content.encode("utf-8"))
         os.replace(temporary, destination)
     except OSError as exc:
-        temporary.unlink(missing_ok=True)
+        with contextlib.suppress(OSError):  # best effort: the write error is the one to report
+            temporary.unlink(missing_ok=True)
         raise GenerationError(f"cannot write {destination}: {exc.strerror or exc}") from exc

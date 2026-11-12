@@ -126,7 +126,7 @@ def test_a_failing_orchestrator_leaves_dbt_project_and_output_alone(dbt_repo: Pa
 
 def test_a_failed_output_write_leaves_dbt_project_as_it_was(dbt_repo: Path):
     (dbt_repo / "generated").write_text("a file where the output folder should be\n")
-    with pytest.raises(OSError, match="generated"):
+    with pytest.raises(GenerationError, match="generated"):
         generate_repo(dbt_repo)
     assert (dbt_repo / PROJECT).read_text() == HEADER
 
