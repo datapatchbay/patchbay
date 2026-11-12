@@ -31,8 +31,8 @@ Severity = Literal["error", "warning", "none"]
 class CascadingSettings(BaseModel):
     """Settings that can be set at the root, on a data product, on a port and in a table's build block (ADR-0008).
 
-    The nearest one wins; `datapatchbay.cascade` resolves them. `executor` and `runtime` name plugins (ADR-0009), so
-    they accept any non-empty name here and the plugin check happens where the plugins are known.
+    The nearest one wins; `datapatchbay.settings.cascade` resolves them. `executor` and `runtime` name plugins
+    (ADR-0009), so they accept any non-empty name here and the plugin check happens where the plugins are known.
     """
 
     model_config = ConfigDict(extra="forbid")

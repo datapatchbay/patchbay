@@ -10,7 +10,7 @@ from local_expected import SA_SHOP_ORDERS
 from local_support import AGG, SA, generate, query, run_script, write_repo
 from plan_helpers import plan_all
 
-from datapatchbay.generate import generate_repo
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.dbt.executor import DbtExecutor
 from datapatchbay.integrations.docker.runtime import DockerRuntime
 from datapatchbay.integrations.duckdb.warehouse import DuckDbWarehouse
@@ -18,7 +18,7 @@ from datapatchbay.integrations.kubernetes.runtime import KubernetesRuntime
 from datapatchbay.integrations.local.orchestrator import LocalOrchestrator, connection_variable
 from datapatchbay.integrations.python.executor import PythonExecutor
 from datapatchbay.integrations.worker.runtime import WorkerRuntime
-from datapatchbay.loading import load_repo
+from datapatchbay.pipeline.generate import generate_repo
 from datapatchbay.plugins import DataProductPlan, GenerationContext, UnsupportedCombinationError, registry
 
 # --- the generated text ---

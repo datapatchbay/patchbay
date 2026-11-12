@@ -8,6 +8,7 @@ per data product, runs the quality rules itself as dbt data tests, and scaffolds
 from collections.abc import Sequence
 from pathlib import PurePosixPath
 
+from datapatchbay.files.repomodel import DataProduct, Repo, Table
 from datapatchbay.integrations.dbt.layout import check_dbt_dataproduct, check_dbt_table, new_model_name
 from datapatchbay.integrations.dbt.manifest import check_dbt_reads
 from datapatchbay.integrations.dbt.output import DbtOutput, build_dbt_output
@@ -20,8 +21,7 @@ from datapatchbay.plugins import (
     UnsupportedCombinationError,
 )
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import DataProduct, Repo, Table
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings.effective import EffectiveSettings
 
 
 class DbtExecutor:

@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from datapatchbay import schemas
 from datapatchbay.cli import app
-from datapatchbay.schemas import Kind
+from datapatchbay.commands import schemas
+from datapatchbay.commands.schemas import Kind
 
 
 @pytest.mark.parametrize("kind", schemas.KINDS)

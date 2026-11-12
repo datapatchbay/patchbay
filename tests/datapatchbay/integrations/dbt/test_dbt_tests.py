@@ -4,8 +4,8 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, rendered, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.dbt.tests import generate_dbt_tests
+from datapatchbay.pipeline.generate import generate_repo
 
 TESTS = f"{DP}/tests"
 NAME = "agg_order_turnaround__turnaround"

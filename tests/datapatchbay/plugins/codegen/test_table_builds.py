@@ -7,9 +7,9 @@ import pytest
 from plan_helpers import plan_all
 from plugin_fakes import FakeWarehouse
 
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.dbt.executor import DbtExecutor
 from datapatchbay.integrations.python.executor import PythonExecutor
-from datapatchbay.loading import load_repo
 from datapatchbay.plugins import DataProductPlan, GenerationContext, UnsupportedCombinationError
 from datapatchbay.plugins.codegen import plan_builds, warehouse_audits
 

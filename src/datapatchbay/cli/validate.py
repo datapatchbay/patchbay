@@ -6,8 +6,8 @@ from typing import Annotated
 
 import typer
 
-from datapatchbay.repo import find_repo_root
-from datapatchbay.validation import validate_repo
+from datapatchbay.files.repo import find_repo_root
+from datapatchbay.pipeline.validation import validate_repo
 
 
 def validate(

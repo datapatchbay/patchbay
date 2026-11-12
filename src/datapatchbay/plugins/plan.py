@@ -9,11 +9,11 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from datapatchbay.files.repomodel import DataProduct, Port, Repo, Table
 from datapatchbay.models.base import Severity
-from datapatchbay.naming import DerivedNames
 from datapatchbay.problems import Report
-from datapatchbay.repomodel import DataProduct, Port, Repo, Table
-from datapatchbay.settings import EffectiveSettings, ResolvedConventions
+from datapatchbay.settings.effective import EffectiveSettings, ResolvedConventions
+from datapatchbay.settings.naming import DerivedNames
 
 __all__ = ["DataProductPlan", "DbtLocation", "NewTable", "PlannedRepo", "SourceSchedule", "TablePlan"]
 

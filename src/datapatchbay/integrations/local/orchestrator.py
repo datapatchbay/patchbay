@@ -14,7 +14,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from datapatchbay.genheader import generated_header
+from datapatchbay.files.genheader import generated_header
 from datapatchbay.integrations.local.script import (
     ANNOUNCE_HELPER,
     CONNECT_HELPER,

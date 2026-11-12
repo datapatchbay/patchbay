@@ -22,8 +22,10 @@ from pathlib import Path, PurePosixPath
 
 from ruamel.yaml.comments import CommentedSeq
 
-from datapatchbay.filewrite import remove_file, write_file
-from datapatchbay.genheader import generated_from
+from datapatchbay.files.filewrite import remove_file, write_file
+from datapatchbay.files.genheader import generated_from
+from datapatchbay.files.repomodel import Repo
+from datapatchbay.files.yamlio import YamlLoadError, load_mapping
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR, MODELS_FOLDER, TESTS_FOLDER
 from datapatchbay.integrations.dbt.project import DBT_PROJECT_FILE, DbtProjectError, synced_dbt_project
 from datapatchbay.integrations.dbt.properties import GROUP_FILE, generate_dbt_properties
@@ -31,8 +33,6 @@ from datapatchbay.integrations.dbt.sources import generate_dbt_sources
 from datapatchbay.integrations.dbt.tests import generate_dbt_tests
 from datapatchbay.plugins import DataProductPlan, PlannedRepo
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import Repo
-from datapatchbay.yamlio import YamlLoadError, load_mapping
 
 __all__ = ["DbtFile", "DbtFileKind", "DbtOutput", "DbtProjectChange", "build_dbt_output", "model_paths"]
 

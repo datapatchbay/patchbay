@@ -4,8 +4,8 @@ from pathlib import Path
 
 from plan_helpers import plan_all
 
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.postgres.warehouse import PostgresWarehouse
-from datapatchbay.loading import load_repo
 from datapatchbay.plugins import DataProductPlan
 
 PORT = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml"

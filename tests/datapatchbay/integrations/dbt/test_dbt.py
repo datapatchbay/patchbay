@@ -4,12 +4,12 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, checked, rendered, write
 from plan_helpers import plan_all
 
-from datapatchbay import schemas
-from datapatchbay.cascade import resolve_cascade
+from datapatchbay.commands import schemas
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.dbt.executor import DbtExecutor
-from datapatchbay.loading import load_repo
 from datapatchbay.plugins import CommandCall
-from datapatchbay.settings import load_settings
+from datapatchbay.settings.cascade import resolve_cascade
+from datapatchbay.settings.effective import load_settings
 
 
 @pytest.fixture

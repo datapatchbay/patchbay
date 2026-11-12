@@ -10,11 +10,11 @@ deterministic. Nothing here imports or runs dbt (ADR-0004), and the files need n
 from collections import Counter
 from collections.abc import Sequence
 
-from datapatchbay.genheader import generated_header
+from datapatchbay.files.genheader import generated_header
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR, TESTS_FOLDER, model_name
 from datapatchbay.models.table import PrimaryKeyRule, RowCountRule, SqlRule, TableRule
 from datapatchbay.plugins import DataProductPlan, GeneratedFile, TablePlan
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings.effective import EffectiveSettings
 
 _SEVERITY = {"error": "error", "warning": "warn"}
 

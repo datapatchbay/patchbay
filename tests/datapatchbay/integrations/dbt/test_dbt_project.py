@@ -4,7 +4,7 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE_YAML, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import GenerationError, generate_repo
+from datapatchbay.pipeline.generate import GenerationError, generate_repo
 from datapatchbay.plugins import UnsupportedCombinationError
 
 PROJECT = "dbt_project.yml"

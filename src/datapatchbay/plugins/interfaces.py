@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Literal, Protocol, runtime_checkable
 
+from datapatchbay.files.repomodel import DataProduct, Repo, Table
 from datapatchbay.plugins.plan import DataProductPlan, NewTable, PlannedRepo, TablePlan
 from datapatchbay.plugins.tasks import (
     AuditTask,
@@ -31,8 +32,7 @@ from datapatchbay.plugins.tasks import (
     SqlTask,
 )
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import DataProduct, Repo, Table
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings.effective import EffectiveSettings
 
 __all__ = [
     "BatchesBuilds",

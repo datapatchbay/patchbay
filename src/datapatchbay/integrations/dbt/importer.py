@@ -17,15 +17,15 @@ from typing import Any, ClassVar
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
+from datapatchbay.commands.scaffold import ImportedTable, NewDataProduct
 from datapatchbay.errors import DatapatchbayError
-from datapatchbay.genheader import generated_from
+from datapatchbay.files.genheader import generated_from
+from datapatchbay.files.yamlio import YamlLoadError, load_mapping
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.integrations.dbt.properties import SEVERITY
 from datapatchbay.models.base import Severity
-from datapatchbay.naming import derive_names, is_snake_case, render_name
-from datapatchbay.scaffold import ImportedTable, NewDataProduct
-from datapatchbay.settings import ResolvedConventions
-from datapatchbay.yamlio import YamlLoadError, load_mapping
+from datapatchbay.settings.effective import ResolvedConventions
+from datapatchbay.settings.naming import derive_names, is_snake_case, render_name
 
 DEFAULT_TYPE = "text"
 """The column type written when the dbt properties give no `data_type`."""

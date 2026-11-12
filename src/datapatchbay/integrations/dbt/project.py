@@ -11,9 +11,9 @@ from pathlib import Path, PurePosixPath
 from ruamel.yaml.comments import CommentedSeq
 
 from datapatchbay.errors import DatapatchbayError
+from datapatchbay.files.repo import DATAPRODUCTS_DIR
+from datapatchbay.files.yamlio import YamlLoadError, dump_mapping, load_mapping
 from datapatchbay.integrations.dbt.layout import MODELS_FOLDER, TESTS_FOLDER
-from datapatchbay.repo import DATAPRODUCTS_DIR
-from datapatchbay.yamlio import YamlLoadError, dump_mapping, load_mapping
 
 DBT_PROJECT_FILE = "dbt_project.yml"
 """The name of the dbt project file, expected at the repo root."""

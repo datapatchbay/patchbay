@@ -6,10 +6,10 @@ from typing import Annotated
 
 import typer
 
+from datapatchbay.commands.scaffold import DEFAULT_SCHEDULE, NewDataProduct, ScaffoldError, missing_answers, scaffold
+from datapatchbay.files.repo import find_repo_root
 from datapatchbay.integrations.dbt.importer import read_dbt_models
-from datapatchbay.repo import find_repo_root
-from datapatchbay.scaffold import DEFAULT_SCHEDULE, NewDataProduct, ScaffoldError, missing_answers, scaffold
-from datapatchbay.settings import ResolvedConventions, load_settings
+from datapatchbay.settings.effective import ResolvedConventions, load_settings
 
 _QUESTIONS = {
     "name": "Name (without the kind prefix)",

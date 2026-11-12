@@ -4,8 +4,8 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, rendered, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.dbt.sources import generate_dbt_sources
+from datapatchbay.pipeline.generate import generate_repo
 
 PRODUCER = "dataproducts/sa_jaffle_orders"
 ORDERS = f"{PRODUCER}/outputs/sa_jaffle_orders/orders.yaml"

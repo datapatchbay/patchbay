@@ -13,9 +13,9 @@ import pytest
 from dbt_helpers import DP, MODEL, PROFILES, TABLE, TABLE_YAML, dbt_parse, planned, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.dbt.manifest import check_dbt_reads
 from datapatchbay.integrations.dbt.properties import generate_dbt_properties
+from datapatchbay.pipeline.generate import generate_repo
 
 pytestmark = pytest.mark.dbt
 

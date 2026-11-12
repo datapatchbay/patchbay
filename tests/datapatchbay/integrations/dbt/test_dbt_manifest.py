@@ -8,7 +8,7 @@ from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.integrations.dbt.manifest import check_dbt_reads
-from datapatchbay.validation import validate_repo
+from datapatchbay.pipeline.validation import validate_repo
 
 MANIFEST = "target/manifest.json"
 PRODUCER = "dataproducts/sa_jaffle_orders"

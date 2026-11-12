@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from audit_support import audit_of, columns_yaml
 
-from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.duckdb.warehouse import DuckDbWarehouse
+from datapatchbay.pipeline.generate import generate_repo
 
 RULES = (
     columns_yaml(

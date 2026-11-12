@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from datapatchbay.models.base import CascadingSettings, FileModel
-from datapatchbay.schedule import CRON_FIELDS, DURATION, is_valid_cron_field
+from datapatchbay.models.schedule import CRON_FIELDS, DURATION, is_valid_cron_field
 
 
 def check_duration(value: str) -> str:

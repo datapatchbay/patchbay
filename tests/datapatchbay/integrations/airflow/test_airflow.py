@@ -7,13 +7,13 @@ from typing import Any
 import pytest
 from plan_helpers import plan_all
 
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.airflow.orchestrator import AirflowOrchestrator
 from datapatchbay.integrations.dbt.executor import DbtExecutor
 from datapatchbay.integrations.docker.runtime import DockerRuntime
 from datapatchbay.integrations.kubernetes.runtime import KubernetesRuntime
 from datapatchbay.integrations.python.executor import PythonExecutor
 from datapatchbay.integrations.worker.runtime import WorkerRuntime
-from datapatchbay.loading import load_repo
 from datapatchbay.plugins import BuildTask, DataProductPlan, GenerationContext, UnsupportedCombinationError
 
 
