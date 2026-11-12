@@ -177,7 +177,7 @@ A table built by dbt has the same contract and no `build` block when `executor: 
 
 The generated properties put each model in its data product's private schema with `config: {schema: <private port name>}`. By default dbt does not use that name as written: it builds `<target schema>_<custom schema>`. For models to land in the private schema as written, the team's dbt project must override the `generate_schema_name` macro, for example in `macros/generate_schema_name.sql`:
 
-```sql
+```jinja
 {% macro generate_schema_name(custom_schema_name, node) -%}
     {{ custom_schema_name | trim if custom_schema_name is not none else target.schema }}
 {%- endmacro %}
