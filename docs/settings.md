@@ -17,12 +17,29 @@ These settings can be set at four levels: root, data product, port and table. Th
 
 - `executor`
 - `runtime`
-- the container image
+- `image`, the container image for container runtimes
 - the default `severity`
 
-`orchestrator` can be set at root or data product level only, because one data product is one DAG.
+The root level is `datapatchbay.yaml` over the packaged defaults. On a data product or a port, write the setting as a key in `dataproduct.yaml` or `port.yaml`. On a table, write it in the `build` block.
 
-`dpb config` prints the effective settings and where each one comes from. `dpb describe` does the same for one data product.
+```yaml
+# dataproduct.yaml
+runtime: docker
+image: registry.example.com/lab:1
+```
+
+```yaml
+# a table file
+build:
+  entrypoint: src/orders.py:build
+  image: registry.example.com/orders:2   # this table only
+```
+
+`executor` and `runtime` name plugins, so the files accept any name; `dpb generate` reports a name no plugin provides.
+
+`orchestrator` can be set at root or data product level only, because one data product is one DAG. On a port or a table, `dpb validate` fails.
+
+`dpb config` prints the effective settings and where each one comes from. `dpb describe` does the same for one data product, with the level (`table`, `port`, `dataproduct`, `root` or `defaults`) each resolved value came from.
 
 ## Plugins
 

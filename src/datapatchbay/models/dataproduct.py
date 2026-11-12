@@ -2,10 +2,10 @@
 
 from pydantic import Field
 
-from datapatchbay.models.base import FileModel
+from datapatchbay.models.base import CascadingSettings, FileModel
 
 
-class DataProductFile(FileModel):
+class DataProductFile(FileModel, CascadingSettings):
     """A data product: who owns it and which ports it reads and publishes."""
 
     name: str = Field(
@@ -37,4 +37,10 @@ class DataProductFile(FileModel):
     outputs: list[str] = Field(
         default_factory=list,
         description="Names of the output ports. Must match the folders under `outputs/`.",
+    )
+    orchestrator: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Orchestrator plugin that triggers this data product's builds. One data product is one DAG, "
+        "so this is set here or at the root, never on a port or a table.",
     )

@@ -1,10 +1,8 @@
 """The model of `datapatchbay.yaml`."""
 
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 
-from datapatchbay.models.base import FileModel
+from datapatchbay.models.base import CascadingSettings, FileModel
 
 
 class _Strict(BaseModel):
@@ -38,7 +36,7 @@ class Conventions(_Strict):
     names: NamesConvention | None = Field(default=None, description="Naming templates for derived names.")
 
 
-class RootFile(FileModel):
+class RootFile(FileModel, CascadingSettings):
     """The repo's `datapatchbay.yaml`: settings that apply to all data products.
 
     Every setting is optional, because defaults ship inside the package and the file only holds the changes.
@@ -46,12 +44,5 @@ class RootFile(FileModel):
 
     warehouse: str | None = Field(default=None, description="Warehouse plugin to generate SQL for.")
     orchestrator: str | None = Field(default=None, description="Orchestrator plugin to generate DAG files for.")
-    executor: str | None = Field(default=None, description="Executor plugin that builds the tables.")
-    runtime: Literal["worker", "docker", "kubernetes"] | None = Field(
-        default=None, description="Where the generated tasks run the build code."
-    )
-    severity: Literal["error", "warning", "none"] | None = Field(
-        default=None, description="Default severity of quality rules."
-    )
     connection: str | None = Field(default=None, description="Name of the orchestrator's connection to the warehouse.")
     conventions: Conventions | None = Field(default=None, description="Platform-wide conventions.")

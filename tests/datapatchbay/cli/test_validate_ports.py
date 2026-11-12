@@ -364,14 +364,11 @@ def test_same_table_name_in_different_data_products_is_fine(runner: CliRunner, p
 # --- build ------------------------------------------------------------------------------------------------------
 
 
-def test_build_executor_only_accepts_python(runner: CliRunner, product: None, write_file: Writer):
-    write_file(f"{OUT}/orders.yaml", ORDERS.replace("executor: python", "executor: dbt"))
-    expect_problem(runner, f"{OUT}/orders.yaml", 29, "executor")
-
-
-def test_build_executor_is_required(runner: CliRunner, product: None, write_file: Writer):
+def test_build_executor_is_optional_and_may_name_any_plugin(runner: CliRunner, product: None, write_file: Writer):
+    write_file(f"{OUT}/orders.yaml", ORDERS.replace("  executor: python\n", "  executor: dbt\n"))
+    assert runner.invoke(app, ["validate"]).exit_code == 0
     write_file(f"{OUT}/orders.yaml", ORDERS.replace("  executor: python\n", ""))
-    expect_problem(runner, f"{OUT}/orders.yaml", 28, "missing required key 'build.executor'")
+    assert runner.invoke(app, ["validate"]).exit_code == 0
 
 
 @pytest.mark.parametrize(

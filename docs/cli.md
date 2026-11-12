@@ -26,7 +26,8 @@
 - Table names are unique within a data product.
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
-- In the `build` block, `executor` is `python`, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
+- `executor`, `runtime`, `image` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
+- In the `build` block, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
 - Every derived name matches its naming template, and every name is snake_case. Port names and data product names are unique across the repo. `kind` is a declared kind. `domain` is in the domain list when one is declared. An output port does not promise fresher data than its inputs deliver. These rules arrive with later releases.
 
 `dpb validate` looks for `datapatchbay.yaml` in the working directory and its parents, and fails with exit code 2 and a message when it finds none. It exits 0 when every file is valid and 1 when there are problems. Each problem is one line, `file:line: message`, on stderr.
@@ -58,6 +59,24 @@ conventions.domains                  []              (defaults)
 ```
 
 With `--json`, stdout holds one object from setting name to `{"value": ..., "origin": "defaults" | "datapatchbay.yaml"}`. An invalid `datapatchbay.yaml` is reported as `file:line: message` and exits with code 2.
+
+## `dpb list`
+
+`dpb list` prints every data product with its kind, domain, owner and technical owner, one per line. With `--json`, stdout holds an array of objects with `folder`, `name`, `kind`, `domain`, `owner` and `technical_owner`. Files that fail validation are left out, and a warning on stderr points to `dpb validate`.
+
+## `dpb describe`
+
+`dpb describe <data product>` takes the folder name or the `name` of a data product. It prints the data product with its ports, tables, columns, quality rules, freshness and readers. For each output port it also shows which data products read it (`read by`). Every setting is resolved and shown with the level it came from, for example `runtime: kubernetes  (port, dataproducts/.../port.yaml)`; a quality rule shows its severity and whether the rule or a level set it.
+
+```text
+sa_ilab_orders  (dataproducts/sa_ilab_orders/dataproduct.yaml)
+  settings:
+    executor: python  (defaults)
+    runtime: docker  (root, datapatchbay.yaml)
+    orchestrator: prefect  (dataproduct, dataproducts/sa_ilab_orders/dataproduct.yaml)
+```
+
+With `--json`, stdout holds one object with the same content; each setting is `{"value", "level", "file"}`. An unknown name fails with exit code 2 and a message naming the data products that exist.
 
 ## `dpb generate`
 

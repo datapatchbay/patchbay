@@ -152,7 +152,7 @@ build:
 - Quality rules on a column: `not_null`, `unique`, `accepted_values`. On a table: `primary_key`, `row_count`, `sql`. A bare rule name uses the default severity.
 - Severity is `error` (the run fails), `warning` (the run continues and reports) or `none` (the rule is ignored).
 - A bare rule name is the short form and only works for `not_null` and `unique`. The long form is a mapping with `rule`, the rule's own keys and an optional `severity`: `values` for `accepted_values`, `columns` for `primary_key`, `min` and `max` for `row_count` and `sql` for `sql`.
-- `build.executor` is required and must be `python`. `entrypoint` is `path/to/file.py:function`, relative to the data product folder.
+- `build.executor` is optional and defaults to the setting of the levels above it (`python` unless changed). `entrypoint` is `path/to/file.py:function`, relative to the data product folder.
 - `needs` lists the tables of the same data product that must be built first, in any of its ports. It must not contain a cycle.
 - Table names are unique within a data product.
 
