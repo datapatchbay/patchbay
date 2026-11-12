@@ -2,7 +2,6 @@
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.cascade import ResolvedCascade
@@ -10,32 +9,8 @@ from datapatchbay.integrations.dbt.layout import MODELS_FOLDER
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
 from datapatchbay.naming import DerivedNames, derive_names
 from datapatchbay.plugins import DataProductPlan, DbtLocation, SourceSchedule, TablePlan
-from datapatchbay.problems import Report
 from datapatchbay.repomodel import DataProduct, Repo
 from datapatchbay.settings import EffectiveSettings
-
-
-@dataclass(frozen=True, slots=True)
-class PlannedRepo:
-    """A repo that passed stage 1, with its data products planned exactly once.
-
-    Every check and renderer after the gate takes this and never plans again. Plugins named in the settings are known
-    to exist.
-
-    Attributes:
-        repo: What loaded.
-        settings: The effective settings, built once from the root file.
-        plans: One plan per data product, in the order of the repo.
-    """
-
-    repo: Repo
-    settings: EffectiveSettings
-    plans: list[DataProductPlan]
-
-    @property
-    def report(self) -> Report:
-        """The report of a repo with no problems."""
-        return Report(dataproducts_checked=self.repo.dataproduct_dirs, problems=[])
 
 
 def plan_dataproducts(repo: Repo, settings: EffectiveSettings, cascade: ResolvedCascade) -> list[DataProductPlan]:

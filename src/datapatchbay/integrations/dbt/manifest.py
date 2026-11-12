@@ -20,7 +20,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from datapatchbay.integrations.dbt.output import model_paths
-from datapatchbay.planning import PlannedRepo
+from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import DataProduct, Repo
 

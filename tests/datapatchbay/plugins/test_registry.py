@@ -1,8 +1,8 @@
 import pytest
 from plugin_fakes import FakeEntryPoint
 
-from datapatchbay import registry
-from datapatchbay.registry import PluginNotFoundError
+from datapatchbay.plugins import registry
+from datapatchbay.plugins.registry import PluginNotFoundError
 
 
 def only(monkeypatch: pytest.MonkeyPatch, *entry_points: FakeEntryPoint) -> None:

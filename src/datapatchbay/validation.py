@@ -10,8 +10,9 @@ from datapatchbay.integrations.dbt.layout import check_dbt
 from datapatchbay.integrations.dbt.manifest import check_dbt_reads
 from datapatchbay.integrations.dbt.output import build_dbt_output
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import PlannedRepo, plan_dataproducts
+from datapatchbay.planning import plan_dataproducts
 from datapatchbay.pluginchecks import check_plugins
+from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Report
 from datapatchbay.rendering import render_dataproducts
 from datapatchbay.settings import EffectiveSettings, resolve_settings

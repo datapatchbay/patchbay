@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from datapatchbay.planning import PlannedRepo
+from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Report
 from datapatchbay.validation import plan_repo, validate_repo
 
