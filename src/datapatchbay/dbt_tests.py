@@ -41,7 +41,7 @@ def generate_dbt_tests(plans: Sequence[DataProductPlan], settings: EffectiveSett
             seen: Counter[str] = Counter()
             for rule in table.source.file.model.rules:
                 seen[rule.rule] += 1
-                severity = rule.severity or table.severity
+                severity = table.severity_of(rule.severity)
                 if severity == "none":
                     continue  # still counted above, so that another rule keeps its file name
                 suffix = "" if seen[rule.rule] == 1 else f"_{seen[rule.rule]}"

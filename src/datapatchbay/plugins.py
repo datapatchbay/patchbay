@@ -107,6 +107,10 @@ class TablePlan:
     container: Mapping[str, Any] = field(default_factory=dict)
     dbt: DbtLocation | None = None
 
+    def severity_of(self, rule_severity: Severity | None) -> Severity:
+        """Return the severity of a rule: its own, or the table's default when the rule sets none."""
+        return rule_severity or self.severity
+
 
 @dataclass(frozen=True, slots=True)
 class SourceSchedule:

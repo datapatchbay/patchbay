@@ -17,12 +17,13 @@ How one output port is applied:
 
 from collections.abc import Iterable, Sequence
 
-from datapatchbay.builtin.audit_sql import Dialect, standard_identifier, standard_literal
+from datapatchbay.builtin.audit_sql import Dialect
 from datapatchbay.builtin.port_views import output_ports, view_sql
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import OutputPortFile, ProductReader
 from datapatchbay.plugins import DataProductPlan, TablePlan
 from datapatchbay.repomodel import Port
+from datapatchbay.sqlquote import standard_identifier, standard_literal
 
 __all__ = ["access_sql"]
 
@@ -52,10 +53,6 @@ def _dollar_tag(text: str) -> str:
     return tag
 
 
-def _literal(text: str) -> str:
-    return "'" + text.replace("'", "''") + "'"
-
-
 def access_sql(plan: DataProductPlan) -> str:
     """Return the statements that apply the views and grants of every output port, or `""` when there are none."""
     return "\n\n".join(_port_sql(plan, port, tables) for port, tables in output_ports(plan))
@@ -71,7 +68,7 @@ def _port_sql(plan: DataProductPlan, port: Port, tables: Sequence[TablePlan]) ->
     statements = [
         f"-- Output port {' '.join(port.name.split())}",
         f"CREATE SCHEMA IF NOT EXISTS {schema};",
-        _REVOKE_SCHEMA_GRANTS.format(schema_literal=_literal(port.name), tag=_dollar_tag(port.name)),
+        _REVOKE_SCHEMA_GRANTS.format(schema_literal=standard_literal(port.name), tag=_dollar_tag(port.name)),
     ]
     for table in tables:
         statements += [
@@ -94,7 +91,9 @@ def _role_of(plan: DataProductPlan, reader: str | ProductReader) -> str:
 
 
 def _view_sql(table: TablePlan, pii_readers: Iterable[str]) -> str:
-    is_pii_reader = " OR ".join(f"pg_has_role(current_user, {_literal(role)}, 'member')" for role in pii_readers)
+    is_pii_reader = " OR ".join(
+        f"pg_has_role(current_user, {standard_literal(role)}, 'member')" for role in pii_readers
+    )
     return view_sql(
         table,
         _DIALECT,
