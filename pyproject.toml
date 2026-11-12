@@ -59,11 +59,12 @@ docs = [
 [tool.pytest]
 minversion = "9.0"
 testpaths = ["tests"]
-addopts = ["-ra", "--import-mode=importlib"]
+# Integration tests need Docker and run through `scripts/integration-tests`, whose `-m integration` replaces this.
+addopts = ["-ra", "--import-mode=importlib", "-m", "not integration"]
 strict = true
 markers = [
     "dbt: runs `dbt parse` on generated properties; skipped unless dbt is installed (dependency group `dbt`)",
-    "postgres: applies generated SQL to a real Postgres; skipped unless DPB_TEST_POSTGRES_URL is set",
+    "integration: needs a Postgres server; added to every test in tests/datapatchbay/integration; run by scripts/integration-tests",
 ]
 # Helper modules such as plugin_fakes.py sit next to the tests and are imported by name.
 pythonpath = ["tests/datapatchbay"]

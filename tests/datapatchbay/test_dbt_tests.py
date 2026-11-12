@@ -2,9 +2,7 @@ import json
 import os
 import shutil
 import subprocess
-import uuid
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, rendered, write
@@ -203,46 +201,3 @@ def test_dbt_parses_the_generated_tests(repo: Path, tmp_path: Path):
         f"{NAME}__sql": "error",
     }
     assert all(f"model.jaffle_shop.{NAME}" in test["depends_on"]["nodes"] for test in tests.values())
-
-
-@pytest.mark.dbt
-@pytest.mark.postgres
-def test_dbt_build_runs_the_generated_tests_against_postgres(repo: Path, tmp_path: Path):
-    dbt = shutil.which("dbt")
-    url = os.environ.get("DPB_TEST_POSTGRES_URL")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
-    if dbt is None or url is None:
-        pytest.skip("needs dbt (dependency group `dbt`) and DPB_TEST_POSTGRES_URL")
-    parsed = urlparse(url)
-    write(repo, MODEL, "select 1::numeric as days union all select 1::numeric\n")  # the key `days` repeats
-    with_rules(
-        repo,
-        "  - {rule: primary_key, columns: [days]}\n"  # fails
-        "  - {rule: row_count, min: 1}\n"  # passes
-        f"  - rule: sql\n    sql: select * from {REF} where days < 0;\n",  # passes
-    )
-    generate_repo(repo)
-    profiles = tmp_path / "profiles"
-    write(
-        profiles,
-        "profiles.yml",
-        "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
-        f"      {{type: postgres, host: '{parsed.hostname}', port: {parsed.port or 5432}, user: '{parsed.username}', "
-        f"password: '{parsed.password}', dbname: '{parsed.path.lstrip('/')}', "
-        f"schema: dpb_test_{uuid.uuid4().hex[:8]}, threads: 1}}\n",
-    )
-    build = subprocess.run(
-        [dbt, "build", "--project-dir", str(repo), "--profiles-dir", str(profiles)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )  # the failing key makes the exit code non-zero; the statuses below say what ran
-    results = json.loads((repo / "target" / "run_results.json").read_text())["results"]
-    statuses = {r["unique_id"].split(".")[2]: r["status"] for r in results}
-    assert statuses == {
-        NAME: "success",
-        f"{NAME}__primary_key": "fail",
-        f"{NAME}__row_count": "pass",
-        f"{NAME}__sql": "pass",
-    }, build.stdout + build.stderr

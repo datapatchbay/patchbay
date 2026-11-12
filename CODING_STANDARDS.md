@@ -314,6 +314,27 @@ uv run ruff format --check
 
 Every pull request runs the tests on each supported Python version, runs ty and runs ruff (`.github/workflows/ci.yml`).
 
+### Unit Tests and Integration Tests
+
+There are two kinds of test (ADR-0020):
+
+- **Unit tests** run with `uv run pytest`, in CI and on every developer's machine. They need no network, server or
+  Docker. The SQL that `dpb` generates is run against DuckDB in the test process.
+- **Integration tests** need a real service, which is a Postgres server for now. They live in
+  `tests/datapatchbay/integration/`, one file per tool or area, and every test in that folder carries the `integration`
+  marker automatically (`conftest.py` adds it). `uv run pytest` deselects that marker. Put a new integration test in
+  that folder; do not mark tests elsewhere.
+
+One command runs the integration tests. It starts Postgres in Docker, runs them, stops the container and exits non-zero
+when a test fails. It needs Docker and nothing else:
+
+```sh
+scripts/integration-tests          # extra arguments go to pytest, for example -k audit
+```
+
+Run it before pushing a change to the Postgres SQL. CI does not run integration tests. A quality rule MUST also be
+checked on DuckDB by a unit test, so that CI keeps covering it.
+
 ## Related Guidance
 
 - [Product document](product.md)

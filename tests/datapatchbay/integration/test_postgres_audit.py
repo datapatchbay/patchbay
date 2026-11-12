@@ -1,4 +1,6 @@
-"""The audit SQL of the Postgres warehouse, run against a real Postgres through the code generated into the DAG file."""
+"""The audit SQL of the Postgres warehouse, run against a real Postgres through the code generated into the DAG file.
+
+Integration tests (ADR-0020). What they check about a rule is also checked on DuckDB by the unit tests."""
 
 import logging
 from collections.abc import Iterator
@@ -7,8 +9,6 @@ from pathlib import Path
 import psycopg
 import pytest
 from audit_support import SCHEMA, audit_of, columns_yaml, load_orders, run_audit
-
-pytestmark = pytest.mark.postgres
 
 
 @pytest.fixture
