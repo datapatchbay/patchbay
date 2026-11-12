@@ -5,6 +5,13 @@ root `dbt_project.yml` are generated and committed next to the models. `build_db
 the planned repo, once, without writing anything. The value then does both jobs: `DbtOutput.write` writes it (files,
 then orphan deletions, then `dbt_project.yml` last) and `DbtOutput.problems` diffs it against the files on disk, so
 the two cannot drift. Nothing here imports or runs dbt (ADR-0004).
+
+`dpb generate` writes the files and also brings the `model-paths` and `test-paths` of `dbt_project.yml` at the repo
+root (not in the output folder, because the file is committed) in step, only if that is needed, and only those keys.
+Once any table is built by dbt, `dpb generate` owns both keys: a hand-set entry is replaced. When no table is built by
+dbt any more, only the entries that point at the `models/` or `tests/` folder of a data product are removed. A file
+that carries the generated header but is no longer produced (its table is gone or no longer built by dbt) is deleted.
+The order limits the damage of a failed write: the files, then the deletions, and `dbt_project.yml` last.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -96,6 +103,11 @@ class DbtOutput:
     test_paths: tuple[str, ...]
     project: DbtProjectChange | None
     project_error: str | None
+
+    @property
+    def error(self) -> str | None:
+        """Why the output cannot be written, as `CommittedOutput` asks: `project_error`."""
+        return self.project_error
 
     def problems(self) -> list[Problem]:
         """Diff the output with the files on disk, and look for hand-written duplicates of a model.

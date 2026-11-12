@@ -20,7 +20,6 @@ class PostgresWarehouse:
     def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
         """Return one audit task for the table's quality rules, or none when no rule has to run.
 
-        A rule with severity `none` is left out, so a table whose rules are all `none` gets no task. The rules of a
-        table that dbt builds run as dbt data tests, so such a table gets no audit task either.
+        A rule with severity `none` is left out, so a table whose rules are all `none` gets no task.
         """
         return audit_tasks(table, POSTGRES_DIALECT)

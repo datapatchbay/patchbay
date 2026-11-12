@@ -10,7 +10,7 @@ Each extension point is a `Protocol` in `datapatchbay.plugins`. A plugin is any 
 | --- | --- | --- |
 | `Orchestrator` | `datapatchbay.orchestrators` | `generate(plan, context)` returns the files for one data product. It composes the DAG from what the other three contribute, and `render_kind` (`task` or `function`) says what build code it needs. |
 | `Executor` | `datapatchbay.executors` | `call(table)` says what has to be called to build a table. |
-| `Runtime` | `datapatchbay.runtimes` | `render_kinds` lists the kinds of build code it can render, and `render_build_task(task, kind=, variable=)` renders the build task, the place where the code runs. |
+| `Runtime` | `datapatchbay.runtimes` | `call_types` lists the types of call it can run, `render_kinds` lists the kinds of build code it can render, and `render_build_task(task, kind=, variable=)` renders the build task, the place where the code runs. |
 | `Warehouse` | `datapatchbay.warehouses` | `apply_tasks(dataproduct)` and `audit_tasks(table)` return the SQL that the orchestrator runs. It never connects to the warehouse. |
 
 The plan data that plugins receive (`DataProductPlan`, `TablePlan`, `GenerationContext`) and the tasks they return (`SqlTask`, `AuditTask`, `BuildTask`, `RenderedTask`, `GeneratedFile`, ...) are in `datapatchbay.plugins` too. A plugin imports only from `datapatchbay.plugins`, and the built-in integrations follow the same rule: no integration imports another integration's folder.
@@ -25,6 +25,22 @@ mywarehouse = "my_package.warehouse:MyWarehouse"
 ```
 
 After `uv add my-package`, the `warehouse: mywarehouse` setting selects it. Plugins are selected by what they can do, never by name in the core. See [Settings and plugins](settings.md#plugins).
+
+## Executor capabilities
+
+An executor can do more than say what to call. The core asks for each extra with `isinstance` on the executor plugin and never asks which executor it is, so an executor has exactly the capabilities it implements. Each is a `runtime_checkable` `Protocol` in `datapatchbay.plugins`, and each is optional. The built-in `dbt` executor implements all of them; `python` implements `ChecksTables` and `ScaffoldsTables`.
+
+| Capability | Method or attribute | Contract |
+| --- | --- | --- |
+| `WritesCommittedFiles` | `committed_output(planned)` | The executor produces files that are committed in the repo. It returns a `CommittedOutput`: `problems()` diffs it with the disk (`dpb validate`), `write()` writes the files and deletes the `orphans` (`dpb generate`), and `error` says why it cannot be written, which stops `dpb generate` before any write. The core asks every installed executor with this capability, used or not, because files can be left from an earlier run. |
+| `ChecksDataProducts` | `check_dataproduct(repo, dataproduct)` | Stage 1 problems with the files of a data product, whichever executor its tables use. Called for every data product, before the checks of its tables. |
+| `ChecksTables` | `check_table(settings, dataproduct, table)` | Stage 1 problems with the table files that this executor builds. The plugin object lives for one validation, so it may remember what it saw, such as the names used so far. |
+| `ChecksPlans` | `check_plans(planned)` | Stage 2 problems that need the planned repo and the disk, such as comparing what a model reads with the input ports. Never runs when stage 1 found problems. |
+| `BatchesBuilds` | `batch_key`, `call_type`, `call(table)` | The tables of a data product that share a `batch_key` are built in one task, `build_<key>`, after the tables that are built one by one. `call(table)` is called with the first of them and returns the one call. No other table can `needs` a table of a batch, the tables of a batch share one runtime, and that runtime must list `call_type` in its `call_types`. |
+| `OwnsQualityRules` | `owns_quality_rules(table)` | The executor runs the quality rules of this table itself, so the warehouse gets no audit task for it. |
+| `ScaffoldsTables` | `scaffold_table(table)` | For `dpb new`: given a `NewTable`, returns a `ScaffoldedTable` with the `build` block of the table file (or `None`) and the files for the data product folder, such as the stub of the build code. |
+
+An executor without `ChecksTables` gets no check of its table files, so a missing `build.entrypoint` shows up when the build runs. An executor without `ScaffoldsTables` cannot be used by `dpb new`, which stops with an error instead of writing Python stubs.
 
 ## The SQL toolkit: `datapatchbay.plugins.sql`
 
@@ -46,8 +62,11 @@ For warehouse plugins.
 
 For orchestrator and runtime plugins that write Python files. A generated file never imports datapatchbay (ADR-0001), so everything here returns source text.
 
-`plan_builds(plan, context)`, `TableBuilds`
-: Asks each table's executor how to build it, and returns the tables in build order, split by how they are built. It refuses the combinations that cannot run.
+`plan_builds(plan, context)`, `TableBuilds`, `Batch`
+: Asks each table's executor how to build it, and returns the tables in build order, split into the tables built one by one and the `Batch` of each executor that builds together. It refuses the combinations that cannot run.
+
+`warehouse_audits(context, table)`
+: The audit tasks of the warehouse for a table, none when the table's executor owns its quality rules.
 
 `render_build(context, orchestrator, table, call, task_id=, where=, variable=)`
 : Has the table's runtime render its build, and turns a refusal into an `UnsupportedCombinationError` that names the table.

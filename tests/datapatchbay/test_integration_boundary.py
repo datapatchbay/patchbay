@@ -1,8 +1,8 @@
 """The core imports no integration, and an integration reaches shared code only through `datapatchbay.plugins`
 (ADR-0024). Integrations are found through entry points, never by import.
 
-The allow-list below is the debt of the core that still names dbt. It only shrinks: a new entry needs a reason that
-is as good as these, and the pull request that removes the reason removes the entry.
+The allow-list below holds the documented exceptions: `dpb new --from-dbt` is implemented in the dbt integration. It
+only shrinks: a new entry needs a reason that is as good as this one.
 """
 
 import ast
@@ -15,29 +15,7 @@ INTEGRATIONS = "datapatchbay.integrations"
 
 # core module (dotted, relative to datapatchbay) -> the integration modules it may import, with the reason.
 ALLOWED: dict[str, dict[str, str]] = {
-    "validation": {
-        "dbt.layout": "validate runs check_dbt on the planned repo until the executor can contribute checks",
-        "dbt.manifest": "validate reads the dbt manifest (check_dbt_reads) until the executor can contribute checks",
-        "dbt.output": "validate diffs the committed dbt files (build_dbt_output) until the executor owns them",
-    },
-    "generate": {
-        "dbt.output": "generate writes the committed dbt files (build_dbt_output) until the executor owns them",
-    },
-    "planning": {
-        "dbt.layout": "the plan locates the models folder of a data product (MODELS_FOLDER)",
-    },
-    "pluginchecks": {
-        "dbt.layout": "checks the dbt executor is installed when a table uses it (DBT_EXECUTOR)",
-    },
-    "plugins.sql.audit_sql": {
-        "dbt.layout": "warehouse audits skip tables dbt owns (DBT_EXECUTOR) until the executor owns its quality rules",
-    },
-    "scaffold": {
-        "dbt.layout": "dpb new names the dbt executor (DBT_EXECUTOR)",
-        "dbt.importer": "dpb new --from-dbt is a dbt-specific option, a documented exception",
-    },
     "cli.new": {
-        "dbt.layout": "dpb new names the dbt executor (DBT_EXECUTOR)",
         "dbt.importer": "dpb new --from-dbt is a dbt-specific option, a documented exception",
     },
 }

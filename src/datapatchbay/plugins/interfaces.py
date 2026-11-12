@@ -8,24 +8,47 @@ There are four extension points. Each one is a `Protocol`, and a plugin is any o
 - A **runtime** renders the build task, the place where an executor's code runs.
 - A **warehouse** produces the SQL that the orchestrator runs through its own connection (ADR-0001).
 
+An executor may also offer **capabilities**: small `runtime_checkable` protocols below that the core checks with
+`isinstance` on the executor plugin. The core never asks which executor it is. A capability is optional; an executor
+that lacks it is simply not asked.
+
 The interface is not stable in milestone 1.
 """
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Literal, Protocol
+from pathlib import Path, PurePosixPath
+from typing import Literal, Protocol, runtime_checkable
 
-from datapatchbay.plugins.plan import DataProductPlan, TablePlan
-from datapatchbay.plugins.tasks import AuditTask, BuildTask, DbtCall, GeneratedFile, PythonCall, RenderedTask, SqlTask
+from datapatchbay.plugins.plan import DataProductPlan, NewTable, PlannedRepo, TablePlan
+from datapatchbay.plugins.tasks import (
+    AuditTask,
+    BuildCall,
+    BuildTask,
+    GeneratedFile,
+    RenderedTask,
+    ScaffoldedTable,
+    SqlTask,
+)
+from datapatchbay.problems import Problem
+from datapatchbay.repomodel import DataProduct, Repo, Table
+from datapatchbay.settings import EffectiveSettings
 
 __all__ = [
+    "BatchesBuilds",
+    "ChecksDataProducts",
+    "ChecksPlans",
+    "ChecksTables",
+    "CommittedOutput",
     "Executor",
     "GenerationContext",
     "Orchestrator",
+    "OwnsQualityRules",
     "Runtime",
+    "ScaffoldsTables",
     "UnsupportedCombinationError",
     "Warehouse",
+    "WritesCommittedFiles",
 ]
 
 
@@ -58,8 +81,117 @@ class GenerationContext:
 class Executor(Protocol):
     """Says what has to be called to build a table."""
 
-    def call(self, table: TablePlan) -> PythonCall | DbtCall:
-        """Return how to call the table's build: a Python function, or a dbt build of the data product's models."""
+    def call(self, table: TablePlan) -> BuildCall:
+        """Return how to call the table's build, such as a Python function."""
+        ...
+
+
+@runtime_checkable
+class WritesCommittedFiles(Protocol):
+    """Capability: the executor produces files that are committed in the repo, next to the data products.
+
+    The core asks every installed executor with this capability, whether or not a table uses it, because files can
+    be left over from an earlier run. `dpb validate` compares the output with the disk, `dpb generate` writes it.
+    """
+
+    def committed_output(self, planned: PlannedRepo) -> "CommittedOutput":
+        """Work out the committed output of the planned repo, without writing anything."""
+        ...
+
+
+class CommittedOutput(Protocol):
+    """The value that `WritesCommittedFiles.committed_output` returns: one value that is both written and diffed.
+
+    Attributes:
+        orphans: Generated files that nothing produces any more, relative to the repo root, sorted.
+        error: Why the output cannot be written, or `None`. `dpb generate` fails with it before it writes anything.
+    """
+
+    orphans: tuple[PurePosixPath, ...]
+    error: str | None
+
+    def problems(self) -> list[Problem]:
+        """Diff the output with the files on disk; empty when they are in step."""
+        ...
+
+    def write(self) -> tuple[PurePosixPath, ...]:
+        """Write the files, delete the orphans and return the files written, relative to the repo root."""
+        ...
+
+
+@runtime_checkable
+class ChecksDataProducts(Protocol):
+    """Capability: the executor adds stage 1 checks of a data product's files, whichever executor its tables use.
+
+    The core calls it for every data product of the repo, in repo order, before the checks of its tables.
+    """
+
+    def check_dataproduct(self, repo: Repo, dataproduct: DataProduct) -> Sequence[Problem]:
+        """Return the problems with the files of one data product."""
+        ...
+
+
+@runtime_checkable
+class ChecksTables(Protocol):
+    """Capability: the executor adds stage 1 checks of the table files it builds.
+
+    The core calls it for each table whose executor, resolved over the settings cascade, is this plugin, in repo
+    order. One plugin object serves a whole validation, so it may keep what it saw (names used so far).
+    """
+
+    def check_table(self, settings: EffectiveSettings, dataproduct: DataProduct, table: Table) -> Sequence[Problem]:
+        """Return the problems with one table file."""
+        ...
+
+
+@runtime_checkable
+class ChecksPlans(Protocol):
+    """Capability: the executor adds stage 2 checks that need the planned repo, such as reading its own outputs.
+
+    The core calls it for every installed executor with this capability, after the repo passed stage 1.
+    """
+
+    def check_plans(self, planned: PlannedRepo) -> Sequence[Problem]:
+        """Return the problems found by comparing the plans with what is on disk."""
+        ...
+
+
+@runtime_checkable
+class BatchesBuilds(Protocol):
+    """Capability: the executor builds all its tables of a data product in one task.
+
+    The tables of one data product whose executors share a `batch_key` are built by one task named `build_<key>`,
+    after the tables that are built one by one. No other table can `needs` a table in a batch, and the tables of a
+    batch share one runtime, which must be able to run `call_type`.
+
+    Attributes:
+        batch_key: Names the group and its task, such as `dbt` for the task `build_dbt`.
+        call_type: The type of call the executor returns, which the runtime must be able to run.
+    """
+
+    batch_key: str
+    call_type: type
+
+    def call(self, table: TablePlan) -> BuildCall:
+        """Return the one call that builds every table of the batch; `table` is the first of them."""
+        ...
+
+
+@runtime_checkable
+class OwnsQualityRules(Protocol):
+    """Capability: the executor runs the quality rules of its tables itself, so the warehouse audits skip them."""
+
+    def owns_quality_rules(self, table: TablePlan) -> bool:
+        """Return whether the executor runs the rules of this table."""
+        ...
+
+
+@runtime_checkable
+class ScaffoldsTables(Protocol):
+    """Capability: the executor writes the stub of a new table for `dpb new`."""
+
+    def scaffold_table(self, table: NewTable) -> ScaffoldedTable:
+        """Return the `build` block of the table file and the files of the new data product that build it."""
         ...
 
 
@@ -71,19 +203,19 @@ Python function with no arguments that the orchestrator calls when the build has
 class Runtime(Protocol):
     """Renders the build task of a table, so it runs in the place this runtime stands for.
 
-    The attributes are class attributes every runtime sets. `dpb validate` reads `needs_image` and `runs_dbt`: it
-    reports a table whose resolved `image` is not set when `needs_image` is true, and a table built by dbt when
-    `runs_dbt` is false. `dpb generate` reads `render_kinds`: it refuses a runtime on an orchestrator whose
+    The attributes are class attributes every runtime sets. `dpb validate` reads `needs_image` and `call_types`: it
+    reports a table whose resolved `image` is not set when `needs_image` is true, and a batch of tables whose call type
+    is not in `call_types`. `dpb generate` reads `render_kinds`: it refuses a runtime on an orchestrator whose
     `render_kind` the runtime does not support.
 
     Attributes:
         needs_image: Whether the runtime runs a container image, so a table needs a resolved `image`.
-        runs_dbt: Whether the runtime can run `dbt build`.
+        call_types: The types of call the runtime can run.
         render_kinds: The render kinds this runtime can produce code for.
     """
 
     needs_image: bool
-    runs_dbt: bool
+    call_types: tuple[type, ...]
     render_kinds: frozenset[RenderKind]
 
     def render_build_task(self, task: BuildTask, *, kind: RenderKind, variable: str) -> RenderedTask:

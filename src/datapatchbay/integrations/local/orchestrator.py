@@ -23,17 +23,23 @@ from datapatchbay.integrations.local.script import (
 )
 from datapatchbay.plugins import (
     AuditTask,
+    BuildCall,
     DataProductPlan,
-    DbtCall,
     GeneratedFile,
     GenerationContext,
-    PythonCall,
     RenderKind,
     SqlTask,
     TablePlan,
     UnsupportedCombinationError,
 )
-from datapatchbay.plugins.codegen import RUN_AUDIT_HELPER, check_rows, plan_builds, python_literal, render_build
+from datapatchbay.plugins.codegen import (
+    RUN_AUDIT_HELPER,
+    check_rows,
+    plan_builds,
+    python_literal,
+    render_build,
+    warehouse_audits,
+)
 
 _NAME = re.compile(r"[A-Za-z0-9_.-]{1,250}")
 _INDENT = "    "
@@ -49,8 +55,8 @@ class LocalOrchestrator:
         """Return the script of the data product, `<folder>.py`.
 
         Raises:
-            UnsupportedCombinationError: If a name is not usable in a script, a Python table needs a table that dbt
-                builds, the tables built by dbt have different runtimes, or a plugin cannot render a task.
+            UnsupportedCombinationError: If a name is not usable in a script, a table needs a table of a batch it is
+                not in, the tables of a batch have different runtimes, or a plugin cannot render a task.
         """
         return [GeneratedFile(PurePosixPath(f"{plan.folder}.py"), _Script(plan, context).render())]
 
@@ -163,24 +169,23 @@ class _Script:
         return name
 
     def _steps(self) -> list[str]:
-        """Return the lines of `run()`: the Python tables with their audits, the dbt build, the warehouse's SQL."""
+        """Return the lines of `run()`: the Python tables with their audits, the batches, the warehouse's SQL."""
         plan = self._plan
         builds = plan_builds(plan, self._context)
         warehouse = self._context.warehouse
         lines: list[str] = []
         for table in builds.python_tables:
             lines += self._build(table, builds.calls[table.name])
-            for audit in warehouse.audit_tasks(table) if warehouse is not None else ():
+            for audit in warehouse_audits(self._context, table):
                 lines.append(self._step(audit, f"audit of table '{table.name}'"))
-        if builds.dbt_call is not None:
-            first = builds.dbt_tables[0]
-            lines += self._build(first, builds.dbt_call, task_id="build_dbt", where="tables built by dbt")
+        for batch in builds.batches:
+            lines += self._build(batch.tables[0], batch.call, task_id=batch.task_id, where=batch.where)
         for sql_task in warehouse.apply_tasks(plan) if warehouse is not None else ():
             lines.append(self._step(sql_task, "warehouse"))
         return lines
 
     def _build(
-        self, table: TablePlan, call: PythonCall | DbtCall, *, task_id: str | None = None, where: str | None = None
+        self, table: TablePlan, call: BuildCall, *, task_id: str | None = None, where: str | None = None
     ) -> list[str]:
         task_id = task_id or f"build_{table.name}"
         where = where or f"table '{table.name}'"

@@ -6,15 +6,17 @@ stable (ADR-0009). Generated files never import datapatchbay (ADR-0001), so what
 
 from datapatchbay.plugins.codegen.audit_code import AUDIT_HELPER, RUN_AUDIT_HELPER, check_rows, render_audit_task
 from datapatchbay.plugins.codegen.literals import python_literal
-from datapatchbay.plugins.codegen.table_builds import TableBuilds, plan_builds, render_build
+from datapatchbay.plugins.codegen.table_builds import Batch, TableBuilds, plan_builds, render_build, warehouse_audits
 
 __all__ = [
     "AUDIT_HELPER",
     "RUN_AUDIT_HELPER",
+    "Batch",
     "TableBuilds",
     "check_rows",
     "plan_builds",
     "python_literal",
     "render_audit_task",
     "render_build",
+    "warehouse_audits",
 ]

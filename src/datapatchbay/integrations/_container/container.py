@@ -30,12 +30,11 @@ def python_call_of(task: BuildTask, runtime: str) -> PythonCall:
     """Return the task's Python call.
 
     Raises:
-        UnsupportedCombinationError: If the executor asks for something else, such as a `dbt build`, which only the
-            worker runtime runs.
+        UnsupportedCombinationError: If the executor asks for something else, which only another runtime runs.
     """
     if not isinstance(task.call, PythonCall):
         raise UnsupportedCombinationError(
-            f"the {runtime} runtime cannot run dbt: set `runtime: worker` for the tables built by dbt"
+            f"the {runtime} runtime cannot run a {type(task.call).__name__}: set a runtime that can, with `runtime`"
         )
     return task.call
 

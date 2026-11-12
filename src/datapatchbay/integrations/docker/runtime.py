@@ -1,14 +1,14 @@
 """The `docker` runtime: a container from the resolved image, run on the worker host by Airflow's DockerOperator."""
 
 from datapatchbay.integrations._container.container import image_of, loader_arguments, operator_call
-from datapatchbay.plugins import BuildTask, RenderedTask, RenderKind
+from datapatchbay.plugins import BuildTask, PythonCall, RenderedTask, RenderKind
 
 
 class DockerRuntime:
     """Run the entrypoint in a Docker container (ADR-0016)."""
 
     needs_image = True
-    runs_dbt = False
+    call_types: tuple[type, ...] = (PythonCall,)
     render_kinds: frozenset[RenderKind] = frozenset({"task"})
 
     def render_build_task(self, task: BuildTask, *, kind: RenderKind, variable: str) -> RenderedTask:
@@ -19,7 +19,7 @@ class DockerRuntime:
                 `container` names an argument that dpb sets.
             ValueError: If a param or a `container` value is not a plain YAML value.
         """
-        command = loader_arguments(task, "docker")  # first, so a dbt call is refused before a missing image
+        command = loader_arguments(task, "docker")  # first, so another call is refused before a missing image
         set_by_dpb = {
             "task_id": task.task_id,
             "image": image_of(task, "docker"),

@@ -10,17 +10,24 @@ import re
 from collections.abc import Iterator
 from pathlib import PurePosixPath
 
-from datapatchbay.cascade import ResolvedCascade
 from datapatchbay.naming import NamingTemplateError, derive_names, render_name
+from datapatchbay.plugins.plan import MODELS_FOLDER, NewTable
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import DataProduct, Repo, Table
 from datapatchbay.settings import EffectiveSettings
 
+__all__ = [
+    "DBT_EXECUTOR",
+    "MODELS_FOLDER",
+    "TESTS_FOLDER",
+    "check_dbt_dataproduct",
+    "check_dbt_table",
+    "model_name",
+    "new_model_name",
+]
+
 DBT_EXECUTOR = "dbt"
 """The name of the dbt executor."""
-
-MODELS_FOLDER = "models"
-"""The folder of a data product that holds its dbt models."""
 
 TESTS_FOLDER = "tests"
 """The folder of a data product that holds its generated singular dbt tests (ADR-0019)."""
@@ -59,40 +66,44 @@ def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Tab
         return None
 
 
-def check_dbt(repo: Repo, settings: EffectiveSettings, cascade: ResolvedCascade) -> list[Problem]:
-    """Check how the executor of each table fits its table file, and what the folder of a dbt model must hold.
+def new_model_name(new: NewTable, table: str) -> str:
+    """Return the dbt model name of a table of a data product `dpb new` is writing, from the `dbt_model` template."""
+    conventions = new.conventions
+    return render_name(
+        conventions.names.dbt_model,
+        name=new.dataproduct_name,
+        kind_name=new.kind,
+        kind=conventions.kinds[new.kind],
+        extra={"dataproduct": new.dataproduct, "table": table},
+    )
 
-    - A table built by dbt has no `entrypoint`, `params` or `needs`, and its model file exists.
-    - The rendered model name of a table built by dbt is a plain identifier, and no other such table has the same name.
-    - Any other table needs a `build.entrypoint`, because the python executor calls it.
+
+def check_dbt_dataproduct(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
+    """Check what the folder of a dbt model must hold.
+
     - No `.py` file sits in the `models/` folder of a data product, because dbt reads it as a dbt Python model.
 
     Args:
         repo: The loaded repository.
-        settings: The effective settings, which hold the naming templates.
-        cascade: The resolved settings, which give the executor of each table.
-
-    Returns:
-        The problems found, empty when the executors fit the table files.
+        dataproduct: The data product to check.
     """
-    problems: list[Problem] = []
-    # Lower-cased model name -> table file: model names are unique in a dbt project, and a warehouse folds case.
-    used: dict[str, PurePosixPath] = {}
-    for dataproduct in repo.dataproducts:
-        problems.extend(_check_models_folder(repo, dataproduct))
-        for port in dataproduct.ports:
-            for table in port.tables:
-                executor = cascade.for_table(table)["executor"]
-                if executor.value == DBT_EXECUTOR:
-                    problems.extend(_check_dbt_table(settings, dataproduct, table, used))
-                else:
-                    problems.extend(_check_entrypoint(table, executor.value))
-    return problems
+    return _check_models_folder(repo, dataproduct)
 
 
-def _check_dbt_table(
+def check_dbt_table(
     settings: EffectiveSettings, dataproduct: DataProduct, table: Table, used: dict[str, PurePosixPath]
 ) -> Iterator[Problem]:
+    """Check how a table built by dbt fits its table file.
+
+    - It has no `entrypoint`, `params` or `needs`, and its model file exists.
+    - The rendered model name is a plain identifier, and no other such table has the same name.
+
+    Args:
+        settings: The effective settings, which hold the naming templates.
+        dataproduct: The data product that holds the table.
+        table: The table dbt builds.
+        used: Lower-cased model name -> table file, for the tables checked so far; the check adds this table.
+    """
     file = table.file
     build = file.model.build
     if build is not None:
@@ -131,23 +142,6 @@ def _check_dbt_table(
             file.line("name"),
             f"model file {MODELS_FOLDER}/{name}.sql does not exist in the folder of data product "
             f"'{dataproduct.folder}'; table '{table.name}' is built by dbt",
-        )
-
-
-def _check_entrypoint(table: Table, executor: object) -> Iterator[Problem]:
-    file = table.file
-    build = file.model.build
-    if build is None:
-        yield Problem(
-            file.path,
-            None,
-            f"table '{table.name}' needs a `build` block with an `entrypoint`, because its executor is '{executor}'",
-        )
-    elif build.entrypoint is None:
-        yield Problem(
-            file.path,
-            file.line("build"),
-            f"table '{table.name}' needs a `build.entrypoint`, because its executor is '{executor}'",
         )
 
 

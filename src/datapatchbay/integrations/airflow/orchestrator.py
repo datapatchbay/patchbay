@@ -14,18 +14,24 @@ from pathlib import Path, PurePosixPath
 from datapatchbay.genheader import generated_header
 from datapatchbay.plugins import (
     AuditTask,
+    BuildCall,
     DataProductPlan,
-    DbtCall,
     GeneratedFile,
     GenerationContext,
-    PythonCall,
     RenderedTask,
     RenderKind,
     SqlTask,
     TablePlan,
     UnsupportedCombinationError,
 )
-from datapatchbay.plugins.codegen import TableBuilds, plan_builds, python_literal, render_audit_task, render_build
+from datapatchbay.plugins.codegen import (
+    Batch,
+    plan_builds,
+    python_literal,
+    render_audit_task,
+    render_build,
+    warehouse_audits,
+)
 
 _ID = re.compile(r"[A-Za-z0-9_.-]{1,250}")
 _INDENT = "    "
@@ -142,8 +148,8 @@ class _DagFile:
     def _tables(self) -> dict[str, list[str]]:
         """Add the build tasks and audit tasks; return the variables that mean 'table done' per table.
 
-        Each Python table has a build task and its audit tasks. The tables built by dbt share one task that runs after
-        the Python tables, because dbt runs their models and data tests together.
+        Each Python table has a build task and its audit tasks. The tables of a batch share one task that runs after
+        the Python tables, because their executor builds them and runs their rules together.
         """
         builds = plan_builds(self._plan, self._context)
         done: dict[str, list[str]] = {}
@@ -159,23 +165,20 @@ class _DagFile:
                 for upstream in done[need]:
                     self._body.append(f"{upstream} >> {build}")
             self._needed.update(table.needs)
-        if builds.dbt_call is not None:
-            self._dbt(builds, builds.dbt_call, done)
+        for batch in builds.batches:
+            self._batch(batch, done)
         return done
 
-    def _dbt(self, builds: TableBuilds, call: DbtCall, done: dict[str, list[str]]) -> None:
-        """Add the one task that builds the dbt tables with `dbt build`, after every Python table is done."""
-        first = builds.dbt_tables[0]
+    def _batch(self, batch: Batch, done: dict[str, list[str]]) -> None:
+        """Add the one task that builds the tables of a batch, after every table before it is done."""
         upstream = [variable for name, variables in done.items() if name not in self._needed for variable in variables]
-        build = self._build(first, call, task_id="build_dbt", where="tables built by dbt")
+        build = self._build(batch.tables[0], batch.call, task_id=batch.task_id, where=batch.where)
         self._body.extend(f"{variable} >> {build}" for variable in upstream)
-        self._needed.update(done)  # the dbt task follows every Python table, so only it is last
-        for table in builds.dbt_tables:
+        self._needed.update(done)  # the batch task follows every table before it, so only it is last
+        for table in batch.tables:
             done[table.name] = [build]
 
-    def _build(
-        self, table: TablePlan, call: PythonCall | DbtCall, *, task_id: str | None = None, where: str | None = None
-    ) -> str:
+    def _build(self, table: TablePlan, call: BuildCall, *, task_id: str | None = None, where: str | None = None) -> str:
         task_id = task_id or f"build_{table.name}"
         where = where or f"table '{table.name}'"
         self._claim_task_id(task_id, where)
@@ -194,8 +197,7 @@ class _DagFile:
         return variable
 
     def _warehouse_audits(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
-        warehouse = self._context.warehouse
-        return warehouse.audit_tasks(table) if warehouse is not None else ()
+        return warehouse_audits(self._context, table)
 
     def _add(self, rendered: RenderedTask) -> None:
         self._imports.update(rendered.imports)

@@ -8,8 +8,7 @@ from pathlib import PurePosixPath
 from ruamel.yaml.comments import CommentedMap
 
 from datapatchbay.cascade import ResolvedCascade, ResolvedSetting
-from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
-from datapatchbay.plugins import Runtime
+from datapatchbay.plugins import BatchesBuilds, Runtime
 from datapatchbay.plugins.registry import PluginKind, load_plugin, plugin_names
 from datapatchbay.problems import Problem
 from datapatchbay.repo import ROOT_FILE
@@ -29,7 +28,7 @@ def check_plugins(
     checker = _Checker(settings, cascade, root_data)
     for dataproduct in repo.dataproducts:
         checker.check(dataproduct, None, "orchestrator", "orchestrator")
-        checker.check_dbt(dataproduct)
+        checker.check_batches(dataproduct)
         for port in dataproduct.ports:
             for table in port.tables:
                 checker.check(dataproduct, table, "executor", "executor")
@@ -46,6 +45,7 @@ class _Checker:
         self._root_data = root_data
         self._names: dict[PluginKind, list[str]] = {}
         self._runtimes: dict[str, Runtime] = {}
+        self._executors: dict[str, object] = {}
         self.problems: list[Problem] = []
 
     def _installed(self, kind: PluginKind) -> list[str]:
@@ -79,58 +79,79 @@ class _Checker:
         )
         self.problems.append(Problem(file, line, message))
 
-    def check_dbt(self, dataproduct: DataProduct) -> None:
-        """Report what the dbt build task of the data product cannot do, so `dpb generate` does not fail on it.
+    def check_batches(self, dataproduct: DataProduct) -> None:
+        """Report what the batch task of the data product cannot do, so `dpb generate` does not fail on it.
 
-        The tables built by dbt are built in one task, so each needs a runtime that runs dbt, they share one runtime,
-        and no other table can `needs` one of them, because that task runs after the Python tables.
+        The tables of an executor that builds in a batch are built in one task, so each needs a runtime that runs
+        its call, they share one runtime, and no other table can `needs` one of them, because that task runs after
+        the tables built one by one.
         """
-        dbt_runtimes: dict[str, ResolvedSetting] = {}
+        call_types: dict[str, type] = {}  # batch key -> the type of call the executor returns
+        batches: dict[str, dict[str, ResolvedSetting]] = {}  # batch key -> the runtime setting of each table
+        in_batch: dict[str, str] = {}  # table -> batch key
         for port in dataproduct.ports:
             for table in port.tables:
                 resolved = self._cascade.for_table(table)
-                if resolved["executor"].value == DBT_EXECUTOR:
-                    dbt_runtimes[table.name] = resolved["runtime"]
-        first: str | None = None
-        for name, runtime in dbt_runtimes.items():
-            if runtime.value in self._installed("runtime") and not self._runs_dbt(str(runtime.value)):
-                file, line = self._where(runtime)
-                self.problems.append(
-                    Problem(
-                        file,
-                        line,
-                        f"runtime '{runtime.value}' cannot run dbt (data product '{dataproduct.folder}', table "
-                        f"'{name}'); set `runtime: worker` for the tables built by dbt",
-                    )
-                )
-            elif first is None:
-                first = name
-            elif runtime.value != dbt_runtimes[first].value:
-                file, line = self._where(runtime)
-                message = (
-                    f"tables '{first}' and '{name}' of data product '{dataproduct.folder}' are built by dbt in one "
-                    f"task, but their runtimes are '{dbt_runtimes[first].value}' and '{runtime.value}'"
-                )
-                self.problems.append(Problem(file, line, message))
+                executor = self._executor(str(resolved["executor"].value))
+                if isinstance(executor, BatchesBuilds):
+                    call_types[executor.batch_key] = executor.call_type
+                    batches.setdefault(executor.batch_key, {})[table.name] = resolved["runtime"]
+                    in_batch[table.name] = executor.batch_key
+        for key, runtimes in batches.items():
+            self._check_batch(dataproduct, key, call_types[key], runtimes)
         for port in dataproduct.ports:
             for table in port.tables:
-                for index, need in enumerate(() if table.name in dbt_runtimes else table.needs):
-                    if need in dbt_runtimes:
+                for index, need in enumerate(table.needs):
+                    if need in in_batch and in_batch[need] != in_batch.get(table.name):
                         message = (
-                            f"table '{table.name}' needs table '{need}', which dbt builds after the Python tables; "
-                            "dbt tables cannot be needed"
+                            f"table '{table.name}' needs table '{need}', which {in_batch[need]} builds after the "
+                            f"Python tables; {in_batch[need]} tables cannot be needed"
                         )
                         self.problems.append(
                             Problem(table.file.path, table.file.line("build", "needs", index), message)
                         )
 
+    def _check_batch(
+        self, dataproduct: DataProduct, key: str, call_type: type, runtimes: dict[str, ResolvedSetting]
+    ) -> None:
+        first: str | None = None
+        for name, runtime in runtimes.items():
+            if (
+                runtime.value in self._installed("runtime")
+                and call_type not in self._runtime(str(runtime.value)).call_types
+            ):
+                file, line = self._where(runtime)
+                capable = " or ".join(self._runtimes_running(call_type))
+                self.problems.append(
+                    Problem(
+                        file,
+                        line,
+                        f"runtime '{runtime.value}' cannot run {key} (data product '{dataproduct.folder}', table "
+                        f"'{name}'); set `runtime: {capable}` for the tables built by {key}",
+                    )
+                )
+            elif first is None:
+                first = name
+            elif runtime.value != runtimes[first].value:
+                file, line = self._where(runtime)
+                message = (
+                    f"tables '{first}' and '{name}' of data product '{dataproduct.folder}' are built by {key} in one "
+                    f"task, but their runtimes are '{runtimes[first].value}' and '{runtime.value}'"
+                )
+                self.problems.append(Problem(file, line, message))
+
+    def _runtimes_running(self, call_type: type) -> list[str]:
+        return [name for name in self._installed("runtime") if call_type in self._runtime(name).call_types]
+
+    def _executor(self, name: str) -> object:
+        if name not in self._executors:
+            self._executors[name] = load_plugin("executor", name) if name in self._installed("executor") else None
+        return self._executors[name]
+
     def _runtime(self, name: str) -> Runtime:
         if name not in self._runtimes:
             self._runtimes[name] = load_plugin("runtime", name)
         return self._runtimes[name]
-
-    def _runs_dbt(self, runtime: str) -> bool:
-        return self._runtime(runtime).runs_dbt
 
     def _needs_image(self, runtime: str) -> bool:
         return self._runtime(runtime).needs_image

@@ -83,7 +83,7 @@ class WorkerRuntime:
     """Call the entrypoint in the orchestrator's own process, so it runs on the worker."""
 
     needs_image = False
-    runs_dbt = True
+    call_types: tuple[type, ...] = (PythonCall, DbtCall)
     render_kinds: frozenset[RenderKind] = frozenset({"task", "function"})
 
     def render_build_task(self, task: BuildTask, *, kind: RenderKind, variable: str) -> RenderedTask:
