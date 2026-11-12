@@ -16,4 +16,5 @@ We chose this so that adding an orchestrator, executor, runtime or warehouse is 
 
 - Moving a module changes only its path, not its behaviour: the generated files and the output of `validate`, `describe`, `list` and `config` are unchanged.
 - The imports of dbt that the core still has are removed one by one, by putting dbt behind the executor interface, until only the documented exceptions are left.
+- One shared folder still imports an integration: `_sql/audit_sql.py` imports the dbt executor name, so that warehouse audits skip tables dbt owns. The boundary test covers the core only; this import goes with the dbt capability work above.
 - The tests mirror the layout, in `tests/datapatchbay/integrations/<technology>/`.

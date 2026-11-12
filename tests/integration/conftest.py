@@ -15,7 +15,7 @@ from psycopg.conninfo import make_conninfo
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Every test in this folder is an integration test, so it carries the marker that `uv run pytest` deselects."""
     for item in items:
-        if "integration" in item.path.parts:
+        if item.path.is_relative_to(Path(__file__).parent):
             item.add_marker(pytest.mark.integration)
         elif item.get_closest_marker("dbt"):
             # Outside this folder it would run in `uv run pytest`, and skip silently where dbt is missing.
