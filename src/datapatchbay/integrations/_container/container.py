@@ -10,8 +10,8 @@ import keyword
 from collections.abc import Mapping
 from typing import Any
 
-from datapatchbay.integrations._codegen.literals import python_literal
 from datapatchbay.plugins import BuildTask, PythonCall, UnsupportedCombinationError
+from datapatchbay.plugins.codegen import python_literal
 
 ENTRYPOINT_LOADER = """\
 import importlib.util, json, sys

@@ -18,11 +18,9 @@ How one output port is applied:
 from collections.abc import Iterable, Sequence
 
 from datapatchbay.errors import DatapatchbayError
-from datapatchbay.integrations._sql.audit_sql import Dialect
-from datapatchbay.integrations._sql.port_views import output_ports, view_sql
-from datapatchbay.integrations._sql.sqlquote import standard_identifier, standard_literal
 from datapatchbay.models import OutputPortFile, ProductReader
 from datapatchbay.plugins import DataProductPlan, TablePlan
+from datapatchbay.plugins.sql import Dialect, output_ports, standard_identifier, standard_literal, view_sql
 from datapatchbay.repomodel import Port
 
 __all__ = ["access_sql"]

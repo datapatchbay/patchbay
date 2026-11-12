@@ -106,7 +106,7 @@ airflow = "datapatchbay.integrations.airflow.orchestrator:AirflowOrchestrator"
 
 The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatchbay.runtimes` and `datapatchbay.warehouses`. The interfaces are the `Protocol` classes in `datapatchbay.plugins`, which also holds the plan data the plugins receive and the tasks they return. The orchestrator composes the DAG from what the others contribute: the executor says what to call, the runtime renders the build task, and the warehouse returns SQL tasks that the orchestrator runs through its own connection.
 
-The plugin interface is not declared stable yet.
+The plugin interface is not declared stable yet. [Writing a plugin](plugins.md) shows the extension points and the SQL and codegen toolkits.
 
 ## The connection for DuckDB
 

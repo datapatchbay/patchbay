@@ -1,6 +1,6 @@
 import pytest
 
-from datapatchbay.integrations._sql.sqlquote import standard_identifier, standard_literal
+from datapatchbay.plugins.sql.sqlquote import standard_identifier, standard_literal
 
 
 @pytest.mark.parametrize(("name", "expected"), [("orders", '"orders"'), ('we"ird', '"we""ird"')])

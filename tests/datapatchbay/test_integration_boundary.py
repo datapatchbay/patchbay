@@ -1,4 +1,5 @@
-"""The core imports no integration (ADR-0024). Integrations are found through entry points, never by import.
+"""The core imports no integration, and an integration reaches shared code only through `datapatchbay.plugins`
+(ADR-0024). Integrations are found through entry points, never by import.
 
 The allow-list below is the debt of the core that still names dbt. It only shrinks: a new entry needs a reason that
 is as good as these, and the pull request that removes the reason removes the entry.
@@ -27,6 +28,9 @@ ALLOWED: dict[str, dict[str, str]] = {
     },
     "pluginchecks": {
         "dbt.layout": "checks the dbt executor is installed when a table uses it (DBT_EXECUTOR)",
+    },
+    "plugins.sql.audit_sql": {
+        "dbt.layout": "warehouse audits skip tables dbt owns (DBT_EXECUTOR) until the executor owns its quality rules",
     },
     "scaffold": {
         "dbt.layout": "dpb new names the dbt executor (DBT_EXECUTOR)",
@@ -88,3 +92,50 @@ def test_every_allow_list_entry_is_still_needed():
         if name not in modules.get(module, set())
     ]
     assert not stale, "remove from ALLOWED, the import is gone:\n" + "\n".join(stale)
+
+
+# Folders that start with an underscore hold code shared by several integrations; each is open to named integrations.
+SHARED_INTEGRATION_FOLDERS: dict[str, set[str]] = {
+    "_container": {"docker", "kubernetes"},
+}
+
+
+def integration_modules() -> list[Path]:
+    return [p for p in sorted((PACKAGE / "integrations").rglob("*.py")) if p.parent != PACKAGE / "integrations"]
+
+
+def own_folder(path: Path) -> str:
+    return path.relative_to(PACKAGE / "integrations").parts[0]
+
+
+def test_an_integration_imports_no_other_integration_folder():
+    """Shared code comes from `datapatchbay.plugins` (sql, codegen), never from the folder of another integration."""
+    violations = []
+    for path in integration_modules():
+        folder = own_folder(path)
+        for name in integration_imports(path):
+            target = name.split(".")[0]
+            if target in ("", folder) or folder in SHARED_INTEGRATION_FOLDERS.get(target, set()):
+                continue
+            violations.append(f"integrations.{folder} ({path.name}) imports integrations.{name}")
+    assert not violations, "an integration may import only its own folder or datapatchbay.plugins:\n" + "\n".join(
+        violations
+    )
+
+
+def test_an_integration_uses_no_relative_import_out_of_its_folder():
+    violations = []
+    for path in integration_modules():
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.ImportFrom) and node.level > 1:
+                violations.append(f"{path.relative_to(PACKAGE)} imports {'.' * node.level}{node.module or ''}")
+    assert not violations, "\n".join(violations)
+
+
+def test_the_shared_toolkits_are_public_and_declare_what_is_public():
+    for name in ("sql", "codegen"):
+        module = __import__(f"datapatchbay.plugins.{name}", fromlist=["x"])
+        assert "public, not yet stable in milestone 1" in (module.__doc__ or "")
+        assert module.__all__, name
+        for exported in module.__all__:
+            assert hasattr(module, exported), f"datapatchbay.plugins.{name} lists {exported} in __all__ but lacks it"

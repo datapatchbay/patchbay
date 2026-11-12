@@ -4,8 +4,8 @@ The DAG file may not import datapatchbay (ADR-0001), so the code that runs the c
 orchestrator copies into it.
 """
 
-from datapatchbay.integrations._codegen.literals import python_literal
 from datapatchbay.plugins import AuditTask, RenderedTask
+from datapatchbay.plugins.codegen.literals import python_literal
 
 RUN_AUDIT_HELPER = '''\
 def _run_audit(checks, count_violations):

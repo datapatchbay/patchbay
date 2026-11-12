@@ -5,8 +5,8 @@ For `airflow` the build is rendered as an Airflow task. For the orchestrators wh
 build has to run.
 """
 
-from datapatchbay.integrations._codegen.literals import python_literal
 from datapatchbay.plugins import BuildTask, DbtCall, PythonCall, RenderedTask, UnsupportedCombinationError
+from datapatchbay.plugins.codegen import python_literal
 
 _AIRFLOW_HELPER = '''\
 def _build_task(task_id, path, function, params):
