@@ -16,6 +16,7 @@ from datapatchbay.plugins import (
     GenerationContext,
     OwnsQualityRules,
     RenderedTask,
+    RenderKind,
     SqlTask,
     TablePlan,
     UnsupportedCombinationError,
@@ -120,6 +121,7 @@ def warehouse_audits(context: GenerationContext, table: TablePlan) -> Sequence[S
 def render_build(
     context: GenerationContext,
     orchestrator: str,
+    kind: RenderKind,
     table: TablePlan,
     call: BuildCall,
     *,
@@ -131,7 +133,8 @@ def render_build(
 
     Args:
         context: The runtimes of the data product's tables.
-        orchestrator: Name of the orchestrator plugin the code is for.
+        orchestrator: Name of the orchestrator plugin the code is for, used in error messages only.
+        kind: The render kind the orchestrator declares.
         table: The table to build; for a batch, the first of its tables.
         call: What the executor asked for.
 
@@ -144,7 +147,12 @@ def render_build(
         UnsupportedCombinationError: If the runtime cannot render the build, or cannot write a param as Python.
     """
     task = BuildTask(task_id=task_id, table=table, call=call)
+    runtime = context.runtimes[table.runtime]
+    if kind not in runtime.render_kinds:
+        raise UnsupportedCombinationError(
+            f"the {table.runtime} runtime cannot render tasks for orchestrator '{orchestrator}'"
+        )
     try:
-        return context.runtimes[table.runtime].render_build_task(task, orchestrator=orchestrator, variable=variable)
+        return runtime.render_build_task(task, kind=kind, variable=variable)
     except ValueError as exc:
         raise UnsupportedCombinationError(f"{where}: {exc}") from exc

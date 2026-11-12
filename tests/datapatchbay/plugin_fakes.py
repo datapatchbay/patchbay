@@ -6,7 +6,16 @@ from typing import Any
 
 import pytest
 
-from datapatchbay.plugins import DataProductPlan, GeneratedFile, GenerationContext, SqlTask, TablePlan, registry
+from datapatchbay.plugins import (
+    DataProductPlan,
+    GeneratedFile,
+    GenerationContext,
+    RenderKind,
+    SqlTask,
+    TablePlan,
+    registry,
+)
+from datapatchbay.plugins.codegen.table_builds import plan_builds, render_build
 from datapatchbay.plugins.registry import PluginKind
 
 
@@ -57,6 +66,8 @@ def install_distribution(monkeypatch: pytest.MonkeyPatch, site: Path, kind: Plug
 class FakeOrchestrator:
     """Write one text file per data product that lists its tables, and remember what it was asked."""
 
+    render_kind: RenderKind = "task"
+
     def __init__(self) -> None:
         self.plans: list[DataProductPlan] = []
 
@@ -74,3 +85,27 @@ class FakeWarehouse:
 
     def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask]:
         return [SqlTask(f"audit_{table.name}", f"SELECT 'it''s' FROM {table.name} WHERE false")]
+
+
+class ThirdPartyOrchestrator:
+    """An orchestrator that is not in this package: it asks each runtime for a plain function per Python table."""
+
+    render_kind: RenderKind = "function"
+
+    def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
+        builds = plan_builds(plan, context)
+        lines: list[str] = []
+        for table in builds.python_tables:
+            rendered = render_build(
+                context,
+                plan.orchestrator,
+                self.render_kind,
+                table,
+                builds.calls[table.name],
+                task_id=f"build_{table.name}",
+                where=f"table '{table.name}'",
+                variable=f"build_{table.name}",
+            )
+            lines.extend([*rendered.imports, *rendered.helpers, *rendered.lines])
+        text = "DATAPRODUCT_DIR = None\n" + "\n".join(lines) + "\n"
+        return [GeneratedFile(PurePosixPath(f"{plan.folder}.py"), text)]

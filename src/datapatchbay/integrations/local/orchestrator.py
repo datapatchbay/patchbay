@@ -27,6 +27,7 @@ from datapatchbay.plugins import (
     DataProductPlan,
     GeneratedFile,
     GenerationContext,
+    RenderKind,
     SqlTask,
     TablePlan,
     UnsupportedCombinationError,
@@ -47,6 +48,8 @@ _CONNECTION_PREFIX = "DPB_CONNECTION_"
 
 class LocalOrchestrator:
     """Generate a Python script that builds one data product when it runs."""
+
+    render_kind: RenderKind = "function"
 
     def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
         """Return the script of the data product, `<folder>.py`.
@@ -189,7 +192,14 @@ class _Script:
         self._claim_task_id(task_id, where)
         variable = self._variable(task_id)
         rendered = render_build(
-            self._context, self._plan.orchestrator, table, call, task_id=task_id, where=where, variable=variable
+            self._context,
+            self._plan.orchestrator,
+            LocalOrchestrator.render_kind,
+            table,
+            call,
+            task_id=task_id,
+            where=where,
+            variable=variable,
         )
         self._imports.update(rendered.imports)
         self._add_helpers(*rendered.helpers)

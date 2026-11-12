@@ -18,4 +18,4 @@ def table_of(root: Path, name: str = "ingested_orders") -> TablePlan:
 
 def render(runtime: DockerRuntime | KubernetesRuntime, table: TablePlan) -> RenderedTask:
     task = BuildTask(f"build_{table.name}", table, PythonExecutor().call(table))
-    return runtime.render_build_task(task, orchestrator="airflow", variable="build")
+    return runtime.render_build_task(task, kind="task", variable="build")

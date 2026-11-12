@@ -17,6 +17,7 @@ MODULE_OF = {
         "GenerationContext",
         "Orchestrator",
         "OwnsQualityRules",
+        "RenderKind",
         "Runtime",
         "ScaffoldsTables",
         "UnsupportedCombinationError",

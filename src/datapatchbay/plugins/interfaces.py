@@ -18,7 +18,7 @@ The interface is not stable in milestone 1.
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 from datapatchbay.plugins.plan import DataProductPlan, NewTable, PlannedRepo, TablePlan
 from datapatchbay.plugins.tasks import (
@@ -195,32 +195,41 @@ class ScaffoldsTables(Protocol):
         ...
 
 
+RenderKind = Literal["task", "function"]
+"""What build code an orchestrator needs: `task` is an Airflow-style operator or task object, `function` is a plain
+Python function with no arguments that the orchestrator calls when the build has to run."""
+
+
 class Runtime(Protocol):
     """Renders the build task of a table, so it runs in the place this runtime stands for.
 
-    Both are class attributes every runtime sets. `dpb validate` reads them: it reports a table whose resolved `image`
-    is not set when `needs_image` is true, and a batch of tables whose call type is not in `call_types`.
+    The attributes are class attributes every runtime sets. `dpb validate` reads `needs_image` and `call_types`: it
+    reports a table whose resolved `image` is not set when `needs_image` is true, and a batch of tables whose call type
+    is not in `call_types`. `dpb generate` reads `render_kinds`: it refuses a runtime on an orchestrator whose
+    `render_kind` the runtime does not support.
 
     Attributes:
         needs_image: Whether the runtime runs a container image, so a table needs a resolved `image`.
         call_types: The types of call the runtime can run.
+        render_kinds: The render kinds this runtime can produce code for.
     """
 
     needs_image: bool
     call_types: tuple[type, ...]
+    render_kinds: frozenset[RenderKind]
 
-    def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
-        """Render the build task for an orchestrator.
+    def render_build_task(self, task: BuildTask, *, kind: RenderKind, variable: str) -> RenderedTask:
+        """Render the build task as code of the given kind.
 
         Args:
             task: The table's build.
 
         Keyword Args:
-            orchestrator: Name of the orchestrator plugin the code is for.
+            kind: The render kind the orchestrator needs; one of `render_kinds`.
             variable: The name that the task must be assigned to in `RenderedTask.lines`.
 
         Raises:
-            UnsupportedCombinationError: If this runtime cannot run on that orchestrator or cannot run the call.
+            UnsupportedCombinationError: If this runtime cannot render that kind or cannot run the call.
             ValueError: If a param or setting of the table cannot be written into the task, such as a value that is
                 not a plain YAML value. The orchestrator reports it as an `UnsupportedCombinationError` naming
                 the table.
@@ -245,7 +254,13 @@ class Warehouse(Protocol):
 
 
 class Orchestrator(Protocol):
-    """Generates the files an orchestrator runs for one data product."""
+    """Generates the files an orchestrator runs for one data product.
+
+    Attributes:
+        render_kind: The kind of build code the generated file needs from a runtime (`task` or `function`).
+    """
+
+    render_kind: RenderKind
 
     def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
         """Return the files for one data product.

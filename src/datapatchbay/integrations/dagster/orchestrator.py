@@ -26,6 +26,7 @@ from datapatchbay.plugins import (
     GeneratedFile,
     GenerationContext,
     PythonCall,
+    RenderKind,
     SqlTask,
     TablePlan,
     UnsupportedCombinationError,
@@ -44,6 +45,8 @@ _RESERVED = frozenset(
 
 class DagsterOrchestrator:
     """Generate a Python module with the Dagster definitions of one data product."""
+
+    render_kind: RenderKind = "function"
 
     def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
         """Return the module of the data product.
@@ -169,7 +172,14 @@ class _Module:
         """Add the build function that the runtime renders; return its name."""
         variable = self._variable(task_id)
         rendered = render_build(
-            self._context, self._plan.orchestrator, table, call, task_id=task_id, where=where, variable=variable
+            self._context,
+            self._plan.orchestrator,
+            DagsterOrchestrator.render_kind,
+            table,
+            call,
+            task_id=task_id,
+            where=where,
+            variable=variable,
         )
         self._imports.update(rendered.imports)
         for helper in rendered.helpers:

@@ -8,9 +8,9 @@ Each extension point is a `Protocol` in `datapatchbay.plugins`. A plugin is any 
 
 | Extension point | Entry-point group | What it does |
 | --- | --- | --- |
-| `Orchestrator` | `datapatchbay.orchestrators` | `generate(plan, context)` returns the files for one data product. It composes the DAG from what the other three contribute. |
+| `Orchestrator` | `datapatchbay.orchestrators` | `generate(plan, context)` returns the files for one data product. It composes the DAG from what the other three contribute, and `render_kind` (`task` or `function`) says what build code it needs. |
 | `Executor` | `datapatchbay.executors` | `call(table)` says what has to be called to build a table. |
-| `Runtime` | `datapatchbay.runtimes` | `render_build_task(task, orchestrator=, variable=)` renders the build task, the place where the code runs. |
+| `Runtime` | `datapatchbay.runtimes` | `render_kinds` lists the kinds of build code it can render, and `render_build_task(task, kind=, variable=)` renders the build task, the place where the code runs. |
 | `Warehouse` | `datapatchbay.warehouses` | `apply_tasks(dataproduct)` and `audit_tasks(table)` return the SQL that the orchestrator runs. It never connects to the warehouse. |
 
 The plan data that plugins receive (`DataProductPlan`, `TablePlan`, `GenerationContext`) and the tasks they return (`SqlTask`, `AuditTask`, `BuildTask`, `RenderedTask`, `GeneratedFile`, ...) are in `datapatchbay.plugins` too. A plugin imports only from `datapatchbay.plugins`, and the built-in integrations follow the same rule: no integration imports another integration's folder.

@@ -3,7 +3,7 @@
 import re
 
 from datapatchbay.integrations._container.container import image_of, loader_arguments, operator_call
-from datapatchbay.plugins import BuildTask, PythonCall, RenderedTask, UnsupportedCombinationError
+from datapatchbay.plugins import BuildTask, PythonCall, RenderedTask, RenderKind
 
 _POD_NAME_LENGTH = 40
 """Airflow appends a random suffix of 9 characters to the name, and a pod name is at most 63."""
@@ -20,19 +20,16 @@ class KubernetesRuntime:
 
     needs_image = True
     call_types: tuple[type, ...] = (PythonCall,)
+    render_kinds: frozenset[RenderKind] = frozenset({"task"})
 
-    def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
+    def render_build_task(self, task: BuildTask, *, kind: RenderKind, variable: str) -> RenderedTask:
         """Render a `KubernetesPodOperator` task; the table's `container` setting is added to it as written.
 
         Raises:
-            UnsupportedCombinationError: If the orchestrator is not `airflow`, the table has no image, or
+            UnsupportedCombinationError: If the table has no image, or
                 `container` names an argument that dpb sets.
             ValueError: If a param or a `container` value is not a plain YAML value.
         """
-        if orchestrator != "airflow":
-            raise UnsupportedCombinationError(
-                f"the kubernetes runtime cannot render tasks for orchestrator '{orchestrator}'"
-            )
         table = task.table
         arguments = loader_arguments(task, "kubernetes")  # first, so another call is refused before a missing image
         set_by_dpb = {
