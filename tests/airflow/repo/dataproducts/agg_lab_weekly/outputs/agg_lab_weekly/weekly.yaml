@@ -1,0 +1,8 @@
+schema_version: 1
+name: weekly
+columns:
+  - name: days
+    type: numeric
+build:
+  entrypoint: src/weekly.py:build
+  needs: [weekly_raw]

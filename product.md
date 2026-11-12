@@ -90,6 +90,7 @@ executor: python
 runtime: worker            # worker | docker | kubernetes
 severity: error            # default severity of quality rules
 connection: warehouse      # the orchestrator's connection to the warehouse
+output_dir: generated      # where `dpb generate` writes, relative to the repo root
 conventions:
   kinds:
     source-aligned: {prefix: sa}

@@ -369,9 +369,14 @@ def test_same_table_name_in_different_data_products_is_fine(runner: CliRunner, p
 # --- build ------------------------------------------------------------------------------------------------------
 
 
-def test_build_executor_is_optional_and_may_name_any_plugin(runner: CliRunner, product: None, write_file: Writer):
+def test_build_executor_is_optional_and_may_name_any_name_in_the_file(
+    runner: CliRunner, product: None, write_file: Writer
+):
+    # Whether a plugin of that name exists is the plugin check's business; the file accepts any name.
     write_file(f"{OUT}/orders.yaml", ORDERS.replace("  executor: python\n", "  executor: dbt\n"))
-    assert runner.invoke(app, ["validate"]).exit_code == 0
+    problems = runner.invoke(app, ["validate", "--json"]).stdout
+    assert "executor 'dbt' has no plugin" in problems
+    assert "unknown" not in problems
     write_file(f"{OUT}/orders.yaml", ORDERS.replace("  executor: python\n", ""))
     assert runner.invoke(app, ["validate"]).exit_code == 0
 

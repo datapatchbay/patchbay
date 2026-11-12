@@ -45,4 +45,9 @@ class RootFile(FileModel, CascadingSettings):
     warehouse: str | None = Field(default=None, description="Warehouse plugin to generate SQL for.")
     orchestrator: str | None = Field(default=None, description="Orchestrator plugin to generate DAG files for.")
     connection: str | None = Field(default=None, description="Name of the orchestrator's connection to the warehouse.")
+    output_dir: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Folder that `dpb generate` writes to, relative to the repo root. `--output` overrides it.",
+    )
     conventions: Conventions | None = Field(default=None, description="Platform-wide conventions.")

@@ -62,3 +62,38 @@ jobs:
 
       - name: Check formatting
         run: uv run --locked ruff format --check
+
+  airflow:
+    name: generated DAGs load in Airflow 3
+    runs-on: ubuntu-latest
+    env:
+      # Airflow is installed for this job only, in its own virtual environment and with its constraints file. It is
+      # not a dependency of datapatchbay, and datapatchbay is not installed in that environment.
+      AIRFLOW_VERSION: "3.4.0"
+      AIRFLOW_PYTHON: "3.12"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Generate the DAGs of the fixture repo
+        working-directory: tests/airflow/repo
+        run: uv run --locked --project ../../.. dpb generate --output "$RUNNER_TEMP/dags"
+
+      - name: Install Airflow outside the project lock
+        run: |
+          uv venv "$RUNNER_TEMP/airflow-venv" --python "$AIRFLOW_PYTHON"
+          uv pip install --python "$RUNNER_TEMP/airflow-venv/bin/python" \
+            "apache-airflow==${AIRFLOW_VERSION}" \
+            apache-airflow-providers-common-sql \
+            apache-airflow-providers-postgres \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${AIRFLOW_PYTHON}.txt"
+
+      - name: Load the DAGs with a DagBag and fail on any import error
+        run: |
+          "$RUNNER_TEMP/airflow-venv/bin/python" tests/airflow/check_dags.py "$RUNNER_TEMP/dags" \
+            sa_ilab_orders build_ingested_orders,build_orders,publish_outputs \
+            agg_lab_turnaround build_turnaround,publish_outputs \
+            agg_lab_weekly build_weekly_raw,build_weekly,publish_outputs

@@ -1,0 +1,6 @@
+schema_version: 1
+name: lab_weekly
+kind: aggregate
+owner: Ann
+inputs: [agg_lab_weekly_source, sa_ilab_orders]
+outputs: [agg_lab_weekly]

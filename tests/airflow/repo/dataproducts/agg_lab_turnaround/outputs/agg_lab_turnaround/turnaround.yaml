@@ -1,0 +1,7 @@
+schema_version: 1
+name: turnaround
+columns:
+  - name: days
+    type: numeric
+build:
+  entrypoint: src/turnaround.py:build

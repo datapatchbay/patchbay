@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from datapatchbay import pluginchecks
+
 
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -42,3 +44,13 @@ def write_file(repo: Path) -> Callable[[str, str], Path]:
 @pytest.fixture
 def runner() -> CliRunner:
     return CliRunner()
+
+
+@pytest.fixture
+def every_plugin_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the plugin check accept any name, for tests that use made-up plugin names to test other rules."""
+    monkeypatch.setattr(
+        pluginchecks,
+        "plugin_names",
+        lambda kind: ["airflow", "prefect", "dbt", "docker", "kubernetes", "python", "worker", "postgres"],
+    )
