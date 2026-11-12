@@ -33,7 +33,7 @@ Then point the editor's YAML support (the [YAML extension](https://marketplace.v
 Table files have no fixed name, so add a modeline at the top of each one (the path is relative to the file):
 
 ```yaml
-# yaml-language-server: $schema=../../../.schemas/table.json
+# yaml-language-server: $schema=../../../../.schemas/table.json
 ```
 
 The schema checks the shape of a file. `dpb validate` also checks the rules across files.

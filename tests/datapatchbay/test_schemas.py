@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from ruamel.yaml import YAML
 
 from datapatchbay import models, schemas
+from datapatchbay.schemas import Kind
 
 PRODUCT_MD = Path(__file__).parents[2] / "product.md"
 # The order of the yaml examples in the section "The schema, version 1" of product.md.
@@ -42,7 +43,7 @@ def _file_models() -> list[type[BaseModel]]:
 
 
 @pytest.mark.parametrize("kind", schemas.KINDS)
-def test_each_schema_is_valid_json_schema(kind: str):
+def test_each_schema_is_valid_json_schema(kind: Kind):
     Draft202012Validator.check_schema(schemas.json_schema(kind))
 
 
@@ -51,7 +52,7 @@ def test_the_product_md_examples_are_found():
 
 
 @pytest.mark.parametrize(("kind", "example"), list(zip(EXAMPLE_KINDS, _yaml_examples(), strict=True)))
-def test_product_md_examples_validate_against_the_printed_schema(kind: str, example: Any):
+def test_product_md_examples_validate_against_the_printed_schema(kind: Kind, example: Any):
     Draft202012Validator(schemas.json_schema(kind)).validate(example)
 
 
@@ -66,7 +67,7 @@ def test_product_md_examples_validate_against_the_printed_schema(kind: str, exam
         ("table", {"schema_version": 1, "name": "t", "columns": [{"name": "a", "type": "text", "rules": [3]}]}),
     ],
 )
-def test_the_schema_rejects_invalid_files(kind: str, bad: Any):
+def test_the_schema_rejects_invalid_files(kind: Kind, bad: Any):
     assert not Draft202012Validator(schemas.json_schema(kind)).is_valid(bad)
 
 
@@ -78,7 +79,7 @@ def test_the_schema_accepts_the_bare_rule_short_form_on_columns():
 
 
 @pytest.mark.parametrize("kind", schemas.KINDS)
-def test_every_property_in_every_schema_has_a_description(kind: str):
+def test_every_property_in_every_schema_has_a_description(kind: Kind):
     for node in _walk(schemas.json_schema(kind)):
         properties = node.get("properties")
         if node.get("type") == "object" and isinstance(properties, dict):
@@ -87,7 +88,7 @@ def test_every_property_in_every_schema_has_a_description(kind: str):
 
 
 @pytest.mark.parametrize("kind", schemas.KINDS)
-def test_every_object_in_every_schema_rejects_unknown_keys(kind: str):
+def test_every_object_in_every_schema_rejects_unknown_keys(kind: Kind):
     for node in _walk(schemas.json_schema(kind)):
         if node.get("type") == "object" and "properties" in node:
             assert node.get("additionalProperties") is False, f"{kind}: {sorted(node['properties'])}"

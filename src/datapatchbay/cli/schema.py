@@ -2,18 +2,18 @@
 
 import json
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 
-from datapatchbay.schemas import KINDS, json_schema
+from datapatchbay.schemas import KINDS, Kind, json_schema
 
-Kind = StrEnum("Kind", {kind: kind for kind in KINDS})
+_Kind = StrEnum("_Kind", {kind: kind for kind in KINDS})
 
 
 def schema(
     kind: Annotated[
-        Kind | None,
+        _Kind | None,
         typer.Argument(
             help="The kind of file: root (datapatchbay.yaml), dataproduct, port or table. Omit for all four."
         ),
@@ -23,4 +23,4 @@ def schema(
     if kind is None:
         typer.echo(json.dumps({name: json_schema(name) for name in KINDS}, indent=2))
     else:
-        typer.echo(json.dumps(json_schema(kind.value), indent=2))
+        typer.echo(json.dumps(json_schema(cast(Kind, kind.value)), indent=2))

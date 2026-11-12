@@ -6,10 +6,11 @@ from typer.testing import CliRunner
 
 from datapatchbay import schemas
 from datapatchbay.cli import app
+from datapatchbay.schemas import Kind
 
 
 @pytest.mark.parametrize("kind", schemas.KINDS)
-def test_schema_prints_the_json_schema_of_a_kind(runner: CliRunner, kind: str):
+def test_schema_prints_the_json_schema_of_a_kind(runner: CliRunner, kind: Kind):
     result = runner.invoke(app, ["schema", kind])
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout) == schemas.json_schema(kind)
