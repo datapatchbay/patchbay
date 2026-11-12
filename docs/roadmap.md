@@ -1,8 +1,8 @@
 # Roadmap
 
 1. **Milestone 1.** Schema version 1, all eight commands, Airflow 3 DAGs for the Python executor on three runtimes, Postgres views and grants, audit tasks with severity, and the plugin interfaces.
-2. **Write-audit-publish.** Build into a staging table, audit it, then publish. Configurable at all four levels.
-3. **dbt executor.** Uses the existing dbt profile for connections.
+2. **dbt executor.** Choose Python or dbt per data product or per table. dbt properties generated from the table files, models in the data product's folder, and the check that build code reads other data products only through their output ports. Uses the existing dbt profile for connections.
+3. **Write-audit-publish.** Build into a staging table, audit it, then publish. Configurable at all four levels.
 4. **Semantic language.** datapatchbay's own format for measures, dimensions and joins, translated to other semantic model standards.
 5. **Metadata and live freshness.** Data product metadata published either as tags at schema or table level, or as a separate data product with a configurable name. Freshness measured against real data.
 

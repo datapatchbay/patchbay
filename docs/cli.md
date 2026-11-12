@@ -47,6 +47,11 @@ With `--json`, stdout holds only this document:
 
 A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
 
+With the dbt executor, planned for milestone 2, `dpb validate` also checks that:
+
+- Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest, so CI runs `dbt parse` first (ADR-0014).
+- The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013).
+
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
 ## `dpb config`
@@ -63,7 +68,7 @@ With `--json`, stdout holds one object from setting name to `{"value": ..., "ori
 
 ## `dpb generate`
 
-Generated files are build output of CD and are not committed.
+Generated files are build output of CD and are not committed, with one exception: the dbt properties and the `model-paths` of `dbt_project.yml` are committed, because dbt reads them on every run.
 
 One Airflow 3 DAG per data product
 : Each table gets a build task followed by an audit task, and task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
@@ -78,7 +83,10 @@ Views and grants for Postgres
 : The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else, and readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access.
 
 Audit tasks
-: Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run, `warning` reports and continues, and `none` is skipped.
+: Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run, `warning` reports and continues, and `none` is skipped. For a table built by dbt, the rules run as dbt data tests during the dbt build instead.
+
+dbt properties
+: For each table built by dbt, a properties file next to the model with its description, columns and types, quality rules as dbt data tests, an enforced dbt model contract, its alias and schema, and its data product's dbt group. `dpb generate` also keeps the `model-paths` of the root `dbt_project.yml` in step with the data product folders.
 
 The generated DAG files do not import datapatchbay, so the orchestrator needs neither datapatchbay nor its dependencies installed.
 

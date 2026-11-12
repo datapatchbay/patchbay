@@ -31,7 +31,7 @@ datapatchbay has four extension points:
 | Extension point | Built in |
 | --- | --- |
 | Orchestrator | Airflow 3 |
-| Executor | Python |
+| Executor | Python, dbt |
 | Runtime | Worker, Docker, Kubernetes |
 | Warehouse | Postgres |
 
