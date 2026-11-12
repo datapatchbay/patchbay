@@ -5,9 +5,7 @@ Tests marked `postgres` apply the SQL to a real Postgres and query as a reader a
 without it.
 """
 
-import os
 import re
-import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
@@ -15,7 +13,6 @@ from pathlib import Path
 import psycopg
 import pytest
 from psycopg import sql
-from psycopg.conninfo import make_conninfo
 
 from datapatchbay.builtin.postgres import PostgresWarehouse
 from datapatchbay.builtin.postgres_access import _dollar_tag
@@ -110,15 +107,17 @@ def test_a_product_reader_that_is_not_a_data_product_is_an_error(repo: Path):
 
 
 @pytest.fixture
-def warehouse() -> Iterator[psycopg.Connection]:
+def roles(postgres_admin: psycopg.Connection) -> Iterator[None]:
+    """Drop the roles after the database that uses them is gone: roles belong to the whole server."""
+    yield
+    for role in ROLES:
+        postgres_admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(role)))
+
+
+@pytest.fixture
+def warehouse(roles: None, pg_db: psycopg.Connection) -> psycopg.Connection:
     """A fresh database with a private schema holding the built table, and the roles."""
-    url = os.environ.get("DPB_TEST_POSTGRES_URL")
-    if not url:
-        pytest.skip("DPB_TEST_POSTGRES_URL is not set")
-    database = f"dpb_test_{uuid.uuid4().hex[:12]}"
-    admin = psycopg.connect(url, autocommit=True)
-    admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
-    connection = psycopg.connect(make_conninfo(url, dbname=database), autocommit=True)
+    connection = pg_db
     for role in ROLES:
         connection.execute(
             sql.SQL("DO $$ BEGIN CREATE ROLE {} NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$").format(
@@ -128,12 +127,7 @@ def warehouse() -> Iterator[psycopg.Connection]:
     connection.execute("CREATE SCHEMA sa_ilab_orders_private")
     connection.execute("CREATE TABLE sa_ilab_orders_private.orders (order_id text, patient_id text, status text)")
     connection.execute("INSERT INTO sa_ilab_orders_private.orders VALUES ('o1', 'p1', 'open'), ('o2', 'p2', 'closed')")
-    yield connection
-    connection.close()
-    admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database)))
-    for role in ROLES:
-        admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(role)))
-    admin.close()
+    return connection
 
 
 type QueryAs = Callable[[str, str], list[tuple[object, ...]]]

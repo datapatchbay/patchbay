@@ -283,7 +283,10 @@ def test_the_postgres_warehouse_ends_each_dag_with_a_task_that_applies_the_acces
         '        task_id="apply_access",\n        conn_id="dwh",\n        sql="-- Output port sa_ilab_orders\\n' in body
     )
     assert body.index("apply_access") < body.index("publish_outputs")
-    assert "    build_orders >> apply_access\n" in body
+    assert "    build_orders >> audit_orders\n" in body
+    assert "    audit_orders >> apply_access\n" in body
+    assert "    apply_access >> publish\n" in body
+    assert '    audit_orders = _audit_task("audit_orders", "dwh", [{"rule": "row_count", "table": "orders"' in body
     assert body.endswith("    apply_access >> publish\n")
 
 

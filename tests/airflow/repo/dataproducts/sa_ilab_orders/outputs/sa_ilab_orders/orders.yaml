@@ -6,3 +6,6 @@ columns:
 build:
   entrypoint: src/orders.py:build
   needs: [ingested_orders]
+rules:
+  - rule: row_count
+    min: 1

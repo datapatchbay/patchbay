@@ -14,13 +14,15 @@ The interface is not stable in milestone 1.
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from datapatchbay.models.base import Severity
 from datapatchbay.naming import DerivedNames
 from datapatchbay.repomodel import DataProduct, Port, Table
 
 __all__ = [
+    "AuditCheck",
+    "AuditTask",
     "BuildTask",
     "DataProductPlan",
     "Executor",
@@ -53,6 +55,8 @@ class TablePlan:
         dataproduct: Folder name of the data product the table belongs to.
         port: Name of the port the table is in.
         name: Name of the table.
+        schema: Schema in the warehouse that holds the built table: the private port of the data product, named by
+            its naming template. Output ports only hold views over it.
         entrypoint: The file of the build function, relative to the data product folder; `None` for a table that
             a dbt model builds.
         function: Name of the build function; `None` when there is no entrypoint.
@@ -70,6 +74,7 @@ class TablePlan:
     dataproduct: str
     port: str
     name: str
+    schema: str
     entrypoint: PurePosixPath | None
     function: str | None
     params: Mapping[str, Any]
@@ -184,6 +189,43 @@ class SqlTask:
 
 
 @dataclass(frozen=True, slots=True)
+class AuditCheck:
+    """One quality rule, as a query that counts the rows that break it.
+
+    Attributes:
+        rule: Name of the rule, such as `not_null`.
+        table: Name of the audited table.
+        column: The column the rule is on, several joined by `, ` for a primary key, or `None` for a rule on the
+            whole table.
+        severity: What a broken rule does: `error` fails the task, `warning` is logged. A rule with severity `none`
+            is never turned into a check.
+        sql: A query that returns one row with one integer: the number of violations. Zero means the rule holds.
+    """
+
+    rule: str
+    table: str
+    column: str | None
+    severity: Literal["error", "warning"]
+    sql: str
+
+
+@dataclass(frozen=True, slots=True)
+class AuditTask:
+    """The quality rules of one table, audited together by one task through the orchestrator's connection.
+
+    The orchestrator runs every check, logs the broken `warning` checks and fails the task if any `error` check is
+    broken, naming the rule, the table and the column of each (ADR-0010).
+
+    Attributes:
+        task_id: Identifier of the task, unique within the DAG.
+        checks: The checks to run, in a fixed order.
+    """
+
+    task_id: str
+    checks: tuple[AuditCheck, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class GeneratedFile:
     """A file for the output folder.
 
@@ -253,8 +295,12 @@ class Warehouse(Protocol):
         """Return the tasks that run after every table is built, such as views, masking and grants."""
         ...
 
-    def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask]:
-        """Return the tasks that audit a table after it is built."""
+    def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
+        """Return the tasks that audit a table after it is built.
+
+        An `AuditTask` carries the table's quality rules with their severity; a `SqlTask` is plain SQL that fails
+        when it raises.
+        """
         ...
 
 
