@@ -57,7 +57,7 @@ You look something up
 : The reference describes [the commands](cli.md), [the four kinds of file](files.md), [the settings and plugins](settings.md) and [the terms](glossary.md).
 
 You want to know why
-: [How it works](concepts.md) explains the model. [Alternatives](alternatives.md) compares datapatchbay with other tools.
+: [Data products](data-products.md) explains the idea behind datapatchbay and lists books to read. [How it works](concepts.md) explains the model. [Alternatives](alternatives.md) compares datapatchbay with other tools.
 
 ## The problem
 
@@ -149,6 +149,7 @@ glossary
 :hidden:
 :caption: Explanation
 
+data-products
 concepts
 alternatives
 Design decisions <https://github.com/datapatchbay/patchbay/tree/main/docs/adr>
