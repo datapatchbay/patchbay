@@ -5,16 +5,14 @@ One dbt project spans the folders of several data products. dbt resolves `model-
 repo root, and the same for the `tests/` folders in `test-paths` (ADR-0015, ADR-0019). Only those keys are changed.
 """
 
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from ruamel.yaml.comments import CommentedSeq
 
-from datapatchbay.cascade import resolve_setting
-from datapatchbay.dbt import DBT_EXECUTOR, MODELS_FOLDER, TESTS_FOLDER
+from datapatchbay.dbt import MODELS_FOLDER, TESTS_FOLDER
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.repo import DATAPRODUCTS_DIR
-from datapatchbay.repomodel import Repo
-from datapatchbay.settings import EffectiveSettings
 from datapatchbay.yamlio import YamlLoadError, dump_mapping, load_mapping
 
 DBT_PROJECT_FILE = "dbt_project.yml"
@@ -28,38 +26,18 @@ class DbtProjectError(DatapatchbayError):
     """Raised when tables are built by dbt but the root `dbt_project.yml` is missing or unreadable."""
 
 
-def model_paths(repo: Repo, settings: EffectiveSettings) -> list[str]:
-    """List the `models/` folder of every data product that has a table built by dbt.
-
-    Returns:
-        The folders relative to the repo root, in posix form, sorted.
-    """
-    return _folders(repo, settings, MODELS_FOLDER)
-
-
-def test_paths(repo: Repo, settings: EffectiveSettings) -> list[str]:
-    """List the `tests/` folder of every data product that has a table built by dbt, like `model_paths`."""
-    return _folders(repo, settings, TESTS_FOLDER)
-
-
-def _folders(repo: Repo, settings: EffectiveSettings, name: str) -> list[str]:
-    paths = {
-        (dataproduct.directory / name).relative_to(repo.root).as_posix()
-        for dataproduct in repo.dataproducts
-        for port in dataproduct.ports
-        for table in port.tables
-        if resolve_setting("executor", settings, dataproduct=dataproduct, port=port, table=table).value == DBT_EXECUTOR
-    }
-    return sorted(paths)
-
-
-def synced_dbt_project(repo: Repo, settings: EffectiveSettings) -> tuple[Path, str] | None:
+def synced_dbt_project(root: Path, model_paths: Sequence[str], test_paths: Sequence[str]) -> tuple[Path, str] | None:
     """Work out the new text of the root `dbt_project.yml`, without writing it.
 
     Once any table is built by dbt, `model-paths` and `test-paths` are owned by `dpb generate`: they are
     replaced, not merged, so a hand-set entry is lost. When no table is built by dbt any more, only the entries that
     point at the `models/` or `tests/` folder of a data product are removed (a key too when none is left), and
     nothing else is touched.
+
+    Args:
+        root: The repo root, where `dbt_project.yml` is expected.
+        model_paths: The `models/` folder of every data product with a table built by dbt, relative to the root.
+        test_paths: The `tests/` folder of those data products.
 
     Returns:
         The path and the new text, or `None` when the file is already in step, or missing or unreadable while no
@@ -68,8 +46,8 @@ def synced_dbt_project(repo: Repo, settings: EffectiveSettings) -> tuple[Path, s
     Raises:
         DbtProjectError: If tables are built by dbt and the root `dbt_project.yml` is missing or not a YAML mapping.
     """
-    wanted = {_MODEL_KEY: model_paths(repo, settings), _TEST_KEY: test_paths(repo, settings)}
-    path = repo.root / DBT_PROJECT_FILE
+    wanted = {_MODEL_KEY: list(model_paths), _TEST_KEY: list(test_paths)}
+    path = root / DBT_PROJECT_FILE
     if not wanted[_MODEL_KEY]:
         return _without_stale_paths(path)
     if not path.is_file():

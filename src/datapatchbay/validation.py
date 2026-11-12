@@ -6,7 +6,7 @@ from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.dbt import check_dbt
 from datapatchbay.dbt_manifest import check_dbt_reads
-from datapatchbay.dbt_sync import check_dbt_files
+from datapatchbay.dbt_output import build_dbt_output
 from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import PlannedRepo, plan_dataproducts
@@ -55,7 +55,7 @@ def validate_repo(root: Path) -> Report:
         return planned
     target = root / planned.settings.values.output_dir
     problems = [
-        *check_dbt_files(planned),
+        *build_dbt_output(planned).problems(),
         *check_dbt_reads(planned),
         *render_dataproducts(planned, target).problems,
         *check_stale_output(planned),

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from datapatchbay.dbt_project import model_paths
+from datapatchbay.dbt_output import model_paths
 from datapatchbay.planning import PlannedRepo
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import DataProduct, Repo
@@ -67,7 +67,7 @@ def check_dbt_reads(planned: PlannedRepo) -> list[Problem]:
         incomplete manifest is one problem on the manifest file.
     """
     repo, settings = planned.repo, planned.settings
-    if not model_paths(repo, settings):
+    if not model_paths(planned.plans):
         return []
     setting = settings.values.dbt.manifest
     location = PurePosixPath(Path(setting).as_posix())
