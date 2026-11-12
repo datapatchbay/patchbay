@@ -14,6 +14,18 @@ dependencies = [
 [project.scripts]
 dpb = "datapatchbay.cli:main"
 
+[project.entry-points."datapatchbay.orchestrators"]
+airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
+
+[project.entry-points."datapatchbay.executors"]
+python = "datapatchbay.builtin.python_executor:PythonExecutor"
+
+[project.entry-points."datapatchbay.runtimes"]
+worker = "datapatchbay.builtin.worker:WorkerRuntime"
+
+[project.entry-points."datapatchbay.warehouses"]
+postgres = "datapatchbay.builtin.postgres:PostgresWarehouse"
+
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11"]
 build-backend = "uv_build"
@@ -36,6 +48,11 @@ minversion = "9.0"
 testpaths = ["tests"]
 addopts = ["-ra", "--import-mode=importlib"]
 strict = true
+# Helper modules such as plugin_fakes.py sit next to the tests and are imported by name.
+pythonpath = ["tests/datapatchbay"]
+
+[tool.ty.environment]
+extra-paths = ["tests/datapatchbay"]
 
 [tool.ty.src]
 # assets/build.py is a standalone script with its own dependencies (fontTools, Pillow).
@@ -56,3 +73,5 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "A", "C4", "PT"]
 [tool.ruff.lint.per-file-ignores]
 # Tests are plain functions; fixtures are injected, not imported.
 "tests/**" = ["B018"]
+# The expected DAG file is compared as a whole, so its long header comment stays on one line.
+"tests/datapatchbay/test_generate.py" = ["E501"]

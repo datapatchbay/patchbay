@@ -60,6 +60,7 @@ class ResolvedSettings(_Resolved):
     image: str | None = None
     severity: Severity
     connection: str
+    output_dir: str
     conventions: ResolvedConventions
 
 

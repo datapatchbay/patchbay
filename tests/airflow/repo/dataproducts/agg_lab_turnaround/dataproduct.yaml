@@ -1,0 +1,6 @@
+schema_version: 1
+name: lab_turnaround
+kind: aggregate
+owner: Ann
+inputs: [sa_ilab_orders]
+outputs: [agg_lab_turnaround]

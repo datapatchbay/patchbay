@@ -29,6 +29,7 @@
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
 - `executor`, `runtime`, `image` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
+- Every orchestrator, executor, runtime and warehouse named in the settings has a plugin. The message names the data product and, for an executor or runtime, the table, and points at the line where the name is written. A name set at the root or on a data product is reported for each table it applies to.
 - In the `build` block, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
 - Every derived name matches its naming template, and every name is snake_case. Port names and data product names are unique across the repo. `kind` is a declared kind. `domain` is in the domain list when one is declared. These rules arrive with later releases.
 
@@ -84,11 +85,20 @@ With `--json`, stdout holds one object with the same content. Its keys are `fold
 
 Generated files are build output of CD and are not committed.
 
+`dpb generate` validates the repo first, exactly like `dpb validate`. When anything is wrong it prints the problems on stderr, writes nothing and exits 1. Otherwise it writes one file per data product into the folder of the `output_dir` setting (`generated` by default, relative to the repo root) and lists the files. `--output <folder>` (`-o`) writes into another folder, relative to the working directory. Files from an earlier run that no longer have a data product are not removed. A failure while generating, such as a table name Airflow cannot use as an id, exits 2 with a message that names the data product, and nothing is written.
+
+```sh
+dpb generate
+dpb generate --output build/dags
+```
+
+The same input gives byte-identical files. The orchestrator, executor, runtime and warehouse are plugins named in the settings (see [Settings and plugins](settings.md)); this release ships the Airflow orchestrator, the Python executor, the `worker` runtime and a Postgres warehouse that does not write any SQL yet.
+
 One Airflow 3 DAG per data product
-: Each table gets a build task followed by an audit task, and task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
+: The file is named after the data product folder, and so is the DAG. Each table gets a build task followed by an audit task, and task order follows `needs`. A data product with a source input port runs on that port's schedule; all its source input ports must share one schedule. A data product that reads another data product's output port is triggered when that port is updated; with both, it runs on the schedule once the ports are updated. Each output port is an Airflow asset named after the port, and the DAG ends with a `publish_outputs` task that marks the output ports as updated when the DAG succeeds. Between the last table and that task come the tasks that apply the views and grants. (The build tasks exist now; the audit and apply tasks arrive with the Postgres warehouse.)
 
 Three runtimes
-: `worker` calls the entrypoint on the Airflow worker. `docker` and `kubernetes` run it in a container from an image named in the settings.
+: `worker` calls the entrypoint on the Airflow worker: the task loads the entrypoint file from the data product folder and calls the function with the table's `params`. It finds the folder from the DAG file's own location, so the output folder and the data product folders must keep their relative places when deployed; deploying the whole repo as the DAG bundle does that. The `params` must be plain YAML values: a date has to be quoted. `docker` and `kubernetes` run it in a container from an image named in the settings.
 
 No connection management
 : The views, grants and audits run on the orchestrator, through a connection that already exists there. The settings only name it. Build code connects by itself.

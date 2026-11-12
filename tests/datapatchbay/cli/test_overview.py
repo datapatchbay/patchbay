@@ -81,12 +81,16 @@ def test_validate_rejects_orchestrator_in_a_table_build_block(runner: CliRunner,
     assert ORCHESTRATOR_HINT in result.stderr
 
 
-def test_validate_accepts_orchestrator_at_root_and_data_product(runner: CliRunner, in_repo: Path):
+def test_validate_accepts_orchestrator_at_root_and_data_product(
+    runner: CliRunner, in_repo: Path, every_plugin_installed: None
+):
     (in_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: airflow\n")
     result = runner.invoke(app, ["validate"])
     assert result.exit_code == 0, result.stderr
 
 
-def test_validate_accepts_cascading_settings_at_every_level(runner: CliRunner, in_repo: Path):
+def test_validate_accepts_cascading_settings_at_every_level(
+    runner: CliRunner, in_repo: Path, every_plugin_installed: None
+):
     result = runner.invoke(app, ["validate"])
     assert result.exit_code == 0, result.stderr

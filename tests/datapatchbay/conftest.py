@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -87,3 +88,14 @@ def sample_repo(tmp_path: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
     return tmp_path
+
+
+LAB_REPO = Path(__file__).parents[1] / "airflow" / "repo"
+
+
+@pytest.fixture
+def lab_repo(tmp_path: Path) -> Path:
+    """A copy of the valid fixture repo that CI also loads in Airflow: a source-fed data product and its reader."""
+    root = tmp_path / "repo"
+    shutil.copytree(LAB_REPO, root)
+    return root
