@@ -101,7 +101,7 @@ def parse(repo: Path, tmp_path: Path) -> dict[str, Any]:
 
 def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
     write(repo, TABLE, TABLE_FILE)
-    loaded, report = load_and_validate(repo)
+    loaded, _, report = load_and_validate(repo)
     assert report.ok, [p.render() for p in report.problems]
     settings = load_settings(repo)
     for generated in generate_dbt_properties(plan_dataproducts(loaded, settings), settings):
@@ -172,7 +172,7 @@ def reader_repo(repo: Path) -> Path:
 
 
 def reads(repo: Path) -> list[str]:
-    loaded, report = load_and_validate(repo)
+    loaded, _, report = load_and_validate(repo)
     assert report.ok, [p.render() for p in report.problems]
     return [problem.render() for problem in check_dbt_reads(loaded, load_settings(repo))]
 

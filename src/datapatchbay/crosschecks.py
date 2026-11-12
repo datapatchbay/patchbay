@@ -21,6 +21,7 @@ def check_repo(repo: Repo) -> list[Problem]:
         problems.extend(_check_table_names(dataproduct))
         problems.extend(_check_builds(dataproduct))
         problems.extend(_check_reads(repo, dataproduct))
+        problems.extend(_check_product_readers(repo, dataproduct))
     return problems
 
 
@@ -90,8 +91,7 @@ def _check_builds(dataproduct: DataProduct) -> Iterator[Problem]:
         build = file.model.build
         if build is None:
             continue  # built by dbt, or reported by the build checks
-        if build.entrypoint is not None:
-            path_text = build.entrypoint.rpartition(":")[0]
+        if (path_text := table.entrypoint_path) is not None:
             target = (dataproduct.directory / path_text).resolve()
             line = file.line("build", "entrypoint")
             if not target.is_relative_to(root):
@@ -100,7 +100,7 @@ def _check_builds(dataproduct: DataProduct) -> Iterator[Problem]:
                 yield Problem(file.path, line, f"entrypoint file {path_text} does not exist in the data product folder")
 
         if not dataproduct.has_unreadable_tables:
-            for index, need in enumerate(build.needs):
+            for index, need in enumerate(table.needs):
                 if need not in tables:
                     yield Problem(
                         file.path,
@@ -120,7 +120,7 @@ def _needs_cycles(tables: dict[str, Table]) -> Iterator[Problem]:
         state[name] = "open"
         path.append(name)
         file = tables[name].file
-        for index, need in enumerate(() if file.model.build is None else file.model.build.needs):
+        for index, need in enumerate(tables[name].needs):
             if need not in tables:
                 continue
             if state.get(need) == "open":
@@ -174,6 +174,24 @@ def _check_reads(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
                 f"data product '{dataproduct.folder}' reads '{target}' but is not listed in the readers of that port; "
                 f"add `- product: {dataproduct.folder}` under access.readers in {found.file.path}",
             )
+
+
+def _check_product_readers(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
+    """A `product:` reader of an output port names a data product in this repo."""
+    if len(repo.dataproducts) != repo.dataproduct_dirs:
+        return  # some data products failed to load; their problems are reported already, and one may be the reader
+    folders = {other.folder for other in repo.dataproducts}
+    for port in dataproduct.outputs:
+        model = port.file.model
+        if not isinstance(model, OutputPortFile):
+            continue
+        for index, reader in enumerate(model.access.readers):
+            if isinstance(reader, ProductReader) and reader.product not in folders:
+                yield Problem(
+                    port.file.path,
+                    port.file.line("access", "readers", index),
+                    f"reader `product: {reader.product}` is not a data product in this repo",
+                )
 
 
 def find_other_output(repo: Repo, reader: DataProduct, name: str) -> Port | Literal["unreadable"] | None:

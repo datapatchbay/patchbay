@@ -6,7 +6,6 @@ from pathlib import Path, PurePosixPath
 
 from datapatchbay.cascade import resolve_setting, resolve_settings
 from datapatchbay.dbt import MODELS_FOLDER
-from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
 from datapatchbay.naming import DerivedNames, derive_names
 from datapatchbay.plugins import DataProductPlan, DbtLocation, SourceSchedule, TablePlan
@@ -52,9 +51,6 @@ def _plan(
     for port in dataproduct.ports:
         for table in port.tables:
             resolved = resolve_settings(settings, dataproduct=dataproduct, port=port, table=table)
-            build = table.file.model.build
-            entrypoint = None if build is None else build.entrypoint
-            path, _, function = (entrypoint or "").rpartition(":")
             image = resolved["image"].value
             container = resolved["container"].value
             tables.append(
@@ -63,10 +59,10 @@ def _plan(
                     port=port.name,
                     name=table.name,
                     schema=names.private_port,
-                    entrypoint=PurePosixPath(path) if entrypoint else None,
-                    function=function or None,
-                    params={} if build is None else build.params,
-                    needs=() if build is None else tuple(build.needs),
+                    entrypoint=PurePosixPath(table.entrypoint_path) if table.entrypoint_path else None,
+                    function=table.function or None,
+                    params=table.params,
+                    needs=tuple(table.needs),
                     executor=str(resolved["executor"].value),
                     runtime=str(resolved["runtime"].value),
                     image=None if image is None else str(image),
@@ -133,7 +129,7 @@ def _in_build_order(tables: list[TablePlan]) -> tuple[TablePlan, ...]:
         if table.name in done:
             return
         if table.name in path:  # `dpb validate` rejects cycles, so a plan of a valid repo has none
-            raise DatapatchbayError(f"`needs` forms a cycle through table '{table.name}'")
+            raise RuntimeError(f"`needs` forms a cycle through table '{table.name}'")
         for need in table.needs:
             if need in by_name:
                 visit(by_name[need], (*path, table.name))

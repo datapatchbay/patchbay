@@ -18,6 +18,7 @@ from datapatchbay.genheader import generated_header
 from datapatchbay.models.table import AcceptedValuesRule, Column, NotNullRule, UniqueRule
 from datapatchbay.plugins import DataProductPlan, GeneratedFile, TablePlan
 from datapatchbay.settings import EffectiveSettings
+from datapatchbay.sqlquote import standard_literal
 
 GROUP_FILE = "_group.yml"
 """The file in a data product's `models/` folder that holds its dbt group."""
@@ -47,7 +48,8 @@ def generate_dbt_properties(plans: Sequence[DataProductPlan], settings: Effectiv
         )
         for table in tables:
             name = model_name(settings, plan.source, table.source)
-            assert name is not None, "dpb validate guarantees a model name for a table built by dbt"
+            if name is None:
+                raise RuntimeError(f"table '{table.name}' is built by dbt but has no model name; validation missed it")
             content = generated_header(table.source.file.path) + dump_yaml({"models": [_model(plan, table, name)]})
             files.append(GeneratedFile(models / f"{name}.yml", content))
     return sorted(files, key=lambda file: file.path)
@@ -80,7 +82,7 @@ def _column(column: Column, table: TablePlan) -> dict[str, Any]:
         entry["config"] = {"meta": {"pii": True}}
     tests = []
     for rule in column.rules:
-        severity = rule.severity or table.severity
+        severity = table.severity_of(rule.severity)
         if severity != "none":
             tests.append(_data_test(rule, SEVERITY[severity]))
     if tests:
@@ -95,12 +97,8 @@ def _data_test(rule: NotNullRule | UniqueRule | AcceptedValuesRule, severity: st
     if all(isinstance(value, str) for value in rule.values):
         return {rule.rule: {"arguments": {"values": list(rule.values)}, **config}}
     # dbt quotes every value by default. Numbers and booleans must stay bare, so strings become SQL literals.
-    values = [_sql_literal(value) if isinstance(value, str) else value for value in rule.values]
+    values = [standard_literal(value) if isinstance(value, str) else value for value in rule.values]
     return {rule.rule: {"arguments": {"values": values, "quote": False}, **config}}
-
-
-def _sql_literal(text: str) -> str:
-    return "'" + text.replace("'", "''") + "'"
 
 
 def dump_yaml(document: dict[str, Any]) -> str:

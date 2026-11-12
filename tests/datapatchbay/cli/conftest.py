@@ -2,9 +2,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from plugin_fakes import FakeOrchestrator, register
 from typer.testing import CliRunner
-
-from datapatchbay import pluginchecks
 
 
 @pytest.fixture
@@ -48,9 +47,6 @@ def runner() -> CliRunner:
 
 @pytest.fixture
 def every_plugin_installed(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make the plugin check accept any name, for tests that use made-up plugin names to test other rules."""
-    monkeypatch.setattr(
-        pluginchecks,
-        "plugin_names",
-        lambda kind: ["airflow", "prefect", "dbt", "spark", "docker", "kubernetes", "python", "worker", "postgres"],
-    )
+    """Register fake plugins under the made-up names the test repos use, next to the ones that are installed."""
+    register(monkeypatch, "orchestrator", "prefect", FakeOrchestrator)
+    register(monkeypatch, "executor", "spark", object)

@@ -8,6 +8,7 @@ class DockerRuntime:
     """Run the entrypoint in a Docker container (ADR-0016)."""
 
     needs_image = True
+    runs_dbt = False
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
         """Render a `DockerOperator` task; the table's `container` setting is added to it as written.

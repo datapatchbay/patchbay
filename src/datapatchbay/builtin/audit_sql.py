@@ -121,21 +121,5 @@ def _repeated(relation: str, names: Sequence[str]) -> str:
 
 
 def _severity(table: TablePlan, rule_severity: Severity | None) -> Literal["error", "warning"] | None:
-    severity = rule_severity or table.severity
-    if severity == "none":
-        return None
-    return severity
-
-
-def standard_identifier(name: str) -> str:
-    """Quote a name the standard SQL way, which Postgres and DuckDB both read."""
-    return '"' + name.replace('"', '""') + '"'
-
-
-def standard_literal(value: str | int | float | bool) -> str:
-    """Write a value the standard SQL way, which Postgres and DuckDB both read."""
-    if isinstance(value, bool):
-        return "TRUE" if value else "FALSE"
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    return repr(value)
+    severity = table.severity_of(rule_severity)
+    return None if severity == "none" else severity

@@ -23,7 +23,7 @@ def rendered(repo: Path) -> list[str]:
 
 def checked(repo: Path) -> list[str]:
     """The problems of the files themselves, before `validate_repo` compares the generated dbt files."""
-    return [problem.render() for problem in load_and_validate(repo)[1].problems]
+    return [problem.render() for problem in load_and_validate(repo).report.problems]
 
 
 def write(repo: Path, relative: str, text: str) -> None:

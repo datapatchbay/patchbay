@@ -7,11 +7,11 @@ problems about it.
 
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 from ruamel.yaml.comments import CommentedMap
 
-from datapatchbay.models import DataProductFile, DataProductInputPortFile, PortFile, TableFile
+from datapatchbay.models import DataProductFile, DataProductInputPortFile, PortFile, RootFile, TableFile
 from datapatchbay.yamlio import line_of
 
 
@@ -44,6 +44,34 @@ class Table:
     def name(self) -> str:
         """The table name from the table file."""
         return self.file.model.name
+
+    @property
+    def entrypoint(self) -> str | None:
+        """The `build.entrypoint` as written (`path/to/file.py:function`), or `None` when the table sets none."""
+        build = self.file.model.build
+        return None if build is None else build.entrypoint
+
+    @property
+    def entrypoint_path(self) -> str | None:
+        """The file part of the entrypoint, relative to the data product folder."""
+        return None if self.entrypoint is None else self.entrypoint.rpartition(":")[0]
+
+    @property
+    def function(self) -> str | None:
+        """The function part of the entrypoint."""
+        return None if self.entrypoint is None else self.entrypoint.rpartition(":")[2]
+
+    @property
+    def needs(self) -> list[str]:
+        """The tables of the same data product that must be built first."""
+        build = self.file.model.build
+        return [] if build is None else build.needs
+
+    @property
+    def params(self) -> dict[str, Any]:
+        """The parameters passed to the entrypoint function."""
+        build = self.file.model.build
+        return {} if build is None else build.params
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,12 +148,14 @@ class Repo:
 
     Attributes:
         root: The absolute repo root.
+        root_file: The `datapatchbay.yaml`, read once, or `None` when it failed validation.
         dataproducts: The data products whose `dataproduct.yaml` passed validation, sorted by folder path.
         unloaded_output_ports: Output port folders of data products whose `dataproduct.yaml` failed validation.
         dataproduct_dirs: Every folder that holds a `dataproduct.yaml`.
     """
 
     root: Path
+    root_file: LoadedFile[RootFile] | None = None
     dataproducts: list[DataProduct] = field(default_factory=list)
     unloaded_output_ports: frozenset[str] = frozenset()
     dataproduct_dirs: int = 0

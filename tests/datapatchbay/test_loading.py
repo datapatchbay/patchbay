@@ -1,5 +1,9 @@
 from pathlib import Path
+from typing import Any
 
+import pytest
+
+from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
 
 
@@ -46,3 +50,16 @@ def test_load_repo_leaves_out_files_that_failed_and_reports_them(tmp_path: Path)
     [product] = repo.dataproducts
     assert product.outputs == ()
     assert product.port_folders["outputs"] == ("sa_x",)
+
+
+def test_generate_reads_datapatchbay_yaml_once(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch):
+    reads: list[Path] = []
+    real = Path.read_text
+
+    def counting(self: Path, *args: Any, **kwargs: Any) -> str:
+        reads.append(self)
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counting)
+    generate_repo(jaffle_repo)
+    assert reads.count(jaffle_repo / "datapatchbay.yaml") == 1

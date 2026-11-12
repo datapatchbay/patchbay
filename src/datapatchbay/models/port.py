@@ -1,55 +1,16 @@
 """The models of `port.yaml`, in its three forms."""
 
-import re
 from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from datapatchbay.models.base import CascadingSettings, FileModel
-
-_DURATION = re.compile(r"[1-9][0-9]*[mhd]")
-
-_NAMES = {
-    "month": ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"],
-    "weekday": ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
-}
-# Name, lowest value, highest value, names accepted instead of numbers.
-_CRON_FIELDS = (
-    ("minute", 0, 59, ()),
-    ("hour", 0, 23, ()),
-    ("day of month", 1, 31, ()),
-    ("month", 1, 12, _NAMES["month"]),
-    ("day of week", 0, 7, _NAMES["weekday"]),
-)
-_CRON_ATOM = re.compile(r"(?P<first>[0-9]+|[a-z]+)(-(?P<last>[0-9]+|[a-z]+))?")
-
-
-def _cron_value(text: str, low: int, high: int, names: tuple[str, ...] | list[str], offset: int) -> bool:
-    if text.isdigit():
-        return low <= int(text) <= high
-    return text in names and low <= names.index(text) + offset <= high
-
-
-def _check_cron_field(text: str, low: int, high: int, names: tuple[str, ...] | list[str]) -> bool:
-    offset = 1 if len(names) == 12 else 0
-    for part in text.lower().split(","):
-        part, _, step = part.partition("/")
-        if step and (not step.isdigit() or int(step) == 0):
-            return False
-        if part == "*":
-            continue
-        match = _CRON_ATOM.fullmatch(part)
-        if match is None:
-            return False
-        for value in (match["first"], match["last"]):
-            if value is not None and not _cron_value(value, low, high, names, offset):
-                return False
-    return True
+from datapatchbay.schedule import CRON_FIELDS, DURATION, is_valid_cron_field
 
 
 def check_duration(value: str) -> str:
     """Accept a duration such as `30m`, `24h` or `7d`."""
-    if not _DURATION.fullmatch(value):
+    if not DURATION.fullmatch(value):
         raise ValueError(
             f"'{value}' is not a duration; write a positive whole number and a unit, such as 30m, 24h or 7d"
         )
@@ -61,9 +22,9 @@ def check_cron(value: str) -> str:
     fields = value.split()
     if len(fields) != 5:
         raise ValueError(f"'{value}' is not a cron expression; it needs five fields, such as \"0 5 * * *\"")
-    for field, (name, low, high, names) in zip(fields, _CRON_FIELDS, strict=True):
-        if not _check_cron_field(field, low, high, names):
-            raise ValueError(f"'{value}' is not a cron expression; the {name} field '{field}' is not valid")
+    for text, field in zip(fields, CRON_FIELDS, strict=True):
+        if not is_valid_cron_field(text, field):
+            raise ValueError(f"'{value}' is not a cron expression; the {field.name} field '{text}' is not valid")
     return value
 
 

@@ -225,7 +225,8 @@ def _imported_files(
     conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str, output_port: str, *, product_folder: str
 ) -> dict[str, str]:
     """The output port, a table file per imported model and its model file, renamed by the `dbt_model` template."""
-    assert new.imported is not None
+    if new.imported is None:
+        raise RuntimeError("no dbt models were imported")
     renamed = {m.name: _model_name(conventions, new, dataproduct, m.name) for m in new.imported.models}
     output = f"{product_folder}/outputs/{output_port}"
     files = {f"{output}/port.yaml": _yaml({"kind": "schema"})}
@@ -240,7 +241,8 @@ def _imported_files(
 
 
 def _model_name_problems(conventions: ResolvedConventions, new: NewDataProduct) -> list[str]:
-    assert new.imported is not None
+    if new.imported is None:
+        raise RuntimeError("no dbt models were imported")
     if not new.imported.models:
         return ["--from-dbt found no model with both a .sql file and properties with columns"]
     dataproduct = derive_names(conventions, name=new.name, kind_name=new.kind).dataproduct
