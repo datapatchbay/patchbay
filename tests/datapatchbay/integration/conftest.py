@@ -3,7 +3,7 @@
 import os
 import subprocess
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import psycopg
@@ -69,17 +69,19 @@ def run_in_airflow(airflow_image: str) -> Callable[..., subprocess.CompletedProc
 
     Each folder in `mounts` is mounted at its own path, read-only, so the relative paths in a generated DAG file
     resolve in the container as they do on the host. With `network`, the container joins the Docker network of the
-    Postgres container.
+    Postgres container. Each folder in `writable` is mounted the same way, read-write, for a DuckDB file.
     """
 
     def run(
-        script: str, arguments: list[str], mounts: list[Path], *, network: bool = False
+        script: str, arguments: list[str], mounts: list[Path], *, network: bool = False, writable: Sequence[Path] = ()
     ) -> subprocess.CompletedProcess[str]:
         command = ["docker", "run", "--rm", "--label", "dpb-integration-tests"]
         if network:
             command += ["--network", os.environ["DPB_TEST_DOCKER_NETWORK"]]
         for mount in mounts:
             command += ["--volume", f"{mount}:{mount}:ro"]
+        for mount in writable:
+            command += ["--volume", f"{mount}:{mount}"]
         command += [
             "--volume",
             f"{AIRFLOW_DIR}:{SCRIPTS}:ro",

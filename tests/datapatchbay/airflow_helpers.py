@@ -8,6 +8,7 @@ from datapatchbay.generate import generate_repo
 ROOT = Path(__file__).parents[2]
 FIXTURE_REPO = ROOT / "tests" / "airflow" / "repo"
 EXAMPLE_REPO = ROOT / "examples" / "jaffle_shop"
+DUCKDB_REPO = ROOT / "tests" / "airflow" / "duckdb_repo"
 
 # DAG id -> its task ids, for every DAG the repo generates
 FIXTURE_DAGS = {

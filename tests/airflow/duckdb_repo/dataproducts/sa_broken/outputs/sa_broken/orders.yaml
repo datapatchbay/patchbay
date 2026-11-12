@@ -1,0 +1,8 @@
+schema_version: 1
+name: orders
+columns:
+  - name: order_id
+    type: text
+    rules: [not_null]
+build:
+  entrypoint: src/orders.py:build

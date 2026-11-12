@@ -1,0 +1,17 @@
+schema_version: 1
+name: orders
+columns:
+  - name: order_id
+    type: text
+    rules: [not_null, unique]
+  - name: customer_id
+    type: text
+    pii: true
+  - name: status
+    type: text
+rules:
+  - rule: row_count
+    min: 1
+build:
+  entrypoint: src/orders.py:build
+  needs: [ingested_orders]

@@ -15,6 +15,7 @@ RUN python -m venv /opt/airflow \
         "apache-airflow==${AIRFLOW_VERSION}" \
         apache-airflow-providers-common-sql \
         apache-airflow-providers-docker \
+        apache-airflow-providers-duckdb \
         apache-airflow-providers-cncf-kubernetes \
         apache-airflow-providers-postgres \
         --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"

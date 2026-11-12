@@ -84,7 +84,7 @@ scripts/integration-tests         # starts Postgres in Docker, runs the tests ma
 scripts/integration-tests -k audit  # arguments go to pytest
 ```
 
-It also runs the tests that call the real `dbt parse` on the generated dbt files (dbt comes from the `dbt` dependency group), loads the generated DAGs of the test repo and of the example in Airflow 3, and runs the example end to end, in an Airflow container (`tests/airflow/Dockerfile`, with dbt in a separate environment) next to the Postgres container. The first run builds that image, which takes a few minutes. Run it before pushing a change to the Postgres SQL, the generated DAGs or the generated dbt files. CI does not run it.
+It also runs the tests that call the real `dbt parse` on the generated dbt files (dbt comes from the `dbt` dependency group), loads the generated DAGs of the test repo and of the example in Airflow 3, runs the example end to end, runs a repo with `warehouse: duckdb` end to end, in an Airflow container (`tests/airflow/Dockerfile`, with dbt in a separate environment) next to the Postgres container. The first run builds that image, which takes a few minutes. Run it before pushing a change to the Postgres SQL, the generated DAGs or the generated dbt files. CI does not run it.
 
 Tests mirror the package: the tests for `src/datapatchbay/x.py` live in `tests/datapatchbay/test_x.py`. See [CODING_STANDARDS.md](CODING_STANDARDS.md) for the rest. Every pull request runs the tests on Python 3.12, 3.13 and 3.14, and runs ty and ruff.
 
