@@ -90,8 +90,7 @@ def _check_builds(dataproduct: DataProduct) -> Iterator[Problem]:
         build = file.model.build
         if build is None:
             continue  # built by dbt, or reported by the build checks
-        if build.entrypoint is not None:
-            path_text = build.entrypoint.rpartition(":")[0]
+        if (path_text := table.entrypoint_path) is not None:
             target = (dataproduct.directory / path_text).resolve()
             line = file.line("build", "entrypoint")
             if not target.is_relative_to(root):
@@ -100,7 +99,7 @@ def _check_builds(dataproduct: DataProduct) -> Iterator[Problem]:
                 yield Problem(file.path, line, f"entrypoint file {path_text} does not exist in the data product folder")
 
         if not dataproduct.has_unreadable_tables:
-            for index, need in enumerate(build.needs):
+            for index, need in enumerate(table.needs):
                 if need not in tables:
                     yield Problem(
                         file.path,
@@ -120,7 +119,7 @@ def _needs_cycles(tables: dict[str, Table]) -> Iterator[Problem]:
         state[name] = "open"
         path.append(name)
         file = tables[name].file
-        for index, need in enumerate(() if file.model.build is None else file.model.build.needs):
+        for index, need in enumerate(tables[name].needs):
             if need not in tables:
                 continue
             if state.get(need) == "open":

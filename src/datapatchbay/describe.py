@@ -102,9 +102,9 @@ def _table_json(settings: EffectiveSettings, product: DataProduct, port: Port, t
             for column in model.columns
         ],
         "rules": [_rule_json(rule, severity) for rule in model.rules],
-        "entrypoint": model.build.entrypoint if model.build else None,
-        "params": model.build.params if model.build else {},
-        "needs": model.build.needs if model.build else [],
+        "entrypoint": table.entrypoint,
+        "params": table.params,
+        "needs": table.needs,
         "settings": _settings_json(resolved),
     }
 

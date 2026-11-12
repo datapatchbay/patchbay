@@ -109,8 +109,7 @@ class _Checker:
                 self.problems.append(Problem(file, line, message))
         for port in dataproduct.ports:
             for table in port.tables:
-                build = table.file.model.build
-                for index, need in enumerate(() if build is None or table.name in dbt_tables else build.needs):
+                for index, need in enumerate(() if table.name in dbt_tables else table.needs):
                     if need in dbt_tables:
                         message = (
                             f"table '{table.name}' needs table '{need}', which dbt builds after the Python tables; "

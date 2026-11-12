@@ -52,9 +52,6 @@ def _plan(
     for port in dataproduct.ports:
         for table in port.tables:
             resolved = resolve_settings(settings, dataproduct=dataproduct, port=port, table=table)
-            build = table.file.model.build
-            entrypoint = None if build is None else build.entrypoint
-            path, _, function = (entrypoint or "").rpartition(":")
             image = resolved["image"].value
             container = resolved["container"].value
             tables.append(
@@ -63,10 +60,10 @@ def _plan(
                     port=port.name,
                     name=table.name,
                     schema=names.private_port,
-                    entrypoint=PurePosixPath(path) if entrypoint else None,
-                    function=function or None,
-                    params={} if build is None else build.params,
-                    needs=() if build is None else tuple(build.needs),
+                    entrypoint=PurePosixPath(table.entrypoint_path) if table.entrypoint_path else None,
+                    function=table.function or None,
+                    params=table.params,
+                    needs=tuple(table.needs),
                     executor=str(resolved["executor"].value),
                     runtime=str(resolved["runtime"].value),
                     image=None if image is None else str(image),
