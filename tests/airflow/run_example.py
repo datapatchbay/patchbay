@@ -62,12 +62,13 @@ def query(url: str, role: str | None, statement: str) -> list[tuple]:
         return cursor.fetchall()
 
 
-def run_dag(bag: DagBag, dag_id: str) -> None:
+def run_dag(bag: DagBag, dag_id: str, expected_tasks: set[str]) -> None:
     dag = bag.dags[dag_id]
     run = dag.test()
     states = {task_instance.task_id: str(task_instance.state) for task_instance in run.get_task_instances()}
     failed = {task_id: state for task_id, state in states.items() if state != "success"}
     assert str(run.state) == "success", f"DAG {dag_id} ended {run.state}: {states}"
+    assert set(states) == expected_tasks, f"DAG {dag_id} ran {sorted(states)}, expected {sorted(expected_tasks)}"
     assert not failed, f"DAG {dag_id} has tasks that did not succeed: {failed}"
     print(f"DAG {dag_id}: {', '.join(sorted(states))}")
 
@@ -96,8 +97,13 @@ def main(dags_dir: str, admin_url: str) -> None:
 
         bag = DagBag(dag_folder=dags_dir, safe_mode=False, bundle_path=dags_dir)
         assert not bag.import_errors, bag.import_errors
-        run_dag(bag, "sa_ilab_orders")
-        run_dag(bag, "agg_lab_turnaround")
+        # The audit and the access grants are tasks of the DAG, so a missing one fails here instead of passing silently.
+        run_dag(
+            bag,
+            "sa_ilab_orders",
+            {"build_ingested_orders", "build_orders", "audit_orders", "apply_access", "publish_outputs"},
+        )
+        run_dag(bag, "agg_lab_turnaround", {"build_turnaround", "audit_turnaround", "apply_access", "publish_outputs"})
 
         orders = "SELECT order_id, patient_id FROM sa_ilab_orders.orders ORDER BY order_id"
         expect(

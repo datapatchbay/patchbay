@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from datapatchbay.cli import app
 
-EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "lab"
+EXAMPLE = Path(__file__).resolve().parents[3] / "examples" / "lab"
 
 
 @pytest.fixture
