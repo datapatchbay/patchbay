@@ -22,6 +22,15 @@ class YamlLoadError(Exception):
         self.line = line
 
 
+def _round_trip_yaml() -> YAML:
+    """A round-trip YAML that keeps quoting and never re-wraps long lines, so a rewrite only changes what it must."""
+    yaml = YAML(typ="rt")
+    yaml.indent(mapping=2, sequence=4, offset=2)  # the style of the examples in product.md
+    yaml.preserve_quotes = True
+    yaml.width = 2**31 - 1
+    return yaml
+
+
 def load_mapping(path: Path) -> CommentedMap:
     """Read a YAML file whose top level must be a mapping, keeping line information.
 
@@ -35,7 +44,7 @@ def load_mapping(path: Path) -> CommentedMap:
     except (OSError, UnicodeDecodeError) as exc:
         raise YamlLoadError(f"cannot read file: {exc}") from exc
     try:
-        data = YAML(typ="rt").load(text)
+        data = _round_trip_yaml().load(text)
     except YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         problem = getattr(exc, "problem", None) or "syntax error"
@@ -68,9 +77,6 @@ def line_of(data: CommentedMap, location: Sequence[str | int]) -> int:
 
 def dump_mapping(data: CommentedMap) -> str:
     """Write a round-trip mapping back to text, keeping its comments and key order."""
-    yaml = YAML(typ="rt")
-    yaml.indent(mapping=2, sequence=4, offset=2)
-    yaml.preserve_quotes = True
     buffer = StringIO()
-    yaml.dump(data, buffer)
+    _round_trip_yaml().dump(data, buffer)
     return buffer.getvalue()

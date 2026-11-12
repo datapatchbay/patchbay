@@ -123,3 +123,21 @@ def test_missing_migration_step_is_refused(repo: Path):
     result = upgrade_repo(repo, migrations={}, current_version=2)
     assert result.changes == []
     assert "no migration from schema_version 1" in result.problems[0].message
+
+
+def test_rewrite_keeps_quotes_long_lines_and_the_product_md_list_style(repo: Path):
+    long_line = "word " * 40
+    text = (
+        "schema_version: 1\n"
+        "name: 'quoted'\n"
+        f"description: {long_line.strip()}\n"
+        "columns:\n"
+        "  - name: status\n"
+        "    rules:\n"
+        "      - rule: accepted_values\n"
+        "        values: [open, closed]\n"
+    )
+    path = repo / "dataproducts/sa_a/outputs/sa_a/orders.yaml"
+    path.write_text(text)
+    upgrade_repo(repo, migrations=MIGRATIONS, current_version=2)
+    assert path.read_text() == text.replace("schema_version: 1", "schema_version: 2")
