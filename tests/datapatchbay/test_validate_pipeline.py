@@ -84,14 +84,14 @@ def test_the_cascade_is_resolved_once_per_table_per_command(jaffle_dbt_repo: Pat
     from datapatchbay.settings import load_settings
 
     calls: list[tuple[str, object]] = []
-    real = cascade_module.resolve_setting
+    real = cascade_module._resolve_setting
 
     def counting(name, settings, *, dataproduct=None, port=None, table=None, root_data=None):
         assert dataproduct is not None
         calls.append((name, table.file.path if table else port.file.path if port else dataproduct.folder))
         return real(name, settings, dataproduct=dataproduct, port=port, table=table, root_data=root_data)
 
-    monkeypatch.setattr(cascade_module, "resolve_setting", counting)
+    monkeypatch.setattr(cascade_module, "_resolve_setting", counting)
     assert isinstance(plan_repo(jaffle_dbt_repo), PlannedRepo)
     assert calls
     assert len(calls) == len(set(calls))  # no setting is resolved twice for the same place

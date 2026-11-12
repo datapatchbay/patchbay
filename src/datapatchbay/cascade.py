@@ -53,7 +53,7 @@ class ResolvedSetting:
         return {"value": self.value, "level": self.level, "file": str(self.file) if self.file else None}
 
 
-def resolve_setting(
+def _resolve_setting(
     name: str,
     settings: EffectiveSettings,
     *,
@@ -142,17 +142,20 @@ def resolve_cascade(repo: Repo, settings: EffectiveSettings) -> ResolvedCascade:
     ports: dict[PurePosixPath, Mapping[str, ResolvedSetting]] = {}
     tables: dict[PurePosixPath, Mapping[str, ResolvedSetting]] = {}
     for dataproduct in repo.dataproducts:
-        place: dict[str, Any] = {"dataproduct": dataproduct, "root_data": root_data}
         dataproducts[dataproduct.folder] = {
-            name: resolve_setting(name, settings, **place) for name in (*CASCADING_SETTINGS, *DATAPRODUCT_SETTINGS)
+            name: _resolve_setting(name, settings, dataproduct=dataproduct, root_data=root_data)
+            for name in (*CASCADING_SETTINGS, *DATAPRODUCT_SETTINGS)
         }
         for port in dataproduct.ports:
             ports[port.file.path] = {
-                name: resolve_setting(name, settings, port=port, **place) for name in CASCADING_SETTINGS
+                name: _resolve_setting(name, settings, dataproduct=dataproduct, port=port, root_data=root_data)
+                for name in CASCADING_SETTINGS
             }
             for table in port.tables:
                 tables[table.file.path] = {
-                    name: resolve_setting(name, settings, port=port, table=table, **place)
+                    name: _resolve_setting(
+                        name, settings, dataproduct=dataproduct, port=port, table=table, root_data=root_data
+                    )
                     for name in CASCADING_SETTINGS
                 }
     return ResolvedCascade(dataproducts, ports, tables)
