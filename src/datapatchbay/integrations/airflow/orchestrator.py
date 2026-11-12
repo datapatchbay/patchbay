@@ -20,6 +20,7 @@ from datapatchbay.plugins import (
     GenerationContext,
     PythonCall,
     RenderedTask,
+    RenderKind,
     SqlTask,
     TablePlan,
     UnsupportedCombinationError,
@@ -32,6 +33,8 @@ _INDENT = "    "
 
 class AirflowOrchestrator:
     """Generate an Airflow 3 DAG that builds the tables of one data product."""
+
+    render_kind: RenderKind = "task"
 
     def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
         """Return the DAG file of the data product.
@@ -178,7 +181,14 @@ class _DagFile:
         self._claim_task_id(task_id, where)
         variable = self._variable(task_id)
         rendered = render_build(
-            self._context, self._plan.orchestrator, table, call, task_id=task_id, where=where, variable=variable
+            self._context,
+            self._plan.orchestrator,
+            AirflowOrchestrator.render_kind,
+            table,
+            call,
+            task_id=task_id,
+            where=where,
+            variable=variable,
         )
         self._add(rendered)
         return variable

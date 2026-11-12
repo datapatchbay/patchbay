@@ -47,14 +47,6 @@ def test_an_output_port_name_that_is_not_an_airflow_id_is_refused(jaffle_repo: P
         AirflowOrchestrator().generate(plan, context_of(jaffle_repo))
 
 
-def test_the_worker_runtime_refuses_an_orchestrator_it_does_not_know(jaffle_repo: Path):
-    plan = plan_of(jaffle_repo, "sa_jaffle_orders")
-    table = plan.tables[0]
-    task = BuildTask("build_x", table, PythonExecutor().call(table))
-    with pytest.raises(UnsupportedCombinationError, match="orchestrator 'prefect'"):
-        WorkerRuntime().render_build_task(task, orchestrator="prefect", variable="x")
-
-
 def test_the_python_executor_calls_the_entrypoint_function_with_the_params(jaffle_repo: Path):
     ingested = plan_of(jaffle_repo, "sa_jaffle_orders").tables[0]
     call = PythonExecutor().call(ingested)
@@ -70,7 +62,7 @@ def dbt_task_of(root: Path) -> BuildTask:
 def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_profiles_of_the_settings(
     jaffle_dbt_repo: Path,
 ):
-    rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
+    rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), kind="task", variable="dbt")
     assert rendered.imports == ("import os", "import subprocess", "from airflow.sdk import task")
     assert rendered.lines == (
         'dbt = _dbt_build_task("build_dbt", "../..", "~/.dbt", "dataproducts/agg_weekly_orders/models")',
@@ -84,7 +76,7 @@ def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_pro
 @pytest.mark.parametrize("runtime", [DockerRuntime(), KubernetesRuntime()])
 def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_the_worker(jaffle_dbt_repo: Path, runtime):
     with pytest.raises(UnsupportedCombinationError, match=r"cannot run dbt: set `runtime: worker`"):
-        runtime.render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
+        runtime.render_build_task(dbt_task_of(jaffle_dbt_repo), kind="task", variable="dbt")
 
 
 def test_the_dbt_executor_fails_for_a_table_without_a_dbt_location(jaffle_dbt_repo: Path):
@@ -129,7 +121,7 @@ def test_the_dbt_task_runs_the_dbt_command_in_the_project(
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setenv("HOME", "/home/airflow")
-    rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), orchestrator="airflow", variable="dbt")
+    rendered = WorkerRuntime().render_build_task(dbt_task_of(jaffle_dbt_repo), kind="task", variable="dbt")
     product = jaffle_dbt_repo / "dataproducts/agg_weekly_orders"
     # Airflow's `task` turns the function into an operator; here it just hands the function back when called.
     namespace: dict[str, Any] = {

@@ -104,7 +104,7 @@ Plugins are found through Python entry points, so plugin support adds no depende
 airflow = "datapatchbay.integrations.airflow.orchestrator:AirflowOrchestrator"
 ```
 
-The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatchbay.runtimes` and `datapatchbay.warehouses`. The interfaces are the `Protocol` classes in `datapatchbay.plugins`, which also holds the plan data the plugins receive and the tasks they return. The orchestrator composes the DAG from what the others contribute: the executor says what to call, the runtime renders the build task, and the warehouse returns SQL tasks that the orchestrator runs through its own connection.
+The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatchbay.runtimes` and `datapatchbay.warehouses`. The interfaces are the `Protocol` classes in `datapatchbay.plugins`, which also holds the plan data the plugins receive and the tasks they return. The orchestrator composes the DAG from what the others contribute: the executor says what to call, the runtime renders the build task, and the warehouse returns SQL tasks that the orchestrator runs through its own connection. An orchestrator declares the kind of build code it needs, `render_kind`: `task` (an Airflow task) or `function` (a plain Python function with no arguments). A runtime declares the kinds it supports, `render_kinds`, and receives the kind in `render_build_task`; `dpb generate` and `dpb validate` refuse a table whose runtime does not support the kind of its orchestrator. A new orchestrator of kind `function` works with the `worker` runtime without changing it.
 
 The plugin interface is not declared stable yet. [Writing a plugin](plugins.md) shows the extension points and the SQL and codegen toolkits.
 

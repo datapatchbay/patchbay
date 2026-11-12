@@ -9,7 +9,7 @@ from container_helpers import table_of
 
 from datapatchbay.integrations.dbt.executor import DbtExecutor
 from datapatchbay.integrations.python.executor import PythonExecutor
-from datapatchbay.integrations.worker.runtime import FUNCTION_ORCHESTRATORS, WorkerRuntime
+from datapatchbay.integrations.worker.runtime import WorkerRuntime
 from datapatchbay.plugins import BuildTask, RenderedTask
 
 PRODUCT = "dataproducts/sa_jaffle_orders"
@@ -22,8 +22,7 @@ def run(rendered: RenderedTask, namespace: dict[str, Any]) -> Any:
     return namespace["build"]
 
 
-@pytest.mark.parametrize("orchestrator", sorted(FUNCTION_ORCHESTRATORS))
-def test_the_worker_renders_a_function_that_calls_the_entrypoint_with_the_params(jaffle_repo: Path, orchestrator: str):
+def test_the_worker_renders_a_function_that_calls_the_entrypoint_with_the_params(jaffle_repo: Path):
     product = jaffle_repo / PRODUCT
     (product / "src/ingested.py").write_text(
         "from pathlib import Path\n\n\n"
@@ -33,7 +32,7 @@ def test_the_worker_renders_a_function_that_calls_the_entrypoint_with_the_params
     table = table_of(jaffle_repo)
     task = BuildTask("build_ingested_orders", table, PythonExecutor().call(table))
 
-    rendered = WorkerRuntime().render_build_task(task, orchestrator=orchestrator, variable="build")
+    rendered = WorkerRuntime().render_build_task(task, kind="function", variable="build")
 
     assert rendered.imports == ("import importlib.util",)
     assert rendered.lines == (
@@ -50,7 +49,7 @@ def test_the_function_of_the_worker_raises_when_the_build_raises(jaffle_repo: Pa
     (product / "src/ingested.py").write_text("def build(limit):\n    raise RuntimeError('no source')\n")
     table = table_of(jaffle_repo)
     task = BuildTask("build_ingested_orders", table, PythonExecutor().call(table))
-    rendered = WorkerRuntime().render_build_task(task, orchestrator="local", variable="build")
+    rendered = WorkerRuntime().render_build_task(task, kind="function", variable="build")
     build = run(rendered, {"importlib": importlib, "DATAPRODUCT_DIR": product})
     with pytest.raises(RuntimeError, match="no source"):
         build()
@@ -71,7 +70,7 @@ def test_the_worker_renders_a_function_that_runs_dbt_build_in_the_project(
     task = BuildTask("build_dbt", table, DbtExecutor().call(table))
     product = jaffle_dbt_repo / "dataproducts/agg_weekly_orders"
 
-    rendered = WorkerRuntime().render_build_task(task, orchestrator="local", variable="build")
+    rendered = WorkerRuntime().render_build_task(task, kind="function", variable="build")
 
     assert rendered.imports == ("import os", "import subprocess")
     assert rendered.lines == (
