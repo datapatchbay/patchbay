@@ -82,6 +82,40 @@ def test_the_model_name_follows_the_dbt_model_template(dbt_repo: Path):
     assert "models/turnaround_v1.sql does not exist" in rendered(dbt_repo)[0]
 
 
+def test_a_rendered_model_name_that_is_not_a_plain_identifier_fails(dbt_repo: Path):
+    write(
+        dbt_repo,
+        "datapatchbay.yaml",
+        'schema_version: 1\nconventions:\n  names:\n    dbt_model: "{dataproduct}/{table}"\n',
+    )
+    [message] = rendered(dbt_repo)
+    assert message.startswith(f"{TABLE}:2: ")
+    assert "'agg_lab_turnaround/turnaround'" in message
+    assert "plain identifier" in message
+
+
+def _second_dbt_product(repo: Path) -> None:
+    folder = "dataproducts/agg_other"
+    write(
+        repo,
+        f"{folder}/dataproduct.yaml",
+        "schema_version: 1\nname: other\nkind: aggregate\nowner: Ann\noutputs: [agg_other]\nexecutor: dbt\n",
+    )
+    write(repo, f"{folder}/outputs/agg_other/port.yaml", "schema_version: 1\nkind: schema\n")
+    write(repo, f"{folder}/outputs/agg_other/turnaround.yaml", TABLE_YAML)
+
+
+def test_two_tables_with_the_same_rendered_model_name_fail(dbt_repo: Path):
+    write(dbt_repo, "datapatchbay.yaml", 'schema_version: 1\nconventions:\n  names:\n    dbt_model: "{table}"\n')
+    write(dbt_repo, f"{DP}/models/turnaround.sql", "select 1 as days\n")
+    _second_dbt_product(dbt_repo)
+    write(dbt_repo, "dataproducts/agg_other/models/turnaround.sql", "select 1 as days\n")
+    [message] = checked(dbt_repo)
+    assert message.startswith("dataproducts/agg_other/outputs/agg_other/turnaround.yaml:2: ")
+    assert "dbt model name 'turnaround' is already used by " + TABLE in message
+    assert "unique across the repo" in message
+
+
 def test_unknown_placeholder_in_the_dbt_model_template_fails(dbt_repo: Path):
     write(dbt_repo, "datapatchbay.yaml", 'schema_version: 1\nconventions:\n  names:\n    dbt_model: "{bogus}"\n')
     [message] = rendered(dbt_repo)

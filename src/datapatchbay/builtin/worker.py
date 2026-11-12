@@ -9,7 +9,7 @@ def _build_task(task_id, path, function, params):
 
     @task(task_id=task_id)
     def build():
-        spec = importlib.util.spec_from_file_location(f"patchbay_{task_id}", DATAPRODUCT_DIR / path)
+        spec = importlib.util.spec_from_file_location(f"datapatchbay_{task_id}", DATAPRODUCT_DIR / path)
         if spec is None or spec.loader is None:
             raise ImportError(f"cannot load {path}")
         module = importlib.util.module_from_spec(spec)
