@@ -9,6 +9,35 @@ Data products as code. Declare owners, ports and freshness in YAML, then scaffol
 
 Documentation: [datapatchbay.dev](https://datapatchbay.dev)
 
+## Editor support
+
+`dpb schema` prints the JSON Schema of the four kinds of file, so an editor can complete and check them as you type. Save the schemas once, and again after upgrading `dpb`:
+
+```sh
+mkdir -p .schemas
+for kind in root dataproduct port table; do dpb schema $kind > .schemas/$kind.json; done
+```
+
+Then point the editor's YAML support (the [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) in VS Code, or the built-in JSON Schema mappings in JetBrains IDEs) at them. In VS Code, add to `.vscode/settings.json`:
+
+```json
+{
+  "yaml.schemas": {
+    ".schemas/root.json": "datapatchbay.yaml",
+    ".schemas/dataproduct.json": "dataproduct.yaml",
+    ".schemas/port.json": "port.yaml"
+  }
+}
+```
+
+Table files have no fixed name, so add a modeline at the top of each one (the path is relative to the file):
+
+```yaml
+# yaml-language-server: $schema=../../../.schemas/table.json
+```
+
+The schema checks the shape of a file. `dpb validate` also checks the rules across files.
+
 ## Development
 
 The project is managed with [uv](https://docs.astral.sh/uv/). `uv sync` creates `.venv` with the package and the dev tools; tests use pytest, ty checks the types and ruff lints and formats:

@@ -6,6 +6,7 @@ import typer
 from typer.core import TyperGroup
 
 from datapatchbay.cli.config import config
+from datapatchbay.cli.schema import schema
 from datapatchbay.cli.upgrade import upgrade
 from datapatchbay.cli.validate import validate
 from datapatchbay.errors import DatapatchbayError
@@ -33,6 +34,7 @@ app = typer.Typer(
 app.command()(validate)
 app.command()(config)
 app.command()(upgrade)
+app.command()(schema)
 
 
 @app.callback()
