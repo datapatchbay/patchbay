@@ -2,7 +2,7 @@
 
 | Command | What it does |
 | --- | --- |
-| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table. Asks questions in a terminal. With `--no-input` it fails instead of asking |
+| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table (a stub dbt model per table when the executor is `dbt`). Asks questions in a terminal. With `--no-input` it fails instead of asking |
 | `dpb validate` | Validates every data product. Meant for CI |
 | `dpb list` | Shows all data products with their kind, domain and owners |
 | `dpb describe` | Prints one data product with all settings resolved, for humans or agents |
@@ -11,11 +11,11 @@
 | `dpb generate` | Writes the orchestrator files and the warehouse SQL. Meant for CD |
 | `dpb upgrade` | Rewrites files to the current schema version, keeping comments |
 
-`new`, `validate`, `list`, `describe` and `config` take `--json`.
+`new`, `validate`, `list`, `describe`, `config` and `generate` take `--json`.
 
 ## `dpb new`
 
-`dpb new` creates `dataproducts/<folder>/` with a `dataproduct.yaml`, the default output port with its `port.yaml` and one example table, and a stub Python function per table that the table's `build` block points at. The result passes `dpb validate` without edits. The folder and port names come from the naming templates in the effective settings. It never overwrites: if the folder exists, it fails and writes nothing.
+`dpb new` creates `dataproducts/<folder>/` with a `dataproduct.yaml`, the default output port with its `port.yaml` and one example table, and a stub Python function per table that the table's `build` block points at. When the effective executor in `datapatchbay.yaml` is `dbt`, it writes `models/<dbt_model>.sql` per table instead (named by the `dbt_model` naming template) and tables without a `build` block; the example table reads the ingested table with `ref()`. The result passes `dpb validate` without edits. The folder and port names come from the naming templates in the effective settings. It never overwrites: if the folder exists, it fails and writes nothing.
 
 ```sh
 dpb new                                                     # asks for what is missing
@@ -48,12 +48,14 @@ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ila
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
 - `kind` is one of the kinds in the conventions. `domain` is in the domain list when the list is not empty, and is accepted as written when it is empty.
-- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name starts with the data product's derived name. An input port that reads another data product keeps the name of the output port it reads.
+- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name is the data product's derived name or starts with it and an underscore (`sa_ilab_orders_extra`, not `sa_ilab_orders2`). An input port that reads another data product keeps the name of the output port it reads.
 - Data product, port, table and column names are snake_case.
 - Derived data product names and port names are unique across the repo.
 - A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
-- A table built by dbt (its executor resolves to `dbt`) has no `entrypoint`, `params`, `needs` or table rule (`primary_key`, `row_count`, `sql`: "not supported for dbt yet"), has its model file `models/<dbt_model>.sql` in the data product's folder, and no `.py` file sits in a `models/` folder. Any other table has a `build.entrypoint`.
-- The committed dbt files match the table files: `dpb validate` computes the dbt properties files and the `model-paths` of `dbt_project.yml` in memory, as `dpb generate` would write them, and fails on any difference, naming the file and saying to run `dpb generate`. A model that a table file builds must not be declared again in any other YAML file of the `models/` folders. It fails as a duplicate and names both files. `dpb validate` writes nothing.
+- A table built by dbt (its executor resolves to `dbt`) has no `entrypoint`, `params`, `needs` or table rule (`primary_key`, `row_count`, `sql`: "not supported for dbt yet"), has its model file `models/<dbt_model>.sql` in the data product's folder, and no `.py` file sits in a `models/` folder. The model name rendered from the `dbt_model` template is a plain identifier (letters, digits and underscores) and is unique across the repo, because dbt model names are unique in a dbt project. Any other table has a `build.entrypoint`.
+- The committed dbt files match the table files: `dpb validate` computes the dbt properties files and the `model-paths` of `dbt_project.yml` in memory, as `dpb generate` would write them, and fails on any difference, naming the file and saying to run `dpb generate`. A model that a table file builds must not be declared again in any other YAML file of the `models/` folders. It fails as a duplicate and names both files. A file in a `models/` folder that carries the generated header but that no table built by dbt produces any more (the table was removed, or dbt does not build it now) fails and says to delete it. After the last table built by dbt is gone, the `model-paths` entries that point at data product `models/` folders fail the same way. `dpb validate` writes nothing.
+- What `dpb generate` would refuse is found without writing: `dpb validate` generates every data product in memory, once everything else is valid. A table named `dbt` next to tables built by dbt (both would be the task `build_dbt`), a name that is not a valid Airflow id, source input ports with different schedules in one data product and any other refusal of a plugin are reported as a problem on the `dataproduct.yaml`.
+- The output folder (the `output_dir` setting) holds no generated file whose data product is gone. A file there that starts with the generated header and names a `dataproduct.yaml` that does not exist fails and says to delete it. `dpb generate` does not delete these files, because the folder is build output that other tools may share. Hand-written files are not looked at, and a folder given with `dpb generate --output` is not known to `dpb validate`.
 - `executor`, `runtime`, `image`, `container` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
 - Every orchestrator, executor, runtime and warehouse named in the settings has a plugin. The message names the data product and, for an executor or runtime, the table, and points at the line where the name is written. A name set at the root or on a data product is reported for each table it applies to.
 - In the `build` block, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
@@ -74,10 +76,7 @@ With `--json`, stdout holds only this document:
 
 A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
 
-For tables built by dbt, `dpb validate` already checks that the model file exists (see the executor settings). Planned for milestone 2, it will also check that:
-
-- Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest, so CI runs `dbt parse` first (ADR-0014).
-- The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013).
+Not checked yet: that build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this will be checked against the `ref()` and `source()` calls in the dbt manifest, so CI will run `dbt parse` first (ADR-0014).
 
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
@@ -115,11 +114,13 @@ With `--json`, stdout holds one object with the same content. Its keys are `fold
 
 Generated files are build output of CD and are not committed, with one exception: the dbt properties and the `model-paths` of `dbt_project.yml` are committed, because dbt reads them on every run.
 
-`dpb generate` validates the repo first, exactly like `dpb validate`. When anything is wrong it prints the problems on stderr, writes nothing and exits 1. Otherwise it writes one file per data product into the folder of the `output_dir` setting (`generated` by default, relative to the repo root) and lists the files. `--output <folder>` (`-o`) writes into another folder, relative to the working directory. Files from an earlier run that no longer have a data product are not removed. A failure while generating, such as a table name Airflow cannot use as an id, exits 2 with a message that names the data product, and nothing is written.
+`dpb generate` validates the repo first, exactly like `dpb validate`. When anything is wrong it prints the problems on stderr, writes nothing and exits 1. Otherwise it writes one file per data product into the folder of the `output_dir` setting (`generated` by default, relative to the repo root) and lists the files, including the committed dbt files it wrote into the repo and the ones it removed. `--json` prints `{"output_dir", "files", "committed", "removed"}` on stdout instead: `files` are relative to the output folder, the other two relative to the repo root. `--output <folder>` (`-o`) writes into another folder, relative to the working directory. Files in the output folder from an earlier run that no longer have a data product are not removed; `dpb validate` reports them. A failure while generating, such as a table name Airflow cannot use as an id, exits 2 with a message that names the data product, and nothing is written. `dpb validate` finds these failures too.
+
+Generation is all-or-nothing, the writing is not. Every file is written to a temporary file next to it and moved into place, so a file is never half written. A failure while writing (a full disk, a missing permission) exits 2 with a message naming the file, and the files already moved into place stay. The order limits the damage: the output folder first, then the dbt properties, then the deletions, and `dbt_project.yml` last.
 
 The tables of a data product built by dbt share one task, `build_dbt`, that runs `dbt build` on the worker (see [Settings and plugins](settings.md#dbt-on-the-worker)).
 
-When a table is built by dbt, `dpb generate` also updates the `model-paths` key of the `dbt_project.yml` at the repo root, and only that key. This file is committed, so `--output` does not move it. A repo without such a table needs no `dbt_project.yml`; with one, a missing `dbt_project.yml` fails the run (exit 2) with a message saying it is expected at the repo root, and nothing is written.
+When a table is built by dbt, `dpb generate` also updates the `model-paths` key of the `dbt_project.yml` at the repo root, and only that key. This file is committed, so `--output` does not move it. Once any table is built by dbt, `dpb generate` owns the whole `model-paths` key: it is replaced by the `models/` folders of the data products with such a table, so an entry added by hand is lost. When no table is built by dbt any more, it only removes the entries that point at a data product's `models/` folder (and the key if none is left), and the file is not needed. A repo without such a table needs no `dbt_project.yml`; with one, a missing `dbt_project.yml` fails the run (exit 2) with a message saying it is expected at the repo root, and nothing is written.
 
 ```sh
 dpb generate
@@ -129,7 +130,7 @@ dpb generate --output build/dags
 The same input gives byte-identical files. The orchestrator, executor, runtime and warehouse are plugins named in the settings (see [Settings and plugins](settings.md)); this release ships the Airflow orchestrator, the Python executor, the `worker`, `docker` and `kubernetes` runtimes and a Postgres warehouse that writes the SQL for audits, views, masking and grants.
 
 dbt properties
-: For each table built by dbt, `dpb generate` writes `models/<dbt_model>.yml` next to the model, in the data product folder and not in the output folder: the file is committed (ADR-0013). It starts with a line saying it is generated from the table file. It holds the model's description, each column with `data_type` and description, an enforced model contract, the `alias` (the table name), the `schema` (the data product's private schema) and the `group` (the data product). Each column rule becomes a dbt data test: `not_null`, `unique` and `accepted_values`, with severity `error` as `error` and `warning` as `warn`; a rule with severity `none` is left out. A PII column carries `pii: true` in its `meta`. Each data product with such a table also gets `models/_group.yml`, the dbt group with the data product's owner. Table rules are not mapped yet. They are written with the other files, after everything is generated, so a failed run leaves them as they were.
+: For each table built by dbt, `dpb generate` writes `models/<dbt_model>.yml` next to the model, in the data product folder and not in the output folder: the file is committed (ADR-0013). It starts with a line saying it is generated from the table file. It holds the model's description, each column with `data_type` and description, an enforced model contract, the `alias` (the table name), the `schema` (the data product's private schema) and the `group` (the data product). Each column rule becomes a dbt data test: `not_null`, `unique` and `accepted_values`, with severity `error` as `error` and `warning` as `warn`; a rule with severity `none` is left out. A PII column carries `pii: true` in its `meta`. Each data product with such a table also gets `models/_group.yml`, the dbt group with the data product's owner. Table rules are not mapped yet. They are written after everything is generated. A properties file that carries the generated header but that no table produces any more is deleted and listed as removed; a file without the header is never touched.
 
 One Airflow 3 DAG per data product
 : The file is named after the data product folder, and so is the DAG. Each table gets a build task, followed by an audit task when it has quality rules that are not `none`; task order follows `needs`, and a table that needs another waits for that table's audit. A data product with a source input port runs on that port's schedule; all its source input ports must share one schedule. A data product that reads another data product's output port is triggered when that port is updated; with both, it runs on the schedule once the ports are updated. Each output port is an Airflow asset named after the port, and the DAG ends with a `publish_outputs` task that marks the output ports as updated when the DAG succeeds. Between the last table and that task comes the `apply_access` task, which applies the views and grants.
@@ -168,7 +169,7 @@ If any file cannot be upgraded, because its `schema_version` is newer than `dpb`
 
 ## Built for agents
 
-- `--json` output on `new`, `validate`, `list`, `describe` and `config`.
+- `--json` output on `new`, `validate`, `list`, `describe`, `config` and `generate`.
 - `dpb describe` prints a data product with every setting resolved, which is everything an agent needs in one call.
 - `dpb schema` publishes the JSON Schema, so an agent can validate a file before writing it.
 - `--no-input` makes `dpb new` fail instead of prompting.

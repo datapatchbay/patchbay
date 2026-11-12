@@ -32,7 +32,7 @@ dataproducts/
     models/
       agg_lab_turnaround__turnaround.sql
       agg_lab_turnaround__turnaround.yml   # generated, committed
-dbt_project.yml                            # only for dbt; `dpb generate` keeps its `model-paths` in step
+dbt_project.yml                            # only for dbt; once any table is built by dbt, `dpb generate` owns its `model-paths` key (a hand-set entry is replaced)
 ```
 
 There are four kinds of file:
