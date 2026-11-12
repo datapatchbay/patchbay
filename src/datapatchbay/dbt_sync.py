@@ -13,7 +13,8 @@ from ruamel.yaml.comments import CommentedSeq
 
 from datapatchbay.dbt import MODELS_FOLDER, TESTS_FOLDER
 from datapatchbay.dbt_project import DBT_PROJECT_FILE, DbtProjectError, model_paths, synced_dbt_project, test_paths
-from datapatchbay.dbt_properties import GROUP_FILE, generate_dbt_properties
+from datapatchbay.dbt_properties import GROUP_FILE
+from datapatchbay.dbt_sources import SOURCES_FILE, generate_dbt_files
 from datapatchbay.dbt_tests import GENERATED_MARK, generate_dbt_tests
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import GeneratedFile
@@ -34,13 +35,13 @@ def check_dbt_files(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
         The problems found, empty when dbt builds no table or the files are in step.
     """
     plans = plan_dataproducts(repo, settings)
-    generated = generate_dbt_properties(plans, settings)
     tests = generate_dbt_tests(plans, settings)
+    test_files = {file.path for file in tests}
+    files = generate_dbt_files(plans, settings)
+    generated = [file for file in files if file.path not in test_files]
     problems: list[Problem] = []
-    for file in generated:
-        problems.extend(_compare(repo, file, "dbt properties file"))
-    for file in tests:
-        problems.extend(_compare(repo, file, "dbt test file"))
+    for file in files:
+        problems.extend(_compare(repo, file, "dbt test file" if file.path in test_files else "dbt properties file"))
     problems.extend(_leftover_tests(repo, settings, tests))
     project = PurePosixPath(DBT_PROJECT_FILE)
     try:
@@ -88,7 +89,7 @@ def _leftover_tests(repo: Repo, settings: EffectiveSettings, tests: Sequence[Gen
 
 
 def _duplicates(repo: Repo, settings: EffectiveSettings, generated: Sequence[GeneratedFile]) -> list[Problem]:
-    built = {file.path.stem: file.path for file in generated if file.path.name != GROUP_FILE}
+    built = {file.path.stem: file.path for file in generated if file.path.name not in {GROUP_FILE, SOURCES_FILE}}
     generated_paths = {file.path for file in generated}
     problems: list[Problem] = []
     for folder in model_paths(repo, settings):
