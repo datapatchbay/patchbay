@@ -98,30 +98,11 @@ jobs:
       - name: Check formatting
         run: uv run --locked ruff format --check
 
-  dbt:
-    name: dbt parse
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-
-      # `dbt build` against Postgres is an integration test (scripts/integration-tests), so no database is started here.
-      # dbt is installed for this test only. It is never a dependency of the package.
-      - name: Parse the generated dbt properties and tests
-        env:
-          DPB_REQUIRE_DBT: "1"  # a missing dbt fails the test instead of skipping it
-        run: uv run --locked --group dbt pytest -n auto -m dbt
-
   # The one check the ruleset on main requires, so that the list of jobs can change without touching the ruleset.
   # A skipped job (a docs-only pull request) counts as passed.
   ci-ok:
     name: ci ok
-    needs: [changes, pytest, ty, ruff, dbt]
+    needs: [changes, pytest, ty, ruff]
     if: always()
     runs-on: ubuntu-latest
     steps:

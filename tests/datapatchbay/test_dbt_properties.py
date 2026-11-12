@@ -1,7 +1,3 @@
-import json
-import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -182,43 +178,3 @@ def test_a_failing_dbt_project_sync_writes_no_properties(repo: Path):
     with pytest.raises(GenerationError, match=r"dbt_project\.yml"):
         generate_repo(repo)
     assert list((repo / DP / "models").glob("*.yml")) == []
-
-
-@pytest.mark.dbt
-def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
-    dbt = shutil.which("dbt")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
-    if dbt is None:
-        pytest.skip("dbt is not installed; CI runs this test with `--group dbt`")
-    write(repo, TABLE, TABLE_FILE)
-    for path, content in files(repo).items():
-        write(repo, path, content)
-    write(
-        repo,
-        "dbt_project.yml",
-        f"name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\nmodel-paths: ['{DP}/models']\n",
-    )
-    profiles = tmp_path / "profiles"
-    write(
-        profiles,
-        "profiles.yml",
-        "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
-        "      {type: postgres, host: localhost, user: u, password: p, port: 5432, dbname: d, schema: s, threads: 1}\n",
-    )
-    result = subprocess.run(
-        [dbt, "parse", "--project-dir", str(repo), "--profiles-dir", str(profiles)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    manifest = json.loads((repo / "target" / "manifest.json").read_text())
-    model = manifest["nodes"]["model.jaffle_shop.agg_order_turnaround__turnaround"]
-    assert model["config"]["contract"]["enforced"] is True
-    assert model["group"] == "agg_order_turnaround"
-    assert model["alias"] == "turnaround"
-    assert model["schema"].endswith(model["config"]["schema"])
-    tests = [n for n in manifest["nodes"].values() if n["resource_type"] == "test"]
-    assert {t["config"]["severity"].lower() for t in tests} <= {"error", "warn"}
-    assert {t["test_metadata"]["name"] for t in tests} == {"not_null", "unique", "accepted_values"}

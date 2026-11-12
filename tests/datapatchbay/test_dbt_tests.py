@@ -1,7 +1,3 @@
-import json
-import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -163,41 +159,3 @@ def test_stale_test_paths_fail(repo: Path):
     [problem] = rendered(repo)
     assert problem.startswith("dbt_project.yml: ")
     assert "test-paths" in problem
-
-
-@pytest.mark.dbt
-def test_dbt_parses_the_generated_tests(repo: Path, tmp_path: Path):
-    dbt = shutil.which("dbt")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
-    if dbt is None:
-        pytest.skip("dbt is not installed; CI runs this test with `--group dbt`")
-    with_rules(
-        repo,
-        "  - {rule: primary_key, columns: [days]}\n"
-        "  - {rule: row_count, min: 1, severity: warning}\n"
-        f"  - rule: sql\n    sql: select * from {REF} where days < 0;\n",
-    )
-    generate_repo(repo)
-    profiles = tmp_path / "profiles"
-    write(
-        profiles,
-        "profiles.yml",
-        "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
-        "      {type: postgres, host: localhost, user: u, password: p, port: 5432, dbname: d, schema: s, threads: 1}\n",
-    )
-    result = subprocess.run(
-        [dbt, "parse", "--project-dir", str(repo), "--profiles-dir", str(profiles)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    manifest = json.loads((repo / "target" / "manifest.json").read_text())
-    tests = {n["name"]: n for n in manifest["nodes"].values() if n["resource_type"] == "test"}
-    assert {name: test["config"]["severity"].lower() for name, test in tests.items()} == {
-        f"{NAME}__primary_key": "error",
-        f"{NAME}__row_count": "warn",
-        f"{NAME}__sql": "error",
-    }
-    assert all(f"model.jaffle_shop.{NAME}" in test["depends_on"]["nodes"] for test in tests.values())

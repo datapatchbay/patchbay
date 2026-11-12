@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the checks every push needs and nothing else does: ruff, ty and the unit tests, in about ten seconds. The
-# pre-push hook in .githooks runs it. CI runs the same checks again, plus the jobs that need dbt, Airflow or Postgres.
+# pre-push hook in .githooks runs it. CI runs the same checks again; the tests that need Docker run with `scripts/integration-tests`.
 # Extra arguments go to pytest, for example `scripts/check -x`.
 set -euo pipefail
 

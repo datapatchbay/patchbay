@@ -43,5 +43,5 @@ export DPB_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${port}/p
 export DPB_TEST_DOCKER_NETWORK="$network"
 export DPB_TEST_POSTGRES_NETWORK_URL="postgresql://postgres:postgres@postgres:5432/postgres"
 
-# The `dbt` group provides dbt for the tests that run `dbt build`.
+# The `dbt` group provides dbt for the tests that run `dbt parse` and `dbt build`.
 uv run --group dbt pytest -m integration "$@"
