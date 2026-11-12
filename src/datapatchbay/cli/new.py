@@ -101,14 +101,24 @@ def new(
 
 
 def _left_out(imported: DbtImport) -> dict[str, list[Any]]:
-    return {"unmapped_tests": imported.unmapped, "skipped": imported.skipped, "untyped_columns": imported.untyped}
+    return {
+        "unmapped_tests": imported.unmapped,
+        "skipped": imported.skipped,
+        "untyped_columns": imported.untyped,
+        "unrewritten_refs": imported.unrewritten_refs,
+    }
 
 
 def _echo_left_out(imported: DbtImport) -> None:
     for test in imported.unmapped:
         where = f"{test.model}.{test.column}" if test.column else test.model
-        typer.echo(f"not imported: {where} {test.test}: {test.reason}")
+        typer.echo(f"not imported: {where} {test.test}: {test.reason}", err=True)
     for skipped in imported.skipped:
-        typer.echo(f"skipped model {skipped.model}: {skipped.reason}")
+        typer.echo(f"skipped {skipped.model}: {skipped.reason}", err=True)
     for untyped in imported.untyped:
-        typer.echo(f"no data_type: {untyped.model}.{untyped.column} is written as '{DEFAULT_TYPE}'; set the real type")
+        typer.echo(
+            f"no data_type: {untyped.model}.{untyped.column} is written as '{DEFAULT_TYPE}'; set the real type",
+            err=True,
+        )
+    for ref in imported.unrewritten_refs:
+        typer.echo(f"ref not renamed: {ref.model} {ref.call}: {ref.reason}; edit it by hand", err=True)

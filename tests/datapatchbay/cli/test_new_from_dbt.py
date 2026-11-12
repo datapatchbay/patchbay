@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from datapatchbay.cli import app
 from datapatchbay.generate import generate_repo
 from datapatchbay.validation import validate_repo
+from datapatchbay.yamlio import load_mapping
 
 FLAGS = ["new", "--name", "orders", "--kind", "source-aligned", "--owner", "Jane Doe", "--no-input"]
 FOLDER = "dataproducts/sa_orders"
@@ -192,3 +193,54 @@ def test_non_snake_case_model_name_fails_and_writes_nothing(runner: CliRunner, r
     assert result.exit_code == 2
     assert "Bad-Name" in result.output
     assert not (repo / "dataproducts").exists()
+
+
+def test_round_trip_generate_reproduces_the_imported_properties(runner: CliRunner, repo: Path):
+    assert invoke(runner, repo).exit_code == 0
+    prepare_dbt(repo)
+    models = {
+        m["name"]: m
+        for file in (repo / FOLDER / "models").glob("sa_orders__*.yml")
+        for m in load_mapping(file)["models"]
+    }
+    stg = models["sa_orders__stg_orders"]
+    assert stg["description"] == "One row per order."
+    columns = {c["name"]: c for c in stg["columns"]}
+    assert {name: c["data_type"] for name, c in columns.items()} == {"id": "bigint", "status": "text", "email": "text"}
+    assert columns["id"]["description"] == "The order."
+    assert columns["id"]["data_tests"] == [
+        {"unique": {"config": {"severity": "error"}}},
+        {"not_null": {"config": {"severity": "warn"}}},
+    ]
+    assert columns["status"]["data_tests"] == [{"accepted_values": {"arguments": {"values": ["placed", "shipped"]}}}]
+    assert "data_tests" not in columns["email"]
+    totals = {c["name"]: c for c in models["sa_orders__order_totals"]["columns"]}
+    assert totals["id"]["data_tests"] == [{"accepted_values": {"arguments": {"values": [1, 2], "quote": False}}}]
+
+
+def test_refs_that_cannot_be_renamed_are_reported_and_left_as_written(runner: CliRunner, repo: Path):
+    root = dbt_project(repo)
+    write(
+        repo,
+        "old/models/order_totals.sql",
+        'select * from {{ref( "stg_orders" )}}\n'
+        "join {{ ref('pkg', 'stg_orders') }} using (id)\n"
+        "join {{ ref('stg_orders', v=2) }} using (id)\n"
+        "join {{ ref('customers') }} using (id)\n",
+    )
+    data = json.loads(runner.invoke(app, [*FLAGS, "--from-dbt", str(root), "--json"]).stdout)
+    assert {(r["model"], r["call"]) for r in data["unrewritten_refs"]} == {
+        ("order_totals", "ref('pkg', 'stg_orders')"),
+        ("order_totals", "ref('stg_orders', v=2)"),
+        ("order_totals", "ref('customers')"),
+    }
+    sql = (repo / FOLDER / "models/sa_orders__order_totals.sql").read_text()
+    assert '{{ref( "sa_orders__stg_orders" )}}' in sql
+    assert "ref('pkg', 'stg_orders')" in sql
+
+
+def test_unreadable_properties_file_is_reported(runner: CliRunner, repo: Path):
+    root = dbt_project(repo)
+    (root / "broken.yml").write_text("models: [unclosed\n")
+    data = json.loads(invoke(runner, repo, "--json").stdout)
+    assert any(s["model"].endswith("broken.yml") for s in data["skipped"])

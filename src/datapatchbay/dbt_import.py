@@ -20,6 +20,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from datapatchbay.dbt_properties import SEVERITY
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.genheader import generated_from
+from datapatchbay.models.base import Severity
 from datapatchbay.naming import is_snake_case
 from datapatchbay.yamlio import YamlLoadError, load_mapping
 
@@ -80,6 +81,15 @@ class UntypedColumn:
     column: str
 
 
+@dataclass(frozen=True, slots=True)
+class UnrewrittenRef:
+    """A `ref()` in a model's SQL that the import cannot rename; it is copied as written and needs a hand edit."""
+
+    model: str
+    call: str
+    reason: str
+
+
 @dataclass(slots=True)
 class DbtImport:
     """What was read from a dbt project: the models to import, and everything that was left out."""
@@ -88,9 +98,10 @@ class DbtImport:
     unmapped: list[UnmappedTest] = field(default_factory=list)
     skipped: list[Skipped] = field(default_factory=list)
     untyped: list[UntypedColumn] = field(default_factory=list)
+    unrewritten_refs: list[UnrewrittenRef] = field(default_factory=list)
 
 
-def read_dbt_models(path: Path, *, default_severity: str = "error") -> DbtImport:
+def read_dbt_models(path: Path, *, default_severity: Severity = "error") -> DbtImport:
     """Read the models (`.sql`) and their properties (`.yml`, `.yaml`) below a folder.
 
     Args:
@@ -108,8 +119,8 @@ def read_dbt_models(path: Path, *, default_severity: str = "error") -> DbtImport
     if not path.is_dir():
         raise DbtImportError(f"--from-dbt: {path} is not a folder")
     sql_files = _sql_files(path)
-    declared = _declared_models(path)
     result = DbtImport()
+    declared = _declared_models(path, result.skipped)
     for name in sorted({*sql_files, *declared}):
         if name not in sql_files:
             result.skipped.append(Skipped(name, "its properties have no .sql file"))
@@ -119,6 +130,9 @@ def read_dbt_models(path: Path, *, default_severity: str = "error") -> DbtImport
             result.skipped.append(Skipped(name, "its properties list no columns, which a table file needs"))
         else:
             result.models.append(_import_model(name, sql_files[name], declared[name], default_severity, result))
+    imported = {model.name for model in result.models}
+    for model in result.models:
+        result.unrewritten_refs.extend(unrewritable_refs(model.name, model.sql, imported))
     bad = [model.name for model in result.models if not is_snake_case(model.name)]
     if bad:
         raise DbtImportError(f"model name(s) {', '.join(bad)} must be snake_case to become table names; rename them")
@@ -136,21 +150,23 @@ def _sql_files(path: Path) -> dict[str, Path]:
     return found
 
 
-def _declared_models(path: Path) -> dict[str, CommentedMap]:
+def _declared_models(path: Path, skipped: list[Skipped]) -> dict[str, CommentedMap]:
     declared: dict[str, CommentedMap] = {}
     for file in sorted([*path.rglob("*.yml"), *path.rglob("*.yaml")]):
         if generated_from(file) is not None:
             continue
         try:
             data = load_mapping(file)
-        except YamlLoadError:
-            continue  # not a properties file; dbt reports its own files
+        except YamlLoadError as exc:
+            skipped.append(Skipped(file.as_posix(), f"the file is not readable YAML: {exc}"))
+            continue
         entries = data.get("models")
         if not isinstance(entries, CommentedSeq):
             continue
         for entry in entries:
             name = entry.get("name") if isinstance(entry, CommentedMap) else None
             if not isinstance(name, str):
+                skipped.append(Skipped(file.as_posix(), "a model entry without a `name` was left out"))
                 continue
             if name in declared:
                 raise DbtImportError(f"model '{name}' is declared more than once in the properties below {path}")
@@ -158,10 +174,11 @@ def _declared_models(path: Path) -> dict[str, CommentedMap]:
     return declared
 
 
-def _import_model(name: str, sql: Path, entry: CommentedMap, default: str, result: DbtImport) -> ImportedModel:
+def _import_model(name: str, sql: Path, entry: CommentedMap, default: Severity, result: DbtImport) -> ImportedModel:
     columns = []
     for raw in entry["columns"]:
         if not isinstance(raw, CommentedMap) or not isinstance(raw.get("name"), str):
+            result.skipped.append(Skipped(name, "a column entry without a `name` was left out"))
             continue
         column: dict[str, Any] = {"name": raw["name"]}
         data_type = raw.get("data_type")
@@ -234,7 +251,7 @@ def _test_name(test: Any) -> str:
     return _split(test)[0]
 
 
-def _map_test(test: Any, model: str, column: str, default: str, result: DbtImport) -> dict[str, Any] | str | None:
+def _map_test(test: Any, model: str, column: str, default: Severity, result: DbtImport) -> dict[str, Any] | str | None:
     name, settings = _split(test)
 
     def unmapped(reason: str) -> None:
@@ -284,6 +301,25 @@ def _accepted_values(settings: Mapping[str, Any]) -> list[str | int | float | bo
         else:
             mapped.append(value)
     return mapped
+
+
+_REF_CALL = re.compile(r"\bref\(([^()]*)\)")
+_SINGLE_ARGUMENT = re.compile(r"""\s*(['"])(?P<name>[^'"]+)\1\s*""")
+
+
+def unrewritable_refs(model: str, sql: str, imported: set[str]) -> list[UnrewrittenRef]:
+    """The `ref()` calls that `rename_refs` leaves as written, each with the reason."""
+    found = []
+    for call in _REF_CALL.finditer(sql):
+        single = _SINGLE_ARGUMENT.fullmatch(call.group(1))
+        if single is None:
+            reason = "a ref with a package or a version is not renamed"
+        elif single.group("name") not in imported:
+            reason = "it names a model that is not imported, so it is not renamed"
+        else:
+            continue
+        found.append(UnrewrittenRef(model, call.group(0), reason))
+    return found
 
 
 def rename_refs(sql: str, names: Mapping[str, str]) -> str:
