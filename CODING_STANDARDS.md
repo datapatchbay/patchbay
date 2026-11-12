@@ -65,12 +65,17 @@ These follow from the product decisions and apply to every change.
 uv run ty check
 ```
 
-No formatter or linter is configured yet. When one is added, this section names it. Until then:
+[ruff](https://docs.astral.sh/ruff/) lints and formats `src/` and `tests/`, with a line length of 120. Its
+configuration is `[tool.ruff]` in `pyproject.toml`.
 
-- Follow PEP 8 with a line length of 120 characters.
+```sh
+uv run ruff check
+uv run ruff format --check
+```
+
+- Do not hand-format; run `uv run ruff format` and keep diffs about behavior.
 - Code MUST NOT shadow Python built-ins such as `id`, `type`, `list` or `input`.
 - Wildcard imports are prohibited.
-- Do not hand-format what a formatter will later rewrite; keep diffs about behavior.
 
 ## Type Annotations
 
@@ -303,9 +308,11 @@ file name with `test_`:
 ```sh
 uv run pytest
 uv run ty check
+uv run ruff check
+uv run ruff format --check
 ```
 
-Every pull request runs the tests on each supported Python version and runs ty (`.github/workflows/ci.yml`).
+Every pull request runs the tests on each supported Python version, runs ty and runs ruff (`.github/workflows/ci.yml`).
 
 ## Related Guidance
 

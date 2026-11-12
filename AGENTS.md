@@ -1,10 +1,10 @@
-# patchbay
+# datapatchbay
 
 Data products as code. Declare owners, ports and freshness in YAML, then scaffold, validate and generate from one lightweight CLI.
 
 ## Coding standards
 
-Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `uv run pytest` and `uv run ty check`.
+Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `uv run pytest`, `uv run ty check`, `uv run ruff check` and `uv run ruff format --check`.
 
 ## Agent skills
 
