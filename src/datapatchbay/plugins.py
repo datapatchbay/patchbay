@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 
+from datapatchbay.models.base import Severity
 from datapatchbay.repomodel import DataProduct, Port, Table
 
 __all__ = [
@@ -73,7 +74,7 @@ class TablePlan:
     executor: str
     runtime: str
     image: str | None
-    severity: str
+    severity: Severity
     port_source: Port
     source: Table
 

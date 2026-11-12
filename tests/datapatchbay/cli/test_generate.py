@@ -16,7 +16,7 @@ def test_generate_writes_the_dag_files_and_lists_them(runner: CliRunner, in_lab_
     result = runner.invoke(app, ["generate"])
     assert result.exit_code == 0, result.output
     assert f"wrote {in_lab_repo.resolve() / 'generated' / 'sa_ilab_orders.py'}" in result.stdout
-    assert "ok: 2 file(s) written" in result.stdout
+    assert "ok: 3 file(s) written" in result.stdout
     assert (in_lab_repo / "generated/sa_ilab_orders.py").is_file()
 
 

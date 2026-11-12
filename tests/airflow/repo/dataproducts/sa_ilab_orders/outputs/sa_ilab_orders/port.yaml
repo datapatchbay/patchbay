@@ -4,3 +4,4 @@ freshness: 24h
 access:
   readers:
     - product: agg_lab_turnaround
+    - product: agg_lab_weekly

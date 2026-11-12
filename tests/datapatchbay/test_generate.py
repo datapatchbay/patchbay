@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from plugin_fakes import FakeOrchestrator, FakeWarehouse, register
+from plugin_fakes import FakeOrchestrator, FakeWarehouse, install_distribution, register
 
 from datapatchbay.generate import GenerationError, generate_repo
 
@@ -67,9 +67,10 @@ def generated(repo: Path, name: str, directory: str = "generated") -> str:
 def test_generate_writes_one_dag_file_per_data_product_into_the_output_dir_setting(lab_repo: Path):
     result = generate_repo(lab_repo)
     assert result.report.ok
-    assert [str(path) for path in result.files] == ["agg_lab_turnaround.py", "sa_ilab_orders.py"]
+    assert [str(path) for path in result.files] == ["agg_lab_turnaround.py", "agg_lab_weekly.py", "sa_ilab_orders.py"]
     assert sorted(path.name for path in (lab_repo / "generated").iterdir()) == [
         "agg_lab_turnaround.py",
+        "agg_lab_weekly.py",
         "sa_ilab_orders.py",
     ]
 
@@ -92,11 +93,14 @@ def test_generate_honours_the_output_dir_setting_and_the_override(lab_repo: Path
     assert '/ "../repo/dataproducts/sa_ilab_orders"' in (elsewhere / "sa_ilab_orders.py").read_text()
 
 
-def test_generated_files_do_not_import_datapatchbay(lab_repo: Path):
+def test_generated_files_do_not_mention_datapatchbay_outside_the_header_comment(lab_repo: Path):
     generate_repo(lab_repo)
-    for path in (lab_repo / "generated").iterdir():
-        imports = [line for line in path.read_text().splitlines() if line.startswith(("import ", "from "))]
-        assert not [line for line in imports if "datapatchbay" in line]
+    files = list((lab_repo / "generated").iterdir())
+    assert files
+    for path in files:
+        code = "\n".join(line for line in path.read_text().splitlines() if not line.startswith("#"))
+        assert "datapatchbay" not in code
+        assert "dpb" not in code
 
 
 def test_a_data_product_that_reads_another_runs_when_its_output_port_is_updated(lab_repo: Path):
@@ -106,21 +110,16 @@ def test_a_data_product_that_reads_another_runs_when_its_output_port_is_updated(
     assert 'outlets=[Asset(name="agg_lab_turnaround", uri="x-patchbay://agg_lab_turnaround")]' in text
 
 
-def test_a_data_product_with_a_source_and_a_read_runs_on_the_schedule_once_the_assets_are_updated(lab_repo: Path):
-    port = lab_repo / "dataproducts/agg_lab_turnaround/inputs/agg_lab_turnaround_extra/port.yaml"
-    port.parent.mkdir(parents=True)
-    port.write_text('schema_version: 1\nkind: schema\nsource: ilab\nschedule: "30 6 * * 1"\n')
-    product = lab_repo / "dataproducts/agg_lab_turnaround/dataproduct.yaml"
-    product.write_text(
-        product.read_text().replace("inputs: [sa_ilab_orders]", "inputs: [sa_ilab_orders, agg_lab_turnaround_extra]")
-    )
-    assert generate_repo(lab_repo).report.ok
-    text = generated(lab_repo, "agg_lab_turnaround.py")
+def test_a_data_product_with_a_source_and_a_read_runs_on_the_schedule_and_when_the_assets_are_updated(lab_repo: Path):
+    # Airflow's AssetAndTimeSchedule would wait for both; the data product must run on either.
+    generate_repo(lab_repo)
+    text = generated(lab_repo, "agg_lab_weekly.py")
     assert (
-        '    schedule=AssetAndTimeSchedule(timetable=CronTriggerTimetable("30 6 * * 1", timezone="UTC"), '
+        '    schedule=AssetOrTimeSchedule(timetable=CronTriggerTimetable("30 6 * * 1", timezone="UTC"), '
         'assets=[Asset(name="sa_ilab_orders", uri="x-patchbay://sa_ilab_orders")]),\n'
     ) in text
-    assert "from airflow.sdk import Asset, AssetAndTimeSchedule, CronTriggerTimetable, DAG, task" in text
+    assert "from airflow.sdk import Asset, AssetOrTimeSchedule, CronTriggerTimetable, DAG, task" in text
+    assert "AssetAndTimeSchedule" not in text
 
 
 def test_a_data_product_without_inputs_has_no_schedule(lab_repo: Path):
@@ -135,7 +134,7 @@ def test_a_data_product_without_inputs_has_no_schedule(lab_repo: Path):
 def test_the_same_input_gives_byte_identical_output(lab_repo: Path, tmp_path: Path):
     generate_repo(lab_repo, output_dir=tmp_path / "one")
     generate_repo(lab_repo, output_dir=tmp_path / "two")
-    for name in ("agg_lab_turnaround.py", "sa_ilab_orders.py"):
+    for name in ("agg_lab_turnaround.py", "agg_lab_weekly.py", "sa_ilab_orders.py"):
         assert (tmp_path / "one" / name).read_bytes() == (tmp_path / "two" / name).read_bytes()
 
 
@@ -189,19 +188,19 @@ def test_source_input_ports_with_different_schedules_cannot_share_one_dag(lab_re
     assert not (lab_repo / "generated").exists()
 
 
-def test_a_fake_orchestrator_plugin_generates_instead_of_airflow(lab_repo: Path, monkeypatch: pytest.MonkeyPatch):
-    fake = FakeOrchestrator()
-    register(monkeypatch, "orchestrator", "fake", lambda: fake)
+def test_a_fake_orchestrator_plugin_registered_through_entry_points_generates_instead_of_airflow(
+    lab_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    install_distribution(monkeypatch, tmp_path / "site", "orchestrator", "fake", "plugin_fakes:FakeOrchestrator")
     (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
     result = generate_repo(lab_repo)
-    assert [str(path) for path in result.files] == ["agg_lab_turnaround.txt", "sa_ilab_orders.txt"]
-    assert generated(lab_repo, "sa_ilab_orders.txt") == "sa_ilab_orders: ingested_orders,orders\n"
-    plan = fake.plans[1]
-    assert (plan.folder, plan.reads, plan.outputs) == ("sa_ilab_orders", (), ("sa_ilab_orders",))
-    assert [(table.name, table.executor, table.runtime) for table in plan.tables] == [
-        ("ingested_orders", "python", "worker"),
-        ("orders", "python", "worker"),
+    assert [str(path) for path in result.files] == [
+        "agg_lab_turnaround.txt",
+        "agg_lab_weekly.txt",
+        "sa_ilab_orders.txt",
     ]
+    assert generated(lab_repo, "sa_ilab_orders.txt") == "sa_ilab_orders: ingested_orders,orders\n"
+    assert generated(lab_repo, "agg_lab_weekly.txt") == "agg_lab_weekly: weekly_raw,weekly\n"
 
 
 def test_an_orchestrator_set_on_one_data_product_applies_to_that_data_product_only(
@@ -211,7 +210,7 @@ def test_an_orchestrator_set_on_one_data_product_applies_to_that_data_product_on
     product = lab_repo / "dataproducts/agg_lab_turnaround/dataproduct.yaml"
     product.write_text(product.read_text() + "orchestrator: fake\n")
     result = generate_repo(lab_repo)
-    assert [str(path) for path in result.files] == ["agg_lab_turnaround.txt", "sa_ilab_orders.py"]
+    assert [str(path) for path in result.files] == ["agg_lab_turnaround.txt", "agg_lab_weekly.py", "sa_ilab_orders.py"]
 
 
 def test_a_warehouse_plugin_adds_audit_and_apply_tasks_that_run_through_the_connection(

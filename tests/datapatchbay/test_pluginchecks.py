@@ -30,7 +30,7 @@ def test_an_executor_without_a_plugin_is_reported_where_it_is_set_for_each_table
     port = lab_repo / "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml"
     port.write_text(port.read_text() + "executor: dbt\n")
     assert rendered(lab_repo) == [
-        "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml:7: executor 'dbt' has no plugin "
+        "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml:8: executor 'dbt' has no plugin "
         "(data product 'sa_ilab_orders', table 'orders'); available executor plugins: python"
     ]
 
@@ -38,7 +38,7 @@ def test_an_executor_without_a_plugin_is_reported_where_it_is_set_for_each_table
 def test_a_root_level_runtime_is_reported_once_per_table_at_the_root_file(lab_repo: Path):
     (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: kubernetes\n")
     messages = rendered(lab_repo)
-    assert len(messages) == 3
+    assert len(messages) == 5
     assert messages[0].startswith("datapatchbay.yaml:2: runtime 'kubernetes' has no plugin (data product ")
     assert any("table 'turnaround'" in message for message in messages)
 

@@ -1,0 +1,7 @@
+schema_version: 1
+name: weekly_raw
+columns:
+  - name: week
+    type: text
+build:
+  entrypoint: src/weekly_raw.py:build

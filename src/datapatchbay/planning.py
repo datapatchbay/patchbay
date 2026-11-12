@@ -48,7 +48,7 @@ def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: s
                     executor=str(resolved["executor"].value),
                     runtime=str(resolved["runtime"].value),
                     image=None if image is None else str(image),
-                    severity=str(resolved["severity"].value),
+                    severity=resolved["severity"].value,
                     port_source=port,
                     source=table,
                 )

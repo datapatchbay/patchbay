@@ -1,7 +1,7 @@
 """Fake plugins and a way to register them in tests, so a test does not depend on what is installed."""
 
 from collections.abc import Callable, Sequence
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -33,6 +33,26 @@ def register(monkeypatch: pytest.MonkeyPatch, kind: PluginKind, name: str, facto
         return found
 
     monkeypatch.setattr(registry, "entry_points", discover)
+
+
+def install_distribution(monkeypatch: pytest.MonkeyPatch, site: Path, kind: PluginKind, name: str, target: str) -> None:
+    """Install a distribution whose metadata registers a plugin, so it is found as a real third-party plugin.
+
+    Writes `entry_points.txt` into a `*.dist-info` folder under `site` and puts `site` on `sys.path`, which is what
+    `pip install` does for a package. Nothing in `datapatchbay.registry` is replaced.
+
+    Args:
+        monkeypatch: Restores `sys.path` after the test.
+        site: An empty folder to act as site-packages.
+        kind: The extension point.
+        name: The plugin's name, as written in the settings.
+        target: The `module:attribute` of the plugin class, which must be importable.
+    """
+    info = site / "fake_plugin-1.0.dist-info"
+    info.mkdir(parents=True)
+    (info / "METADATA").write_text("Metadata-Version: 2.1\nName: fake-plugin\nVersion: 1.0\n")
+    (info / "entry_points.txt").write_text(f"[{registry.GROUPS[kind]}]\n{name} = {target}\n")
+    monkeypatch.syspath_prepend(str(site))
 
 
 class FakeOrchestrator:

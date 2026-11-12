@@ -95,4 +95,5 @@ jobs:
         run: |
           "$RUNNER_TEMP/airflow-venv/bin/python" tests/airflow/check_dags.py "$RUNNER_TEMP/dags" \
             sa_ilab_orders build_ingested_orders,build_orders,publish_outputs \
-            agg_lab_turnaround build_turnaround,publish_outputs
+            agg_lab_turnaround build_turnaround,publish_outputs \
+            agg_lab_weekly build_weekly_raw,build_weekly,publish_outputs

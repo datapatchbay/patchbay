@@ -123,10 +123,10 @@ class _DagFile:
             self._imports.add("from airflow.sdk import Asset")
         if crons and plan.reads:
             self._imports.update(
-                {"from airflow.sdk import AssetAndTimeSchedule", "from airflow.sdk import CronTriggerTimetable"}
+                {"from airflow.sdk import AssetOrTimeSchedule", "from airflow.sdk import CronTriggerTimetable"}
             )
             timetable = f'CronTriggerTimetable({python_literal(crons[0])}, timezone="UTC")'
-            return f"AssetAndTimeSchedule(timetable={timetable}, assets={assets})"
+            return f"AssetOrTimeSchedule(timetable={timetable}, assets={assets})"
         if crons:
             return python_literal(crons[0])
         if plan.reads:
