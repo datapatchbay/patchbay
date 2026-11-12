@@ -106,6 +106,10 @@ The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatc
 
 The plugin interface is not declared stable yet.
 
+## DuckDB enforces no access
+
+The DuckDB warehouse enforces no access and is meant for local development and tests. Readers and PII readers are accepted and create no grants, and a PII column shows NULL to everyone. The same files then work on both warehouses, so a team can switch the `warehouse` setting between them ([ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)).
+
 ## Where the generated files go
 
 `output_dir` in `datapatchbay.yaml` is the folder `dpb generate` writes to, relative to the repo root. It defaults to `generated`. `dpb generate --output` overrides it.
