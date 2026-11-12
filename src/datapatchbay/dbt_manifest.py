@@ -56,7 +56,8 @@ def check_dbt_reads(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     Fails a model that `ref()`s a model of another data product (a read of its private schema), and a model that
     reads the `source()` of another data product's output port, or the private schema of another data product,
     without an input port on it. A source that is no output port of the repo is not a read of a data product and is
-    not checked, and neither is a table name written into the SQL (ADR-0014).
+    not checked, and neither is a table name written into the SQL (ADR-0014, ADR-0018). That a reading data product
+    may have an input port on an output port at all (its readers, ADR-0007) is checked when the input ports are.
 
     Only call this for a repo whose other checks passed.
 
@@ -205,7 +206,7 @@ def _problem(repo: Repo, model: _Model, pattern: re.Pattern[str], message: str) 
     try:
         lines = (repo.root / model.file).read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError):
-        lines = []
+        lines = []  # the file is still reported; only its line is unknown
     for number, text in enumerate(lines, start=1):
         if pattern.search(text):
             line = number
