@@ -44,7 +44,7 @@ rules:
 
 The model is `models/<data product>__<table>.sql` in the data product folder. The name comes from the `dbt_model` naming template.
 
-```sql
+```sql+jinja
 -- dataproducts/agg_lab_turnaround/models/agg_lab_turnaround__turnaround.sql
 select
     order_id,
