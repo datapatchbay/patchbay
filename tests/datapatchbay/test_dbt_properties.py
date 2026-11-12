@@ -5,8 +5,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from plugin_fakes import FakeOrchestrator, register
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
+from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.generate import GenerationError, generate_repo

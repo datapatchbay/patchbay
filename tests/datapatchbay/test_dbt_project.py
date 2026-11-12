@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-from plugin_fakes import FakeOrchestrator, register
 from dbt_helpers import DP, MODEL, TABLE_YAML, write
+from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.generate import GenerationError, generate_repo
 from datapatchbay.plugins import UnsupportedCombinationError
