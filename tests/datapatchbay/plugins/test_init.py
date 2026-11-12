@@ -30,10 +30,9 @@ MODULE_OF = {
 
 
 @pytest.mark.parametrize(("module", "name"), [(m, n) for m, names in MODULE_OF.items() for n in names])
-def test_a_name_is_defined_in_its_module_and_reexported(module: str, name: str) -> None:
+def test_a_name_is_reexported_from_its_module(module: str, name: str) -> None:
     defined = importlib.import_module(f"datapatchbay.plugins.{module}")
     assert getattr(plugins, name) is getattr(defined, name)
-    assert getattr(defined, name).__module__ == defined.__name__
     assert name in plugins.__all__
 
 

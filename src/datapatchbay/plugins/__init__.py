@@ -1,12 +1,4 @@
-"""The plugin interface (ADR-0009), re-exported so a plugin imports it from one place.
-
-- `interfaces`: the four extension points, as `Protocol` classes, with `GenerationContext` and the error
-  a plugin raises.
-- `plan`: the plan data that `dpb generate` hands to plugins.
-- `tasks`: the tasks, calls and files that plugins hand back.
-- `registry`: finding plugins through entry points. Not re-exported: it loads plugins and is not part of
-  their interface.
-"""
+"""The plugin interface (ADR-0009), re-exported so a plugin imports it from one place."""
 
 from datapatchbay.plugins.interfaces import (
     Executor,
