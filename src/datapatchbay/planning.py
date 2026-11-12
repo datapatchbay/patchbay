@@ -58,6 +58,7 @@ def _plan(
                     dataproduct=dataproduct.folder,
                     port=port.name,
                     name=table.name,
+                    schema=names.private_port,
                     entrypoint=PurePosixPath(path) if entrypoint else None,
                     function=function or None,
                     params={} if build is None else build.params,
