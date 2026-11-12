@@ -3,15 +3,23 @@
 CI runs this with the Python of the separate virtual environment that has Airflow and its Postgres provider installed,
 never the project's environment, so datapatchbay is not importable here (ADR-0001). It runs `airflow db migrate` on a
 throwaway SQLite metadata database, points the connection `warehouse` at Postgres through the environment, and runs
-`dag.test()` for the source-aligned DAG and then for the aggregate DAG. Each DAG builds its tables, runs the audit
-tasks and applies the views and grants. Roles are expected to exist (ADR-0017), so the script creates them first.
+`dag.test()` for the source-aligned DAG and then for the aggregate DAG. The source-aligned DAG builds its tables with
+Python, runs the audit tasks and applies the views and grants. The aggregate DAG is built by dbt: its `build_dbt` task
+runs the real `dbt build` of the example's dbt project, which builds the model from the output port of the other data
+product and runs its data tests, and then the DAG applies the views and grants. Roles are expected to exist
+(ADR-0017), so the script creates them first.
 
-Usage: python run_example.py DAGS_DIR POSTGRES_URL
+Usage: python run_example.py DAGS_DIR POSTGRES_URL [DBT_BIN_DIR]
+
+The `build_dbt` task runs the `dbt` command of its PATH. dbt cannot be installed next to Airflow (their pins conflict),
+so DBT_BIN_DIR names the `bin` folder of the environment that has dbt; it is put first in the PATH. dbt reads the
+connection from the environment in the profile of the example, which this script sets from POSTGRES_URL.
 
 POSTGRES_URL names a server where the user may create roles and databases. The script works in a database of its own and
 drops it at the end. The roles are created by the script and dropped at the end too.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -19,6 +27,7 @@ import tempfile
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -78,7 +87,38 @@ def expect(actual: object, expected: object, what: str) -> None:
     print(f"ok: {what}")
 
 
-def main(dags_dir: str, admin_url: str) -> None:
+def point_dbt_at(url: str, dbt_bin_dir: str | None) -> Path:
+    """Set what `dbt build` reads in the profile of the example; return the folder for its artifacts."""
+    parts = urlsplit(url)
+    os.environ.update(
+        PGHOST=parts.hostname or "localhost",
+        PGPORT=str(parts.port or 5432),
+        PGUSER=parts.username or "",
+        PGPASSWORD=parts.password or "",
+        PGDATABASE=parts.path.lstrip("/"),
+    )
+    # dbt writes its artifacts next to the project by default; keep the working tree of the example clean.
+    artifacts = Path(AIRFLOW_HOME) / "dbt"
+    os.environ["DBT_TARGET_PATH"] = str(artifacts / "target")
+    os.environ["DBT_LOG_PATH"] = str(artifacts / "logs")
+    if dbt_bin_dir:
+        os.environ["PATH"] = f"{os.path.abspath(dbt_bin_dir)}{os.pathsep}{os.environ['PATH']}"
+    return artifacts
+
+
+def check_dbt_tests(artifacts: Path) -> None:
+    """The model was built and its data tests ran and passed, so a build that skipped them cannot go unnoticed."""
+    results = json.loads((artifacts / "target" / "run_results.json").read_text())["results"]
+    statuses = {tuple(r["unique_id"].split(".")[::2]): r["status"] for r in results}  # (resource type, name) -> status
+    models = sorted(name for kind, name in statuses if kind == "model")
+    tests = {name: status for (kind, name), status in statuses.items() if kind == "test"}
+    expect(models, ["agg_lab_turnaround__turnaround"], "dbt built the model")
+    assert len(tests) == 4, f"expected 4 data tests: {tests}"  # three column tests and the row_count rule
+    assert set(tests.values()) == {"pass"}, tests
+    print(f"ok: dbt ran {len(tests)} data tests and all passed")
+
+
+def main(dags_dir: str, admin_url: str, dbt_bin_dir: str | None = None) -> None:
     dags_dir = os.path.abspath(dags_dir)
     os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = dags_dir
     database = f"dpb_example_{uuid.uuid4().hex[:12]}"
@@ -91,6 +131,7 @@ def main(dags_dir: str, admin_url: str) -> None:
     try:
         # The connection `warehouse` is the one the generated DAGs name; Airflow reads it from the environment.
         os.environ["AIRFLOW_CONN_WAREHOUSE"] = url.replace("postgresql://", "postgres://", 1)
+        artifacts = point_dbt_at(url, dbt_bin_dir)
         subprocess.run(["airflow", "db", "migrate"], check=True, env=os.environ, stdout=subprocess.DEVNULL)
         # `dag.test()` needs the DAGs serialized in the metadata database, which the DAG processor does in a deployment.
         subprocess.run(["airflow", "dags", "reserialize"], check=True, env=os.environ, stdout=subprocess.DEVNULL)
@@ -103,7 +144,9 @@ def main(dags_dir: str, admin_url: str) -> None:
             "sa_ilab_orders",
             {"build_ingested_orders", "build_orders", "audit_orders", "apply_access", "publish_outputs"},
         )
-        run_dag(bag, "agg_lab_turnaround", {"build_turnaround", "audit_turnaround", "apply_access", "publish_outputs"})
+        # The rules of the dbt table are data tests inside `build_dbt`, so this DAG has no audit task.
+        run_dag(bag, "agg_lab_turnaround", {"build_dbt", "apply_access", "publish_outputs"})
+        check_dbt_tests(artifacts)
 
         orders = "SELECT order_id, patient_id FROM sa_ilab_orders.orders ORDER BY order_id"
         expect(

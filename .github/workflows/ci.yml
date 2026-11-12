@@ -106,7 +106,7 @@ jobs:
           uv run --locked --project ../.. dpb generate --output "$RUNNER_TEMP/example-dags"
           "$RUNNER_TEMP/airflow-venv/bin/python" ../../tests/airflow/check_dags.py "$RUNNER_TEMP/example-dags" \
             sa_ilab_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
-            agg_lab_turnaround apply_access,audit_turnaround,build_turnaround,publish_outputs
+            agg_lab_turnaround apply_access,build_dbt,publish_outputs
 
   postgres:
     name: postgres
@@ -161,9 +161,18 @@ jobs:
         with:
           enable-cache: true
 
+      # dbt is installed from the project's `dbt` dependency group, in the project environment, because its pins conflict
+      # with Airflow's. Only the `dbt` command is used from there: the `build_dbt` task finds it through the PATH.
       - name: Generate the DAGs of the example repo
         working-directory: examples/lab
-        run: uv run --locked --project ../.. dpb generate --output "$RUNNER_TEMP/dags"
+        run: uv run --locked --group dbt --project ../.. dpb generate --output "$RUNNER_TEMP/dags"
+
+      # `dpb validate` reads the dbt manifest to check what the dbt model reads, so `dbt parse` comes first.
+      - name: Parse the dbt project of the example repo and validate it
+        working-directory: examples/lab
+        run: |
+          uv run --locked --group dbt --project ../.. dbt parse --project-dir . --profiles-dir .
+          uv run --locked --group dbt --project ../.. dpb validate
 
       - name: Install Airflow outside the project lock
         run: |
@@ -174,12 +183,13 @@ jobs:
             apache-airflow-providers-postgres \
             --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${AIRFLOW_PYTHON}.txt"
 
-      # Runs both generated DAGs with `dag.test()` against the Postgres service, then reads the views as a reader and
-      # as a PII reader. The roles are created by the script (ADR-0017).
+      # Runs both generated DAGs with `dag.test()` against the Postgres service (the dbt DAG runs the real `dbt build`
+      # with its data tests), then reads the views as a reader and as a PII reader. The roles are created by the script
+      # (ADR-0017).
       - name: Run the DAGs and read the output ports
         run: |
           PATH="$RUNNER_TEMP/airflow-venv/bin:$PATH" python tests/airflow/run_example.py "$RUNNER_TEMP/dags" \
-            postgresql://postgres:postgres@localhost:5432/postgres
+            postgresql://postgres:postgres@localhost:5432/postgres "$GITHUB_WORKSPACE/.venv/bin"
 
   dbt:
     name: dbt parse
