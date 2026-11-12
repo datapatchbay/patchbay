@@ -44,18 +44,21 @@ class PythonCall:
 class CommandCall:
     """Run a command on the worker, as an executor asks for when its tool is a program, not a Python function.
 
-    The command is run without a shell, so the runtime expands no variables or globs. It does expand a leading `~` of
-    an argument to the home of the worker's user, which a shell would have done.
+    The command is run without a shell, so the runtime expands no variables or globs. The only expansion is explicit:
+    the arguments listed in `home_args` have a leading `~` replaced by the home of the worker's user, which a shell
+    would have done. Every other argument is passed as it is, even when it starts with `~`.
 
     Attributes:
         argv: The program and its arguments.
         cwd: The working directory: an absolute path, or the path from the data product folder.
         env: Environment variables to set besides the environment of the worker.
+        home_args: Positions in `argv` of the path arguments whose leading `~` is the home of the worker's user.
     """
 
     argv: tuple[str, ...]
     cwd: str = "."
     env: Mapping[str, str] = field(default_factory=dict)
+    home_args: tuple[int, ...] = ()
 
 
 type BuildCall = PythonCall | CommandCall

@@ -42,5 +42,5 @@ def test_the_example_executor_returns_a_command_call(jaffle_repo: Path):
     table = table_of(jaffle_repo)
     call = namespace["MyToolExecutor"]().call(table)
     assert call == CommandCall(
-        argv=("mytool", "run", "--config", "~/.mytool"), cwd="../..", env={"MYTOOL_TABLE": table.name}
+        argv=("mytool", "run", "--config", "~/.mytool"), cwd="../..", env={"MYTOOL_TABLE": table.name}, home_args=(3,)
     )

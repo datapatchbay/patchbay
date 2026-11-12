@@ -37,7 +37,7 @@ class DbtExecutor:
         """Return the `dbt build` of the data product's `models/` folder, run in the dbt project.
 
         The command runs with the project as its working directory, so the project is `.`; the profiles folder is
-        passed as set, and the runtime expands a leading `~`.
+        passed as set, and the runtime expands its leading `~`.
 
         Raises:
             UnsupportedCombinationError: If the plan holds no dbt location.
@@ -55,7 +55,7 @@ class DbtExecutor:
             "--profiles-dir",
             location.profiles_dir,
         )
-        return CommandCall(argv=argv, cwd=location.project_dir)
+        return CommandCall(argv=argv, cwd=location.project_dir, home_args=(len(argv) - 1,))
 
     def committed_output(self, planned: PlannedRepo) -> DbtOutput:
         """Work out the dbt properties, sources and tests and the `dbt_project.yml` sync (ADR-0013)."""

@@ -67,10 +67,10 @@ def test_the_worker_runs_dbt_build_on_the_models_folder_with_the_project_and_pro
     assert rendered.lines == (
         'dbt = _command_task("build_dbt", ["dbt", "build", "--select", '
         '"path:dataproducts/agg_weekly_orders/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"], '
-        '"../..", {})',
+        '"../..", {}, [7])',
     )
     [helper] = rendered.helpers
-    assert "os.path.expanduser(argument) for argument in argv" in helper
+    assert "os.path.expanduser(a) if i in home_args" in helper
     assert "subprocess.run(command, check=True, cwd=(DATAPRODUCT_DIR / cwd).resolve()" in helper
 
 

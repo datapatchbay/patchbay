@@ -165,6 +165,7 @@ def test_the_dbt_executor_selects_the_models_folder_of_the_data_product(dbt_repo
     assert call == CommandCall(
         argv=("dbt", "build", "--select", f"path:{DP}/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"),
         cwd="../..",
+        home_args=(7,),
     )
 
 

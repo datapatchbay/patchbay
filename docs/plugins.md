@@ -49,8 +49,8 @@ An executor without `ChecksTables` gets no check of its table files, so a missin
 `PythonCall(file, function, params)`
 : Call a Python function of the data product with keyword parameters. Every runtime can run it.
 
-`CommandCall(argv, cwd=".", env={})`
-: Run a program. `argv` is the program and its arguments, `cwd` is the working directory (an absolute path, or the path from the data product folder) and `env` holds variables to set on top of the worker's environment. The command is run without a shell, with `check=True`, so a non-zero exit code fails the task. The only expansion is a leading `~` of an argument, which becomes the home of the worker's user. Only the `worker` runtime runs command calls; `docker` and `kubernetes` refuse them with "cannot run a CommandCall".
+`CommandCall(argv, cwd=".", env={}, home_args=())`
+: Run a program. `argv` is the program and its arguments, `cwd` is the working directory (an absolute path, or the path from the data product folder) and `env` holds variables to set on top of the worker's environment. The command is run without a shell, with `check=True`, so a non-zero exit code fails the task. The only expansion is explicit: `home_args` lists the positions in `argv` of path arguments whose leading `~` becomes the home of the worker's user; any other argument is passed as it is. Only the `worker` runtime runs command calls; `docker` and `kubernetes` refuse them with "cannot run a CommandCall".
 
 An executor that wraps a command-line tool returns a command call and needs nothing from the runtime. For example, an executor for a tool `mytool` that reads its config from the home of the worker:
 
@@ -60,7 +60,7 @@ from datapatchbay.plugins import CommandCall, TablePlan
 
 class MyToolExecutor:
     def call(self, table: TablePlan) -> CommandCall:
-        return CommandCall(argv=("mytool", "run", "--config", "~/.mytool"), cwd="../..", env={"MYTOOL_TABLE": table.name})
+        return CommandCall(argv=("mytool", "run", "--config", "~/.mytool"), cwd="../..", env={"MYTOOL_TABLE": table.name}, home_args=(3,))
 ```
 
 The built-in `dbt` executor does this: it returns `dbt build --select path:<models> --project-dir . --profiles-dir <profiles>` with the dbt project as the working directory.

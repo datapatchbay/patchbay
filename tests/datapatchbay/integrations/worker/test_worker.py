@@ -68,20 +68,27 @@ def test_the_worker_renders_a_function_that_runs_a_command_in_its_working_direct
     monkeypatch.setenv("KEPT", "yes")
     product = tmp_path / "dataproducts/orders"
     product.mkdir(parents=True)
-    call = CommandCall(argv=("tool", "--config", "~/.tool", "--flag=~"), cwd="../..", env={"MODE": "fast"})
+    call = CommandCall(
+        argv=("tool", "--config", "~/.tool", "--flag=~"), cwd="../..", env={"MODE": "fast"}, home_args=(2,)
+    )
     task = BuildTask("build_tool", table_of(jaffle_repo), call)
 
     rendered = WorkerRuntime().render_build_task(task, kind="function", variable="build")
 
     assert rendered.imports == ("import os", "import subprocess")
     assert rendered.lines == (
-        'build = _command_function(["tool", "--config", "~/.tool", "--flag=~"], "../..", {"MODE": "fast"})',
+        'build = _command_function(["tool", "--config", "~/.tool", "--flag=~"], "../..", {"MODE": "fast"}, [2])',
     )
     build = run(rendered, {"os": os, "subprocess": subprocess, "DATAPRODUCT_DIR": product})
     assert runs == []
     build()
     [(command, cwd, env)] = runs
-    assert command == ["tool", "--config", "/home/worker/.tool", "--flag=~"]  # only a leading ~ is expanded
+    assert command == [
+        "tool",
+        "--config",
+        "/home/worker/.tool",
+        "--flag=~",
+    ]  # only the listed argument
     assert cwd == tmp_path.resolve()
     assert env["MODE"] == "fast"
     assert env["KEPT"] == "yes"  # the environment of the worker stays
@@ -91,4 +98,4 @@ def test_the_worker_resolves_an_absolute_working_directory_as_it_is(jaffle_repo:
     call = CommandCall(argv=("tool",), cwd=str(tmp_path))
     task = BuildTask("build_tool", table_of(jaffle_repo), call)
     rendered = WorkerRuntime().render_build_task(task, kind="task", variable="tool")
-    assert rendered.lines == (f'tool = _command_task("build_tool", ["tool"], "{tmp_path}", {{}})',)
+    assert rendered.lines == (f'tool = _command_task("build_tool", ["tool"], "{tmp_path}", {{}}, [])',)

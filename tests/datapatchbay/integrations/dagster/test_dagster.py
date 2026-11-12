@@ -142,7 +142,7 @@ def test_the_dbt_tables_are_one_multi_asset_after_the_python_tables_nothing_need
     assert (
         'build_dbt = _command_function(["dbt", "build", "--select", '
         '"path:dataproducts/agg_weekly_orders/models", "--project-dir", ".", "--profiles-dir", "~/.dbt"], '
-        '"../..", {})' in source
+        '"../..", {}, [7])' in source
     )
     assert "agg_weekly_orders__build_dbt,\n" in source.split("defs = ", 1)[1]
 

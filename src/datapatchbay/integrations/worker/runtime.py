@@ -31,12 +31,12 @@ def _build_task(task_id, path, function, params):
     return build()'''
 
 _AIRFLOW_COMMAND_HELPER = '''\
-def _command_task(task_id, argv, cwd, env):
+def _command_task(task_id, argv, cwd, env, home_args):
     """Create a task that runs a command on the worker."""
 
     @task(task_id=task_id)
     def build():
-        command = [os.path.expanduser(argument) for argument in argv]
+        command = [os.path.expanduser(a) if i in home_args else a for i, a in enumerate(argv)]
         subprocess.run(command, check=True, cwd=(DATAPRODUCT_DIR / cwd).resolve(), env={**os.environ, **env})
 
     return build()'''
@@ -56,11 +56,11 @@ def _build_function(task_id, path, function, params):
     return build'''
 
 _FUNCTION_COMMAND_HELPER = '''\
-def _command_function(argv, cwd, env):
+def _command_function(argv, cwd, env, home_args):
     """Return a function that runs a command on the worker."""
 
     def build():
-        command = [os.path.expanduser(argument) for argument in argv]
+        command = [os.path.expanduser(a) if i in home_args else a for i, a in enumerate(argv)]
         subprocess.run(command, check=True, cwd=(DATAPRODUCT_DIR / cwd).resolve(), env={**os.environ, **env})
 
     return build'''
@@ -95,7 +95,12 @@ class WorkerRuntime:
 
 
 def _command_arguments(call: CommandCall) -> list[str]:
-    return [python_literal(list(call.argv)), python_literal(call.cwd), python_literal(dict(call.env))]
+    return [
+        python_literal(list(call.argv)),
+        python_literal(call.cwd),
+        python_literal(dict(sorted(call.env.items()))),
+        python_literal(list(call.home_args)),
+    ]
 
 
 def _python_arguments(task: BuildTask, call: PythonCall) -> list[str]:
