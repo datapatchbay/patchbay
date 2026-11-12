@@ -1,7 +1,4 @@
 import json
-import os
-import shutil
-import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -11,7 +8,6 @@ from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_manifest import check_dbt_reads
-from datapatchbay.generate import generate_repo
 from datapatchbay.settings import load_settings
 from datapatchbay.validation import load_and_validate, validate_repo
 
@@ -207,73 +203,3 @@ def test_validate_reports_a_forbidden_ref_after_the_other_checks_pass(repo: Path
     write_manifest(repo, [reader_node([PRODUCER_MODEL_ID]), producer_node()])
     messages = [problem.message for problem in validate_repo(repo).problems]
     assert any("private" in message for message in messages)
-
-
-def dbt_parse(repo: Path, tmp_path: Path) -> None:
-    """Run the real `dbt parse` on the repo, which writes `target/manifest.json`."""
-    dbt = shutil.which("dbt")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
-    if dbt is None:
-        pytest.skip("dbt is not installed; CI runs this test with `--group dbt`")
-    profiles = tmp_path / "profiles"
-    write(
-        profiles,
-        "profiles.yml",
-        "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
-        "      {type: postgres, host: localhost, user: u, password: p, port: 5432, dbname: d, schema: s, threads: 1}\n",
-    )
-    result = subprocess.run(
-        [dbt, "parse", "--project-dir", str(repo), "--profiles-dir", str(profiles)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-
-
-@pytest.fixture
-def dbt_repo(repo: Path) -> Path:
-    """The repo for a real `dbt parse`: the producer has a model too, and the reader has a hand-written source."""
-    write(repo, PRODUCER_MODEL, "select 1 as order_id\n")
-    write(
-        repo,
-        f"{DP}/models/extra_sources.yml",
-        "sources:\n  - name: agg_weekly_orders\n    schema: agg_weekly_orders\n    tables:\n      - name: weekly\n",
-    )
-    generate_repo(repo)
-    # `dpb generate` lists only the folders of data products built by dbt; the producer's model is a team's own choice.
-    write(
-        repo,
-        "dbt_project.yml",
-        f"name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\n"
-        f"model-paths: ['{DP}/models', '{PRODUCER}/models']\n",
-    )
-    return repo
-
-
-@pytest.mark.dbt
-def test_dbt_parse_of_a_model_that_reads_only_its_input_port_passes_the_check(dbt_repo: Path, tmp_path: Path):
-    write(dbt_repo, MODEL, "select 1 as days\nfrom {{ source('sa_jaffle_orders', 'orders') }}\n")
-    dbt_parse(dbt_repo, tmp_path)
-    assert reads(dbt_repo) == []
-
-
-@pytest.mark.dbt
-def test_dbt_parse_of_a_forbidden_ref_and_a_forbidden_source_is_reported_with_file_and_line(
-    dbt_repo: Path, tmp_path: Path
-):
-    write(
-        dbt_repo,
-        MODEL,
-        "select 1 as days\n"
-        "from {{ ref('sa_jaffle_orders__orders') }}\n"
-        "cross join {{ source('agg_weekly_orders', 'weekly') }}\n",
-    )
-    dbt_parse(dbt_repo, tmp_path)
-    ref_problem, source_problem = reads(dbt_repo)
-    assert ref_problem.startswith(f"{MODEL}:2: ")
-    assert "'agg_order_turnaround__turnaround'" in ref_problem
-    assert "'sa_jaffle_orders__orders'" in ref_problem
-    assert source_problem.startswith(f"{MODEL}:3: ")
-    assert "'agg_weekly_orders'" in source_problem

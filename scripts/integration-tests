@@ -32,5 +32,5 @@ ready
 port="$(docker port "$container" 5432/tcp | head -n 1 | sed 's/.*://')"
 export DPB_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${port}/postgres"
 
-# The `dbt` group provides dbt for the tests that run `dbt build`.
+# The `dbt` group provides dbt for the tests that run `dbt parse` and `dbt build`.
 uv run --group dbt pytest -m integration "$@"
