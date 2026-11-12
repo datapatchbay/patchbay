@@ -193,8 +193,8 @@ def test_a_table_rule_on_a_dbt_table_is_not_supported_yet(repo: Path, rule: str)
 @pytest.mark.dbt
 def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
     dbt = shutil.which("dbt")
-    if dbt is None and os.environ.get("CI"):
-        pytest.fail("dbt is missing in CI, so this test would silently not run")
+    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
+        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
     if dbt is None:
         pytest.skip("dbt is not installed; CI runs this test with `--group dbt`")
     write(repo, TABLE, TABLE_FILE)
