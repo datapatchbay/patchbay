@@ -96,6 +96,34 @@ jobs:
       - name: Load the DAGs with a DagBag and fail on any import error
         run: |
           "$RUNNER_TEMP/airflow-venv/bin/python" tests/airflow/check_dags.py "$RUNNER_TEMP/dags" \
-            sa_ilab_orders build_ingested_orders,build_orders,publish_outputs \
-            agg_lab_turnaround build_turnaround,publish_outputs \
-            agg_lab_weekly build_weekly_raw,build_weekly,build_weekly_pod,publish_outputs
+            sa_ilab_orders apply_access,build_ingested_orders,build_orders,publish_outputs \
+            agg_lab_turnaround apply_access,build_turnaround,publish_outputs \
+            agg_lab_weekly apply_access,build_weekly_raw,build_weekly,build_weekly_pod,publish_outputs
+
+  postgres:
+    name: postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      # Tests marked `postgres` create a database and roles of their own, so the user must be a superuser.
+      DPB_TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Run the tests that need Postgres
+        run: uv run --locked pytest -m postgres

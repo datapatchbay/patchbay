@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 
 from datapatchbay.models.base import Severity
+from datapatchbay.naming import DerivedNames
 from datapatchbay.repomodel import DataProduct, Port, Table
 
 __all__ = [
@@ -106,6 +107,8 @@ class DataProductPlan:
         reads: Names of the output ports of other data products that this data product reads, sorted.
         outputs: Names of the output ports, sorted.
         source: The loaded data product, for plugins that need its files.
+        names: The names the naming templates produce for this data product, such as its private port and role.
+        roles: The role of every data product in the repo, by folder name, for `product:` readers.
     """
 
     folder: str
@@ -120,6 +123,8 @@ class DataProductPlan:
     reads: tuple[str, ...]
     outputs: tuple[str, ...]
     source: DataProduct
+    names: DerivedNames
+    roles: Mapping[str, str]
 
 
 @dataclass(frozen=True, slots=True)
