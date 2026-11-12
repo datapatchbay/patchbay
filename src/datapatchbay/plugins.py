@@ -60,6 +60,7 @@ class TablePlan:
         executor: Name of the executor plugin.
         runtime: Name of the runtime plugin.
         image: Container image for container runtimes, or `None`.
+        container: Free-form settings for the container task, as written in the files; dpb does not read them.
         severity: Default severity of the table's quality rules.
         port_source: The loaded port, for plugins that need its contract or access policy.
         source: The loaded table, for plugins that need its columns and quality rules.
@@ -78,6 +79,7 @@ class TablePlan:
     severity: Severity
     port_source: Port
     source: Table
+    container: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,7 +223,11 @@ class Executor(Protocol):
 
 
 class Runtime(Protocol):
-    """Renders the build task of a table, so it runs in the place this runtime stands for."""
+    """Renders the build task of a table, so it runs in the place this runtime stands for.
+
+    A runtime that runs a container image may set the class attribute `needs_image = True`; `dpb validate` then
+    reports a table whose resolved `image` is not set.
+    """
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
         """Render the build task for an orchestrator.

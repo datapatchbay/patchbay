@@ -88,15 +88,17 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/airflow-venv/bin/python" \
             "apache-airflow==${AIRFLOW_VERSION}" \
             apache-airflow-providers-common-sql \
+            apache-airflow-providers-docker \
+            apache-airflow-providers-cncf-kubernetes \
             apache-airflow-providers-postgres \
             --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${AIRFLOW_PYTHON}.txt"
 
       - name: Load the DAGs with a DagBag and fail on any import error
         run: |
           "$RUNNER_TEMP/airflow-venv/bin/python" tests/airflow/check_dags.py "$RUNNER_TEMP/dags" \
-            sa_ilab_orders build_ingested_orders,build_orders,publish_outputs \
-            agg_lab_turnaround build_turnaround,publish_outputs \
-            agg_lab_weekly build_weekly_raw,build_weekly,publish_outputs
+            sa_ilab_orders apply_access,build_ingested_orders,build_orders,publish_outputs \
+            agg_lab_turnaround apply_access,build_turnaround,publish_outputs \
+            agg_lab_weekly apply_access,build_weekly_raw,build_weekly,build_weekly_pod,publish_outputs
 
   postgres:
     name: postgres

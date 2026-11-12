@@ -9,7 +9,7 @@ from ruamel.yaml.comments import CommentedMap
 
 from datapatchbay.cascade import ResolvedSetting, SettingName, resolve_setting
 from datapatchbay.problems import Problem
-from datapatchbay.registry import PluginKind, plugin_names
+from datapatchbay.registry import PluginKind, load_plugin, plugin_names
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import DataProduct, Port, Repo, Table
 from datapatchbay.settings import EffectiveSettings
@@ -29,6 +29,7 @@ def check_plugins(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
             for table in port.tables:
                 checker.check(dataproduct, port, table, "executor", "executor")
                 checker.check(dataproduct, port, table, "runtime", "runtime")
+                checker.check_image(dataproduct, port, table)
     checker.check_warehouse()
     return checker.problems
 
@@ -38,6 +39,7 @@ class _Checker:
         self._root = root
         self._settings = settings
         self._names: dict[PluginKind, list[str]] = {}
+        self._needs: dict[str, bool] = {}
         self.problems: list[Problem] = []
         try:
             self._root_data: CommentedMap | None = load_mapping(root / ROOT_FILE)
@@ -58,6 +60,26 @@ class _Checker:
         place = f"data product '{dataproduct.folder}'" + (f", table '{table.name}'" if table else "")
         file, line = self._where(resolved, dataproduct, port, table)
         self.problems.append(Problem(file, line, self._message(kind, name, resolved.value, place)))
+
+    def check_image(self, dataproduct: DataProduct, port: Port, table: Table) -> None:
+        """Report a table whose runtime runs a container image when no level sets an image."""
+        runtime = resolve_setting("runtime", self._settings, dataproduct=dataproduct, port=port, table=table)
+        if runtime.value not in self._installed("runtime") or not self._needs_image(str(runtime.value)):
+            return
+        if resolve_setting("image", self._settings, dataproduct=dataproduct, port=port, table=table).value:
+            return
+        place = f"data product '{dataproduct.folder}', table '{table.name}'"
+        file, line = self._where(runtime, dataproduct, port, table)
+        message = (
+            f"runtime '{runtime.value}' needs an image, but none is set ({place}); "
+            "set `image` at the root, data product, port or table"
+        )
+        self.problems.append(Problem(file, line, message))
+
+    def _needs_image(self, runtime: str) -> bool:
+        if runtime not in self._needs:
+            self._needs[runtime] = bool(getattr(load_plugin("runtime", runtime), "needs_image", False))
+        return self._needs[runtime]
 
     def check_warehouse(self) -> None:
         value = self._settings.values.warehouse

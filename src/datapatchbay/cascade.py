@@ -15,9 +15,9 @@ from datapatchbay.settings import EffectiveSettings
 
 type Level = Literal["table", "port", "dataproduct", "root", "defaults", "unset"]
 
-type SettingName = Literal["executor", "runtime", "image", "severity", "orchestrator"]
+type SettingName = Literal["executor", "runtime", "image", "container", "severity", "orchestrator"]
 
-CASCADING_SETTINGS: tuple[SettingName, ...] = ("executor", "runtime", "image", "severity")
+CASCADING_SETTINGS: tuple[SettingName, ...] = ("executor", "runtime", "image", "container", "severity")
 """The settings that can be set at every level."""
 
 

@@ -1,7 +1,7 @@
-"""Views, masking and grants for the output ports of a data product in Postgres (ADR-0002, ADR-0007, ADR-0016).
+"""Views, masking and grants for the output ports of a data product in Postgres (ADR-0002, ADR-0007, ADR-0017).
 
 The whole apply is one string that the orchestrator runs in one go, so Postgres runs it as one transaction: it
-either takes effect completely or not at all. Warehouse roles are expected to exist (ADR-0016); a grant to a role
+either takes effect completely or not at all. Warehouse roles are expected to exist (ADR-0017); a grant to a role
 that does not exist fails the apply.
 
 How one output port is applied:

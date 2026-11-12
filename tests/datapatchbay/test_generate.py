@@ -216,7 +216,7 @@ def test_a_fake_orchestrator_plugin_registered_through_entry_points_generates_in
         "sa_ilab_orders.txt",
     ]
     assert generated(lab_repo, "sa_ilab_orders.txt") == "sa_ilab_orders: ingested_orders,orders\n"
-    assert generated(lab_repo, "agg_lab_weekly.txt") == "agg_lab_weekly: weekly_raw,weekly\n"
+    assert generated(lab_repo, "agg_lab_weekly.txt") == "agg_lab_weekly: weekly_raw,weekly,weekly_pod\n"
 
 
 def test_an_orchestrator_set_on_one_data_product_applies_to_that_data_product_only(
@@ -285,3 +285,20 @@ def test_the_postgres_warehouse_ends_each_dag_with_a_task_that_applies_the_acces
     assert body.index("apply_access") < body.index("publish_outputs")
     assert "    build_orders >> apply_access\n" in body
     assert body.endswith("    apply_access >> publish\n")
+
+
+def test_docker_and_kubernetes_tables_sit_in_one_dag_with_other_runtimes(lab_repo: Path):
+    ingested = lab_repo / "dataproducts/sa_ilab_orders/inputs/sa_ilab_orders_private/ingested.yaml"
+    ingested.write_text(ingested.read_text().replace("build:\n", "build:\n  runtime: docker\n  image: lab:1\n"))
+    orders = lab_repo / "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml"
+    orders.write_text(
+        orders.read_text().replace(
+            "build:\n", "build:\n  runtime: kubernetes\n  image: lab:2\n  container: {namespace: data}\n"
+        )
+    )
+    generate_repo(lab_repo)
+    dag = (lab_repo / "generated/sa_ilab_orders.py").read_text()
+    assert "build_ingested_orders = DockerOperator(" in dag
+    assert "build_orders = KubernetesPodOperator(" in dag
+    assert 'namespace="data"' in dag
+    assert "build_ingested_orders >> build_orders" in dag
