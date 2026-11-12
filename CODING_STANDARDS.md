@@ -306,13 +306,17 @@ file name with `test_`:
 ### Running the Tests
 
 ```sh
-uv run pytest
-uv run ty check
-uv run ruff check
-uv run ruff format --check
+scripts/check                      # ruff, ty and the unit tests; extra arguments go to pytest
 ```
 
-Every pull request runs the tests on each supported Python version, runs ty and runs ruff (`.github/workflows/ci.yml`).
+It runs `uv run pytest -n auto`: pytest-xdist spreads the tests over every core, which halves the run. Tests MUST
+therefore pass in parallel as well as alone. Plain `uv run pytest` still runs serially, which suits debugging one test.
+The integration tests also run serially, because they share Postgres roles. The pre-push hook in `.githooks` runs
+`scripts/check`; enable it once per clone with `git config core.hooksPath .githooks`.
+
+Every pull request runs ruff, ty, the unit tests on each supported Python version, the dbt tests, the Airflow DAG load
+and the example repo end to end (`.github/workflows/ci.yml`). A pull request that only changes the docs site skips
+them. The ruleset on `main` requires the `ci ok` job, which passes when every other job passed or was skipped.
 
 ### Unit Tests and Integration Tests
 

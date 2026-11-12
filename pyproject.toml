@@ -43,6 +43,7 @@ dev = [
     "jsonschema>=4.26.0",
     "psycopg[binary]>=3.2",
     "pytest>=9.2.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.15.0",
     "ty>=0.0.101",
 ]
