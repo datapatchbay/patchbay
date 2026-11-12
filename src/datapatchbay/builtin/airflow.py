@@ -12,11 +12,11 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.builtin.airflow_audit import render_audit_task
+from datapatchbay.builtin.table_builds import TableBuilds, plan_builds, render_build
 from datapatchbay.genheader import generated_header
 from datapatchbay.literals import python_literal
 from datapatchbay.plugins import (
     AuditTask,
-    BuildTask,
     DataProductPlan,
     DbtCall,
     GeneratedFile,
@@ -144,21 +144,10 @@ class _DagFile:
         Each Python table has a build task and its audit tasks. The tables built by dbt share one task that runs after
         the Python tables, because dbt runs their models and data tests together.
         """
-        context = self._context
-        calls = {table.name: context.executors[table.executor].call(table) for table in self._plan.tables}
-        dbt_tables = [table for table in self._plan.tables if isinstance(calls[table.name], DbtCall)]
-        dbt_names = {table.name for table in dbt_tables}
+        builds = plan_builds(self._plan, self._context)
         done: dict[str, list[str]] = {}
-        for table in self._plan.tables:
-            if table.name in dbt_names:
-                continue
-            for need in table.needs:
-                if need in dbt_names:
-                    raise UnsupportedCombinationError(
-                        f"table '{table.name}' needs table '{need}', which dbt builds after the Python tables; "
-                        "dbt tables cannot be needed"
-                    )
-            build = self._build(table, calls[table.name])
+        for table in builds.python_tables:
+            build = self._build(table, builds.calls[table.name])
             audits = [
                 self._audit_task(audit, f"audit of table '{table.name}'") for audit in self._warehouse_audits(table)
             ]
@@ -169,24 +158,18 @@ class _DagFile:
                 for upstream in done[need]:
                     self._body.append(f"{upstream} >> {build}")
             self._needed.update(table.needs)
-        if dbt_tables:
-            self._dbt(dbt_tables, calls, done)
+        if builds.dbt_call is not None:
+            self._dbt(builds, builds.dbt_call, done)
         return done
 
-    def _dbt(self, tables: list[TablePlan], calls: dict[str, PythonCall | DbtCall], done: dict[str, list[str]]) -> None:
+    def _dbt(self, builds: TableBuilds, call: DbtCall, done: dict[str, list[str]]) -> None:
         """Add the one task that builds the dbt tables with `dbt build`, after every Python table is done."""
-        first = tables[0]
-        for table in tables:
-            if table.runtime != first.runtime:
-                raise UnsupportedCombinationError(
-                    f"tables '{first.name}' and '{table.name}' are built by dbt in one task, "
-                    f"but their runtimes are '{first.runtime}' and '{table.runtime}'"
-                )
+        first = builds.dbt_tables[0]
         upstream = [variable for name, variables in done.items() if name not in self._needed for variable in variables]
-        build = self._build(first, calls[first.name], task_id="build_dbt", where="tables built by dbt")
+        build = self._build(first, call, task_id="build_dbt", where="tables built by dbt")
         self._body.extend(f"{variable} >> {build}" for variable in upstream)
         self._needed.update(done)  # the dbt task follows every Python table, so only it is last
-        for table in tables:
+        for table in builds.dbt_tables:
             done[table.name] = [build]
 
     def _build(
@@ -195,13 +178,10 @@ class _DagFile:
         task_id = task_id or f"build_{table.name}"
         where = where or f"table '{table.name}'"
         self._claim_task_id(task_id, where)
-        runtime = self._context.runtimes[table.runtime]
         variable = self._variable(task_id)
-        task = BuildTask(task_id=task_id, table=table, call=call)
-        try:
-            rendered = runtime.render_build_task(task, orchestrator=self._plan.orchestrator, variable=variable)
-        except ValueError as exc:
-            raise UnsupportedCombinationError(f"{where}: {exc}") from exc
+        rendered = render_build(
+            self._context, self._plan.orchestrator, table, call, task_id=task_id, where=where, variable=variable
+        )
         self._add(rendered)
         return variable
 

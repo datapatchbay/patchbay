@@ -7,7 +7,7 @@
 5. **Metadata and live freshness.** Data product metadata published either as tags at schema or table level, or as a separate data product with a configurable name. Freshness measured against real data.
 
 Later, as someone needs them:
-- more orchestrators
+- more orchestrators, after Airflow, Dagster and the local script
 - more warehouses
 - more port kinds: file, API and scheduled export
 - an MCP server

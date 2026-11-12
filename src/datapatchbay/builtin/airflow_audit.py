@@ -7,7 +7,7 @@ orchestrator copies into it.
 from datapatchbay.literals import python_literal
 from datapatchbay.plugins import AuditTask, RenderedTask
 
-AUDIT_HELPER = '''\
+RUN_AUDIT_HELPER = '''\
 def _run_audit(checks, count_violations):
     """Run every check. Log a broken `warning` rule; fail after all checks if an `error` rule is broken."""
     errors = []
@@ -22,9 +22,10 @@ def _run_audit(checks, count_violations):
         else:
             logging.getLogger(__name__).warning(message)
     if errors:
-        raise RuntimeError("; ".join(errors))
+        raise RuntimeError("; ".join(errors))'''
+"""The part of the audit code that does not depend on the orchestrator; the `local` orchestrator reuses it."""
 
-
+_AIRFLOW_AUDIT_TASK = '''\
 def _audit_task(task_id, conn_id, checks):
     """Create a task that runs the checks of a table through the orchestrator's connection to the warehouse."""
 
@@ -34,6 +35,8 @@ def _audit_task(task_id, conn_id, checks):
         _run_audit(checks, lambda sql: hook.get_first(sql)[0])
 
     return audit()'''
+
+AUDIT_HELPER = RUN_AUDIT_HELPER + "\n\n\n" + _AIRFLOW_AUDIT_TASK
 
 
 def check_rows(audit: AuditTask) -> list[dict[str, str | None]]:
