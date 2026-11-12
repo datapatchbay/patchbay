@@ -71,7 +71,7 @@ Contract
 : The columns and quality rules expected of the table. It names no technology.
 
 Build
-: How the table is made: its **executor** (such as Python), the entrypoint, its parameters, and the tables of the same data product it needs first.
+: How the table is made: its **executor** (Python or dbt), the entrypoint, its parameters, and the tables of the same data product it needs first.
 
 The build block can be swapped without touching the contract.
 
@@ -87,7 +87,7 @@ Each rule has a **severity**:
 | `warning` | The run continues and reports it |
 | `none` | The rule is ignored |
 
-Rules run as generated audit tasks in the orchestrator, after the table's build task. In milestone 1 the data is already visible when a rule fails. Write-audit-publish, planned for milestone 2, closes that gap.
+Rules run as generated audit tasks in the orchestrator, after the table's build task. In milestone 1 the data is already visible when a rule fails. Write-audit-publish, planned for milestone 3, closes that gap. A table built by dbt runs its rules as dbt data tests instead.
 
 ## What runs where
 
