@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -46,6 +47,9 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     Nothing is written when the repo is invalid or when any data product fails to generate, so the output folder is
     never left with half a run. Files left from an earlier run are not removed.
 
+    When tables are built by dbt, the `model-paths` of `dbt_project.yml` at the repo root (not in `output_dir`, because
+    the file is committed) are also brought in step, after all other files are written, and only if that is needed.
+
     Args:
         root: The repo root.
 
@@ -53,7 +57,8 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
         output_dir: The folder to write to. Defaults to the `output_dir` setting, relative to the repo root.
 
     Raises:
-        GenerationError: If a plugin cannot generate a data product; the message names it.
+        GenerationError: If a plugin cannot generate a data product, or tables are built by dbt and the repo root has
+            no usable `dbt_project.yml`; the message says which.
         PluginNotFoundError: If a plugin is missing. Validation reports that first, so this means a plugin vanished.
     """
     repo, report = load_and_validate(root)
@@ -69,10 +74,17 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
                 raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
             files[generated.path] = generated.content
 
+    try:
+        dbt_project = synced_dbt_project(repo, settings)
+    except DbtProjectError as exc:
+        raise GenerationError(str(exc)) from exc
+
     for path, content in files.items():
         destination = target / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(content.encode("utf-8"))
+    if dbt_project is not None:  # last, so a failed write above leaves the committed file as it was
+        dbt_project[0].write_bytes(dbt_project[1].encode("utf-8"))
     return GenerateResult(report, target, tuple(sorted(files)))
 
 
