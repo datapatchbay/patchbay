@@ -259,7 +259,7 @@ Defaults ship inside the package in one file with the same shape as `datapatchba
 
 ## Plugins
 
-Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt and Postgres support is written against the same interfaces. The interface is not declared stable yet.
+Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt, Postgres and DuckDB support is written against the same interfaces. The interface is not declared stable yet.
 
 ## Roadmap
 
@@ -283,7 +283,7 @@ Later, as someone needs them: more orchestrators, more warehouses, more port kin
 
 - A data product with more than one source: one private input port or several?
 - Is the thin semantic language enough, or will it grow into a second Cube?
-- Which warehouses after Postgres?
+- Which warehouses after Postgres and DuckDB?
 
 ## First milestone test
 

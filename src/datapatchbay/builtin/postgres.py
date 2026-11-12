@@ -2,10 +2,11 @@
 
 from collections.abc import Sequence
 
+from datapatchbay.builtin.audit_sql import Dialect, audit_tasks, standard_identifier, standard_literal
 from datapatchbay.builtin.postgres_access import access_sql
-from datapatchbay.builtin.postgres_audit import audit_checks
-from datapatchbay.dbt import DBT_EXECUTOR
 from datapatchbay.plugins import AuditTask, DataProductPlan, SqlTask, TablePlan
+
+POSTGRES_DIALECT = Dialect(identifier=standard_identifier, literal=standard_literal)
 
 
 class PostgresWarehouse:
@@ -22,7 +23,4 @@ class PostgresWarehouse:
         A rule with severity `none` is left out, so a table whose rules are all `none` gets no task. The rules of a
         table that dbt builds run as dbt data tests, so such a table gets no audit task either.
         """
-        if table.executor == DBT_EXECUTOR:
-            return ()
-        checks = audit_checks(table)
-        return [AuditTask(f"audit_{table.name}", checks)] if checks else ()
+        return audit_tasks(table, POSTGRES_DIALECT)
