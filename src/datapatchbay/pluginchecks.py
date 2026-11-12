@@ -9,6 +9,7 @@ from ruamel.yaml.comments import CommentedMap
 
 from datapatchbay.cascade import ResolvedSetting, SettingName, resolve_setting
 from datapatchbay.dbt import DBT_EXECUTOR
+from datapatchbay.plugins import Runtime
 from datapatchbay.problems import Problem
 from datapatchbay.registry import PluginKind, load_plugin, plugin_names
 from datapatchbay.repo import ROOT_FILE
@@ -41,7 +42,7 @@ class _Checker:
         self._settings = settings
         self._root_data = root_data
         self._names: dict[PluginKind, list[str]] = {}
-        self._needs: dict[str, bool] = {}
+        self._runtimes: dict[str, Runtime] = {}
         self.problems: list[Problem] = []
 
     def _installed(self, kind: PluginKind) -> list[str]:
@@ -119,13 +120,16 @@ class _Checker:
                             Problem(table.file.path, table.file.line("build", "needs", index), message)
                         )
 
+    def _runtime(self, name: str) -> Runtime:
+        if name not in self._runtimes:
+            self._runtimes[name] = load_plugin("runtime", name)
+        return self._runtimes[name]
+
     def _runs_dbt(self, runtime: str) -> bool:
-        return bool(getattr(load_plugin("runtime", runtime), "runs_dbt", False))
+        return self._runtime(runtime).runs_dbt
 
     def _needs_image(self, runtime: str) -> bool:
-        if runtime not in self._needs:
-            self._needs[runtime] = bool(getattr(load_plugin("runtime", runtime), "needs_image", False))
-        return self._needs[runtime]
+        return self._runtime(runtime).needs_image
 
     def check_warehouse(self) -> None:
         value = self._settings.values.warehouse

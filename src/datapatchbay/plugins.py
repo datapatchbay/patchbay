@@ -309,10 +309,16 @@ class Executor(Protocol):
 class Runtime(Protocol):
     """Renders the build task of a table, so it runs in the place this runtime stands for.
 
-    A runtime that runs a container image may set the class attribute `needs_image = True`; `dpb validate` then
-    reports a table whose resolved `image` is not set. A runtime that can run `dbt build` sets `runs_dbt = True`;
-    `dpb validate` reports a table built by dbt whose runtime does not.
+    Both flags are class attributes every runtime sets. `dpb validate` reads them: it reports a table whose resolved
+    `image` is not set when `needs_image` is true, and a table built by dbt when `runs_dbt` is false.
+
+    Attributes:
+        needs_image: Whether the runtime runs a container image, so a table needs a resolved `image`.
+        runs_dbt: Whether the runtime can run `dbt build`.
     """
+
+    needs_image: bool
+    runs_dbt: bool
 
     def render_build_task(self, task: BuildTask, *, orchestrator: str, variable: str) -> RenderedTask:
         """Render the build task for an orchestrator.
@@ -326,6 +332,9 @@ class Runtime(Protocol):
 
         Raises:
             UnsupportedCombinationError: If this runtime cannot run on that orchestrator or cannot run the call.
+            ValueError: If a param or setting of the table cannot be written into the task, such as a value that is
+                not a plain YAML value. The orchestrator reports it as an `UnsupportedCombinationError` naming
+                the table.
         """
         ...
 
