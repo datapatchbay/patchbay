@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
-from datapatchbay.dbt_properties import generate_dbt_properties
+from datapatchbay.dbt_sources import generate_dbt_files
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -78,7 +78,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
             files[generated.path] = generated.content
 
     # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
-    properties = generate_dbt_properties(plans, settings)
+    properties = generate_dbt_files(plans, settings)
 
     try:
         dbt_project = synced_dbt_project(repo, settings)
