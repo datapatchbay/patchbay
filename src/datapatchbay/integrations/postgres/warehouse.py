@@ -2,10 +2,9 @@
 
 from collections.abc import Sequence
 
-from datapatchbay.integrations._sql.audit_sql import Dialect, audit_tasks
-from datapatchbay.integrations._sql.sqlquote import standard_identifier, standard_literal
 from datapatchbay.integrations.postgres.access import access_sql
 from datapatchbay.plugins import AuditTask, DataProductPlan, SqlTask, TablePlan
+from datapatchbay.plugins.sql import Dialect, audit_tasks, standard_identifier, standard_literal
 
 POSTGRES_DIALECT = Dialect(identifier=standard_identifier, literal=standard_literal)
 

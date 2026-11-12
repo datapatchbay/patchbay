@@ -12,9 +12,6 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.genheader import generated_header
-from datapatchbay.integrations._codegen.audit_code import render_audit_task
-from datapatchbay.integrations._codegen.literals import python_literal
-from datapatchbay.integrations._codegen.table_builds import TableBuilds, plan_builds, render_build
 from datapatchbay.plugins import (
     AuditTask,
     DataProductPlan,
@@ -28,6 +25,7 @@ from datapatchbay.plugins import (
     TablePlan,
     UnsupportedCombinationError,
 )
+from datapatchbay.plugins.codegen import TableBuilds, plan_builds, python_literal, render_audit_task, render_build
 
 _ID = re.compile(r"[A-Za-z0-9_.-]{1,250}")
 _INDENT = "    "

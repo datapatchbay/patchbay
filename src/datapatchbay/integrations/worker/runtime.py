@@ -5,8 +5,8 @@ orchestrators whose generated file is plain Python, it is rendered as a function
 orchestrator calls when the build has to run.
 """
 
-from datapatchbay.integrations._codegen.literals import python_literal
 from datapatchbay.plugins import BuildTask, DbtCall, PythonCall, RenderedTask, RenderKind, UnsupportedCombinationError
+from datapatchbay.plugins.codegen import python_literal
 
 _AIRFLOW_HELPER = '''\
 def _build_task(task_id, path, function, params):

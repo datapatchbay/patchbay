@@ -9,7 +9,6 @@ from container_helpers import table_of
 from plugin_fakes import register
 
 from datapatchbay.generate import generate_repo
-from datapatchbay.integrations._codegen.table_builds import plan_builds, render_build
 from datapatchbay.integrations.python.executor import PythonExecutor
 from datapatchbay.integrations.worker.runtime import WorkerRuntime
 from datapatchbay.plugins import (
@@ -20,6 +19,7 @@ from datapatchbay.plugins import (
     RenderKind,
     UnsupportedCombinationError,
 )
+from datapatchbay.plugins.codegen.table_builds import plan_builds, render_build
 
 
 class ThirdPartyOrchestrator:

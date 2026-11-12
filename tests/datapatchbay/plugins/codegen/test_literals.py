@@ -3,7 +3,7 @@ import datetime
 import pytest
 from ruamel.yaml import YAML
 
-from datapatchbay.integrations._codegen.literals import python_literal
+from datapatchbay.plugins.codegen.literals import python_literal
 
 
 @pytest.mark.parametrize(

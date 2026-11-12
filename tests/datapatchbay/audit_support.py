@@ -9,10 +9,10 @@ from typing import Any
 import psycopg
 from plan_helpers import plan_all
 
-from datapatchbay.integrations._codegen.audit_code import AUDIT_HELPER, check_rows
 from datapatchbay.integrations.postgres.warehouse import PostgresWarehouse
 from datapatchbay.loading import load_repo
 from datapatchbay.plugins import AuditTask, Warehouse
+from datapatchbay.plugins.codegen import AUDIT_HELPER, check_rows
 
 SCHEMA = "sa_jaffle_orders_private"
 """Where the output table `orders` of the fixture data product is built."""
