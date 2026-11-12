@@ -13,6 +13,7 @@ from typing import Any
 
 from datapatchbay.dbt import DBT_EXECUTOR, MODELS_FOLDER
 from datapatchbay.dbt_properties import dump_yaml, generate_dbt_properties, header
+from datapatchbay.dbt_tests import generate_dbt_tests
 from datapatchbay.plugins import DataProductPlan, GeneratedFile
 from datapatchbay.repomodel import Port, Table
 from datapatchbay.settings import EffectiveSettings
@@ -22,12 +23,16 @@ SOURCES_FILE = "_sources.yml"
 
 
 def generate_dbt_files(plans: Sequence[DataProductPlan], settings: EffectiveSettings) -> list[GeneratedFile]:
-    """Generate every committed dbt file: the properties of the tables and the sources of the input ports.
+    """Generate every committed dbt file: the properties and singular tests of tables and the sources of input ports.
 
     Returns:
         The files, with paths relative to the repo root, sorted by path.
     """
-    files = [*generate_dbt_properties(plans, settings), *generate_dbt_sources(plans)]
+    files = [
+        *generate_dbt_properties(plans, settings),
+        *generate_dbt_sources(plans),
+        *generate_dbt_tests(plans, settings),
+    ]
     return sorted(files, key=lambda file: file.path)
 
 

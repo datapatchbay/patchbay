@@ -5,8 +5,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
 from plugin_fakes import FakeOrchestrator, register
-from test_dbt import DP, MODEL, TABLE, TABLE_YAML, rendered, write
 
 from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.generate import GenerationError, generate_repo
@@ -178,16 +178,6 @@ def test_a_failing_dbt_project_sync_writes_no_properties(repo: Path):
     with pytest.raises(GenerationError, match=r"dbt_project\.yml"):
         generate_repo(repo)
     assert list((repo / DP / "models").glob("*.yml")) == []
-
-
-@pytest.mark.parametrize(
-    "rule", ["{rule: primary_key, columns: [days]}", "{rule: row_count, min: 1}", "{rule: sql, sql: select 1}"]
-)
-def test_a_table_rule_on_a_dbt_table_is_not_supported_yet(repo: Path, rule: str):
-    write(repo, TABLE, TABLE_FILE + f"rules:\n  - {rule}\n")
-    [problem] = rendered(repo)
-    assert "not supported for dbt yet" in problem
-    assert TABLE in problem
 
 
 @pytest.mark.dbt
