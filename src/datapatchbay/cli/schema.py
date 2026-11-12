@@ -6,7 +6,7 @@ from typing import Annotated, cast
 
 import typer
 
-from datapatchbay.schemas import KINDS, Kind, json_schema
+from datapatchbay.commands.schemas import KINDS, Kind, json_schema
 
 _Kind = StrEnum("_Kind", {kind: kind for kind in KINDS})
 

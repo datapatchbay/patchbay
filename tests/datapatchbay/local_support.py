@@ -8,7 +8,7 @@ from pathlib import Path
 
 import duckdb
 
-from datapatchbay.generate import generate_repo
+from datapatchbay.pipeline.generate import generate_repo
 
 SETTINGS = "schema_version: 1\norchestrator: local\nwarehouse: duckdb\nruntime: worker\n"
 

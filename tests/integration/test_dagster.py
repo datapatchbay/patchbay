@@ -23,7 +23,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from datapatchbay.generate import generate_repo
+from datapatchbay.pipeline.generate import generate_repo
 
 ROOT = Path(__file__).parents[2]
 DOC = ROOT / "docs" / "howto" / "dagster.md"

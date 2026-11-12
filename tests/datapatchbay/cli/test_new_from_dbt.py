@@ -6,9 +6,9 @@ from dbt_helpers import write
 from typer.testing import CliRunner
 
 from datapatchbay.cli import app
-from datapatchbay.generate import generate_repo
-from datapatchbay.validation import validate_repo
-from datapatchbay.yamlio import load_mapping
+from datapatchbay.files.yamlio import load_mapping
+from datapatchbay.pipeline.generate import generate_repo
+from datapatchbay.pipeline.validation import validate_repo
 
 FLAGS = ["new", "--name", "orders", "--kind", "source-aligned", "--owner", "Jane Doe", "--no-input"]
 FOLDER = "dataproducts/sa_orders"

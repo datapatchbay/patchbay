@@ -9,9 +9,9 @@ import pytest
 from audit_support import SCHEMA
 from plan_helpers import plan_all
 
-from datapatchbay.generate import generate_repo
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.duckdb.warehouse import DuckDbWarehouse
-from datapatchbay.loading import load_repo
+from datapatchbay.pipeline.generate import generate_repo
 from datapatchbay.plugins import DataProductPlan
 
 PORT = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml"

@@ -12,7 +12,7 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import generate_repo
+from datapatchbay.pipeline.generate import generate_repo
 
 NAME = "agg_order_turnaround__turnaround"
 REF = f"{{{{ ref('{NAME}') }}}}"

@@ -11,7 +11,7 @@ import re
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from datapatchbay.genheader import generated_header
+from datapatchbay.files.genheader import generated_header
 from datapatchbay.integrations.dagster.helpers import (
     AUDIT_CHECK_HELPER,
     COUNT_HELPER,

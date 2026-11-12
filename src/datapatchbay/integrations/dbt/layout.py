@@ -10,11 +10,11 @@ import re
 from collections.abc import Iterator
 from pathlib import PurePosixPath
 
-from datapatchbay.naming import NamingTemplateError, derive_names, render_name
+from datapatchbay.files.repomodel import DataProduct, Repo, Table
 from datapatchbay.plugins.plan import MODELS_FOLDER, NewTable
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import DataProduct, Repo, Table
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings.effective import EffectiveSettings
+from datapatchbay.settings.naming import NamingTemplateError, derive_names, render_name
 
 __all__ = [
     "DBT_EXECUTOR",

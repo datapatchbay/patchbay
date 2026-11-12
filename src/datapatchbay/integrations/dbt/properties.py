@@ -13,12 +13,12 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from datapatchbay.genheader import generated_header
+from datapatchbay.files.genheader import generated_header
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR, MODELS_FOLDER, model_name
 from datapatchbay.models.table import AcceptedValuesRule, Column, NotNullRule, UniqueRule
 from datapatchbay.plugins import DataProductPlan, GeneratedFile, TablePlan
 from datapatchbay.plugins.sql import standard_literal
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings.effective import EffectiveSettings
 
 GROUP_FILE = "_group.yml"
 """The file in a data product's `models/` folder that holds its dbt group."""

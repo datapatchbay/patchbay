@@ -7,9 +7,9 @@ the same.
 
 from collections.abc import Callable, Iterator, Sequence
 
+from datapatchbay.files.repomodel import Port
 from datapatchbay.plugins import DataProductPlan, TablePlan
 from datapatchbay.plugins.sql.audit_sql import Dialect
-from datapatchbay.repomodel import Port
 
 
 def output_ports(plan: DataProductPlan) -> Iterator[tuple[Port, Sequence[TablePlan]]]:

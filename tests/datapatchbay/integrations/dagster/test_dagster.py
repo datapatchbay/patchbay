@@ -8,7 +8,7 @@ from plugin_fakes import FakeWarehouse
 from typer.testing import CliRunner
 
 from datapatchbay.cli import app
-from datapatchbay.generate import generate_repo
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.dagster.orchestrator import DagsterOrchestrator
 from datapatchbay.integrations.dbt.executor import DbtExecutor
 from datapatchbay.integrations.docker.runtime import DockerRuntime
@@ -16,7 +16,8 @@ from datapatchbay.integrations.duckdb.warehouse import DuckDbWarehouse
 from datapatchbay.integrations.kubernetes.runtime import KubernetesRuntime
 from datapatchbay.integrations.python.executor import PythonExecutor
 from datapatchbay.integrations.worker.runtime import WorkerRuntime
-from datapatchbay.loading import load_repo
+from datapatchbay.pipeline.generate import generate_repo
+from datapatchbay.pipeline.validation import validate_repo
 from datapatchbay.plugins import (
     DataProductPlan,
     GenerationContext,
@@ -24,7 +25,6 @@ from datapatchbay.plugins import (
     UnsupportedCombinationError,
     Warehouse,
 )
-from datapatchbay.validation import validate_repo
 
 SNAPSHOT = Path(__file__).with_name("dagster_sa_jaffle_orders_snapshot.txt")
 SETTINGS = "schema_version: 1\norchestrator: dagster\nwarehouse: duckdb\nruntime: worker\n"

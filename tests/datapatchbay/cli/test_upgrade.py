@@ -4,9 +4,9 @@ import pytest
 from ruamel.yaml.comments import CommentedMap
 from typer.testing import CliRunner
 
-from datapatchbay import upgrade
 from datapatchbay.cli import app
 from datapatchbay.cli.upgrade import report_upgrade
+from datapatchbay.commands import upgrade
 
 
 def rename_owner(data: CommentedMap) -> None:

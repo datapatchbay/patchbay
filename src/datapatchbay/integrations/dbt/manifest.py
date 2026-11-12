@@ -19,10 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from datapatchbay.files.repomodel import DataProduct, Repo
 from datapatchbay.integrations.dbt.output import model_paths
 from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import DataProduct, Repo
 
 
 class _ManifestError(ValueError):

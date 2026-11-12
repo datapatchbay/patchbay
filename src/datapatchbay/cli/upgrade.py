@@ -6,9 +6,9 @@ from typing import Annotated
 
 import typer
 
-from datapatchbay import upgrade as upgrade_module
-from datapatchbay.repo import find_repo_root
-from datapatchbay.upgrade import UpgradeResult
+from datapatchbay.commands import upgrade as upgrade_module
+from datapatchbay.commands.upgrade import UpgradeResult
+from datapatchbay.files.repo import find_repo_root
 
 
 def upgrade(

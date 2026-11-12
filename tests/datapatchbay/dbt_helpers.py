@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from datapatchbay.pipeline.validation import plan_repo, validate_repo
 from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Report
-from datapatchbay.validation import plan_repo, validate_repo
 
 DP = "dataproducts/agg_order_turnaround"
 TABLE = f"{DP}/outputs/agg_order_turnaround/turnaround.yaml"

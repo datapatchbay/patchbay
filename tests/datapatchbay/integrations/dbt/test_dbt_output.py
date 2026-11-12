@@ -6,8 +6,8 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE_YAML, planned, rendered, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.dbt.output import DbtFileKind, build_dbt_output
+from datapatchbay.pipeline.generate import generate_repo
 
 PROJECT = "dbt_project.yml"
 TURNAROUND = f"{DP}/outputs/agg_order_turnaround/turnaround.yaml"

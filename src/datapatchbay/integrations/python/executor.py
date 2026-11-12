@@ -2,10 +2,10 @@
 
 from collections.abc import Sequence
 
+from datapatchbay.files.repomodel import DataProduct, Table
 from datapatchbay.plugins import NewTable, PythonCall, ScaffoldedTable, TablePlan, UnsupportedCombinationError
 from datapatchbay.problems import Problem
-from datapatchbay.repomodel import DataProduct, Table
-from datapatchbay.settings import EffectiveSettings
+from datapatchbay.settings.effective import EffectiveSettings
 
 _STUB = '''"""Build code of the table `{table}`."""
 

@@ -6,8 +6,8 @@ from typing import Annotated
 
 import typer
 
-from datapatchbay.generate import generate_repo
-from datapatchbay.repo import find_repo_root
+from datapatchbay.files.repo import find_repo_root
+from datapatchbay.pipeline.generate import generate_repo
 
 
 def generate(

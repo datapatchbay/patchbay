@@ -6,8 +6,8 @@ from typing import Annotated, Any
 
 import typer
 
-from datapatchbay.repo import find_repo_root
-from datapatchbay.settings import load_settings
+from datapatchbay.files.repo import find_repo_root
+from datapatchbay.settings.effective import load_settings
 
 
 def _render_value(value: Any) -> str:

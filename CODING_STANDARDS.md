@@ -289,7 +289,7 @@ file name with `test_`:
 | Source | Tests |
 | --- | --- |
 | `src/datapatchbay/__init__.py` | `tests/datapatchbay/test_init.py` |
-| `src/datapatchbay/models.py` | `tests/datapatchbay/test_models.py` |
+| `src/datapatchbay/settings/cascade.py` | `tests/datapatchbay/settings/test_cascade.py` |
 | `src/datapatchbay/cli/validate.py` | `tests/datapatchbay/cli/test_validate.py` |
 
 - A test file MUST cover the module it mirrors. A test that exercises several modules, such as a full `dpb generate`

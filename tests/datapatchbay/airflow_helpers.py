@@ -3,7 +3,7 @@
 import shutil
 from pathlib import Path
 
-from datapatchbay.generate import generate_repo
+from datapatchbay.pipeline.generate import generate_repo
 
 ROOT = Path(__file__).parents[2]
 FIXTURE_REPO = ROOT / "tests" / "airflow" / "repo"

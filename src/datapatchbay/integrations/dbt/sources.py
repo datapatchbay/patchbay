@@ -11,11 +11,11 @@ Nothing here imports or runs dbt (ADR-0004).
 from collections.abc import Sequence
 from typing import Any
 
-from datapatchbay.genheader import generated_header
+from datapatchbay.files.genheader import generated_header
+from datapatchbay.files.repomodel import Port, Table
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR, MODELS_FOLDER
 from datapatchbay.integrations.dbt.properties import dump_yaml
 from datapatchbay.plugins import DataProductPlan, GeneratedFile
-from datapatchbay.repomodel import Port, Table
 
 SOURCES_FILE = "_sources.yml"
 """The file in a data product's `models/` folder that holds the dbt sources it owns."""

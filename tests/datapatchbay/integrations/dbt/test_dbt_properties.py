@@ -4,8 +4,8 @@ import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, write
 from plugin_fakes import FakeOrchestrator, register
 
-from datapatchbay.generate import GenerationError, generate_repo
 from datapatchbay.integrations.dbt.properties import generate_dbt_properties
+from datapatchbay.pipeline.generate import GenerationError, generate_repo
 from datapatchbay.plugins import UnsupportedCombinationError
 
 TABLE_FILE = """\

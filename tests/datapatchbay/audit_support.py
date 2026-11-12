@@ -9,8 +9,8 @@ from typing import Any
 import psycopg
 from plan_helpers import plan_all
 
+from datapatchbay.files.loading import load_repo
 from datapatchbay.integrations.postgres.warehouse import PostgresWarehouse
-from datapatchbay.loading import load_repo
 from datapatchbay.plugins import AuditTask, Warehouse
 from datapatchbay.plugins.codegen import AUDIT_HELPER, check_rows
 

@@ -6,18 +6,18 @@ from typing import Annotated
 
 import typer
 
-from datapatchbay.cascade import ResolvedCascade, resolve_cascade
-from datapatchbay.describe import (
+from datapatchbay.commands.describe import (
     describe_dataproduct,
     find_dataproduct,
     list_dataproducts,
     render_description,
     render_list,
 )
-from datapatchbay.loading import load_repo
-from datapatchbay.repo import find_repo_root
-from datapatchbay.repomodel import Repo
-from datapatchbay.settings import load_settings
+from datapatchbay.files.loading import load_repo
+from datapatchbay.files.repo import find_repo_root
+from datapatchbay.files.repomodel import Repo
+from datapatchbay.settings.cascade import ResolvedCascade, resolve_cascade
+from datapatchbay.settings.effective import load_settings
 
 
 def _load() -> tuple[Repo, ResolvedCascade]:

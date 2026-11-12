@@ -106,4 +106,4 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "A", "C4", "PT"]
 # Tests are plain functions; fixtures are injected, not imported.
 "tests/**" = ["B018"]
 # The expected DAG file is compared as a whole, so its long header comment stays on one line.
-"tests/datapatchbay/test_generate.py" = ["E501"]
+"tests/datapatchbay/pipeline/test_generate.py" = ["E501"]
