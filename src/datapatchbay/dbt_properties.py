@@ -22,7 +22,8 @@ from datapatchbay.settings import EffectiveSettings
 GROUP_FILE = "_group.yml"
 """The file in a data product's `models/` folder that holds its dbt group."""
 
-_SEVERITY = {"error": "error", "warning": "warn"}
+SEVERITY = {"error": "error", "warning": "warn"}
+"""Severity of a rule as dbt spells it. `dbt_import` reads it the other way round."""
 
 
 def generate_dbt_properties(plans: Sequence[DataProductPlan], settings: EffectiveSettings) -> list[GeneratedFile]:
@@ -81,7 +82,7 @@ def _column(column: Column, table: TablePlan) -> dict[str, Any]:
     for rule in column.rules:
         severity = rule.severity or table.severity
         if severity != "none":
-            tests.append(_data_test(rule, _SEVERITY[severity]))
+            tests.append(_data_test(rule, SEVERITY[severity]))
     if tests:
         entry["data_tests"] = tests
     return entry

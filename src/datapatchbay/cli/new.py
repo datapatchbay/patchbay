@@ -1,12 +1,14 @@
 """The `dpb new` command."""
 
 import json
+from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
 from datapatchbay.dbt import DBT_EXECUTOR
+from datapatchbay.dbt_import import DEFAULT_TYPE, DbtImport, read_dbt_models
 from datapatchbay.repo import find_repo_root
 from datapatchbay.scaffold import DEFAULT_SCHEDULE, NewDataProduct, ScaffoldError, missing_answers, scaffold
 from datapatchbay.settings import ResolvedConventions, load_settings
@@ -44,6 +46,14 @@ def new(
     schedule: Annotated[
         str, typer.Option(help="Cron expression of the source's deliveries; used with --source.")
     ] = DEFAULT_SCHEDULE,
+    from_dbt: Annotated[
+        Path | None,
+        typer.Option(
+            "--from-dbt",
+            help="Folder with the models (.sql) and properties (.yml) of an existing dbt project: copies the models "
+            "into the data product and writes a table file per model. The executor of the data product is dbt.",
+        ),
+    ] = None,
     no_input: Annotated[bool, typer.Option("--no-input", help="Never prompt; fail when a value is missing.")] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Print the created files as JSON on stdout.")] = False,
 ) -> None:
@@ -62,6 +72,7 @@ def new(
         for key, value in given.items():
             if value is None:
                 answers[key] = _prompt(key, conventions)
+    imported = read_dbt_models(from_dbt, default_severity=settings.values.severity) if from_dbt is not None else None
     created = scaffold(
         root,
         conventions,
@@ -74,10 +85,30 @@ def new(
             source=source,
             schedule=schedule,
             dbt=settings.values.executor == DBT_EXECUTOR,
+            imported=imported,
         ),
     )
     if json_output:
-        typer.echo(json.dumps({"created": [path.as_posix() for path in created]}, indent=2))
+        report: dict[str, object] = {"created": [path.as_posix() for path in created]}
+        if imported is not None:
+            report |= {key: [asdict(item) for item in items] for key, items in _left_out(imported).items()}
+        typer.echo(json.dumps(report, indent=2))
     else:
         for path in created:
             typer.echo(f"created {path.as_posix()}")
+        if imported is not None:
+            _echo_left_out(imported)
+
+
+def _left_out(imported: DbtImport) -> dict[str, list[Any]]:
+    return {"unmapped_tests": imported.unmapped, "skipped": imported.skipped, "untyped_columns": imported.untyped}
+
+
+def _echo_left_out(imported: DbtImport) -> None:
+    for test in imported.unmapped:
+        where = f"{test.model}.{test.column}" if test.column else test.model
+        typer.echo(f"not imported: {where} {test.test}: {test.reason}")
+    for skipped in imported.skipped:
+        typer.echo(f"skipped model {skipped.model}: {skipped.reason}")
+    for untyped in imported.untyped:
+        typer.echo(f"no data_type: {untyped.model}.{untyped.column} is written as '{DEFAULT_TYPE}'; set the real type")
