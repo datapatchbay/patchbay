@@ -28,10 +28,10 @@ def test_a_runtime_without_a_plugin_names_the_data_product_table_and_line(lab_re
 
 def test_an_executor_without_a_plugin_is_reported_where_it_is_set_for_each_table_it_applies_to(lab_repo: Path):
     port = lab_repo / "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml"
-    port.write_text(port.read_text() + "executor: dbt\n")
+    port.write_text(port.read_text() + "executor: spark\n")
     assert rendered(lab_repo) == [
-        "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml:8: executor 'dbt' has no plugin "
-        "(data product 'sa_ilab_orders', table 'orders'); available executor plugins: python"
+        "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml:8: executor 'spark' has no plugin "
+        "(data product 'sa_ilab_orders', table 'orders'); available executor plugins: dbt, python"
     ]
 
 

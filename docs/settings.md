@@ -35,7 +35,7 @@ build:
   image: registry.example.com/orders:2   # this table only
 ```
 
-`executor` and `runtime` name plugins, so the files accept any name. `dpb validate` and `dpb generate` check that a plugin of that name is installed, and name the data product and table when it is not.
+`executor: dbt` makes a table a dbt model instead of a Python function; see the table file in `docs/files.md`. `executor` and `runtime` name plugins, so the files accept any name. `dpb validate` and `dpb generate` check that a plugin of that name is installed, and name the data product and table when it is not.
 
 `orchestrator` can be set at root or data product level only, because one data product is one DAG. On a port or a table, `dpb validate` fails.
 

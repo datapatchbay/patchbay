@@ -6,14 +6,21 @@ from pathlib import PurePosixPath
 from ruamel.yaml.comments import CommentedMap
 
 from datapatchbay.models import DataProductInputPortFile
-from datapatchbay.naming import DerivedNames, NamingTemplateError, check_template, derive_names, is_snake_case
+from datapatchbay.naming import (
+    DBT_MODEL_PLACEHOLDERS,
+    DerivedNames,
+    NamingTemplateError,
+    check_template,
+    derive_names,
+    is_snake_case,
+)
 from datapatchbay.problems import Problem
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import DataProduct, Port, Repo
 from datapatchbay.settings import EffectiveSettings
 from datapatchbay.yamlio import line_of
 
-_TEMPLATE_KEYS = ("dataproduct", "output_port", "private_port", "role")
+_TEMPLATE_KEYS = ("dataproduct", "output_port", "private_port", "role", "dbt_model")
 
 
 def check_conventions(repo: Repo, settings: EffectiveSettings, root_data: CommentedMap) -> list[Problem]:
@@ -51,7 +58,7 @@ def _check_templates(settings: EffectiveSettings, root_data: CommentedMap) -> It
     for key in _TEMPLATE_KEYS:
         template: str = getattr(settings.values.conventions.names, key)
         try:
-            check_template(template)
+            check_template(template, DBT_MODEL_PLACEHOLDERS if key == "dbt_model" else ())
         except NamingTemplateError as error:
             line = line_of(root_data, ("conventions", "names", key))
             yield Problem(PurePosixPath(ROOT_FILE), line, f"conventions.names.{key}: {error}")

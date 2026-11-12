@@ -19,6 +19,7 @@ airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
 
 [project.entry-points."datapatchbay.executors"]
 python = "datapatchbay.builtin.python_executor:PythonExecutor"
+dbt = "datapatchbay.builtin.dbt_executor:DbtExecutor"
 
 [project.entry-points."datapatchbay.runtimes"]
 worker = "datapatchbay.builtin.worker:WorkerRuntime"

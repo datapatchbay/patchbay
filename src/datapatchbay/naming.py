@@ -1,6 +1,7 @@
 """Naming templates: rendering the derived names of a data product from its bare name and kind (ADR-0006)."""
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from datapatchbay.errors import DatapatchbayError
@@ -9,6 +10,9 @@ from datapatchbay.settings import ResolvedConventions
 
 PLACEHOLDERS = ("name", "kind.prefix", "kind.name")
 """The placeholders a naming template may use."""
+
+DBT_MODEL_PLACEHOLDERS = ("dataproduct", "table")
+"""The placeholders that the `dbt_model` template may use besides `PLACEHOLDERS`."""
 
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 _SNAKE_CASE = re.compile(r"[a-z][a-z0-9]*(_[a-z0-9]+)*")
@@ -33,15 +37,20 @@ def is_snake_case(text: str) -> bool:
     return _SNAKE_CASE.fullmatch(text) is not None
 
 
-def check_template(template: str) -> None:
+def check_template(template: str, extra: Sequence[str] = ()) -> None:
     """Check that a naming template only uses known placeholders and has balanced braces.
+
+    Args:
+        template: The naming template.
+        extra: Placeholders this template may use besides `PLACEHOLDERS`.
 
     Raises:
         NamingTemplateError: If it does not; the message lists the placeholders available.
     """
-    available = ", ".join(f"{{{placeholder}}}" for placeholder in PLACEHOLDERS)
+    allowed = (*PLACEHOLDERS, *extra)
+    available = ", ".join(f"{{{placeholder}}}" for placeholder in allowed)
     for match in _PLACEHOLDER.finditer(template):
-        if match.group(1) not in PLACEHOLDERS:
+        if match.group(1) not in allowed:
             raise NamingTemplateError(
                 f"naming template '{template}' uses unknown placeholder {{{match.group(1)}}}; available: {available}"
             )
@@ -50,7 +59,9 @@ def check_template(template: str) -> None:
         raise NamingTemplateError(f"naming template '{template}' has an unmatched brace; available: {available}")
 
 
-def render_name(template: str, *, name: str, kind_name: str, kind: KindConvention) -> str:
+def render_name(
+    template: str, *, name: str, kind_name: str, kind: KindConvention, extra: Mapping[str, str] | None = None
+) -> str:
     """Render a naming template for a data product.
 
     Args:
@@ -60,6 +71,7 @@ def render_name(template: str, *, name: str, kind_name: str, kind: KindConventio
         name: The data product's bare name, for example `"ilab_orders"`.
         kind_name: The name of the data product's kind, for example `"source-aligned"`.
         kind: The convention of that kind, which holds its prefix.
+        extra: Values of further placeholders, such as `{"table": "orders"}` for the `dbt_model` template.
 
     Returns:
         The rendered name.
@@ -67,8 +79,9 @@ def render_name(template: str, *, name: str, kind_name: str, kind: KindConventio
     Raises:
         NamingTemplateError: If the template uses a placeholder that does not exist.
     """
-    check_template(template)
-    values = {"name": name, "kind.prefix": kind.prefix, "kind.name": kind_name}
+    extra = extra or {}
+    check_template(template, tuple(extra))
+    values = {"name": name, "kind.prefix": kind.prefix, "kind.name": kind_name, **extra}
     return _PLACEHOLDER.sub(lambda match: values[match.group(1)], template)
 
 
