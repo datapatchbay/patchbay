@@ -222,7 +222,7 @@ A table built by dbt has the same contract and no `build` block when `executor: 
 
 | Command | What it does |
 | --- | --- |
-| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table. Asks questions in a terminal; fails instead of asking with `--no-input` |
+| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table. Asks questions in a terminal; fails instead of asking with `--no-input`. `dpb new --from-dbt <path>` brings the models and properties of an existing dbt project into the new data product: it copies the models and writes a table file per model, and reports the data tests that map to no quality rule |
 | `dpb validate` | Validates every data product. Meant for CI |
 | `dpb list` | Shows all data products with kind, domain and owners |
 | `dpb describe` | Prints one data product with all settings resolved, for humans or agents |
