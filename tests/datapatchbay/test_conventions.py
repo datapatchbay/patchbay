@@ -172,3 +172,11 @@ def test_conventions_are_skipped_when_the_root_file_is_invalid(tmp_path: Path, w
     write("datapatchbay.yaml", "schema_version: 1\nbogus: 1\n")
     write("dataproducts/x/dataproduct.yaml", product_yaml(kind="raw"))
     assert [file for file, _, _ in problems(tmp_path)] == ["datapatchbay.yaml"]
+
+
+@pytest.mark.parametrize("key", ["dataproduct", "output_port", "private_port", "role"])
+def test_every_naming_template_is_checked_for_unknown_placeholders(tmp_path: Path, write: Writer, key: str):
+    write("datapatchbay.yaml", f'schema_version: 1\nconventions:\n  names:\n    {key}: "{{bogus}}_{{name}}"\n')
+    write(f"{DP}/dataproduct.yaml", product_yaml())
+    assert has_problem(tmp_path, "datapatchbay.yaml", 4, f"conventions.names.{key}: naming template")
+
