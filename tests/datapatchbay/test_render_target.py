@@ -1,55 +1,27 @@
 """A runtime is chosen by the render kind of the orchestrator, never by the orchestrator's name."""
 
 import ast
-from collections.abc import Sequence
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import pytest
 from container_helpers import table_of
-from plugin_fakes import register
+from plugin_fakes import ThirdPartyOrchestrator, install_distribution, register
 
 from datapatchbay.generate import generate_repo
 from datapatchbay.integrations.python.executor import PythonExecutor
 from datapatchbay.integrations.worker.runtime import WorkerRuntime
 from datapatchbay.plugins import (
     BuildTask,
-    DataProductPlan,
-    GeneratedFile,
-    GenerationContext,
-    RenderKind,
     UnsupportedCombinationError,
 )
-from datapatchbay.plugins.codegen.table_builds import plan_builds, render_build
-
-
-class ThirdPartyOrchestrator:
-    """An orchestrator that is not in this package: it asks each runtime for a plain function per Python table."""
-
-    render_kind: RenderKind = "function"
-
-    def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
-        builds = plan_builds(plan, context)
-        lines: list[str] = []
-        for table in builds.python_tables:
-            rendered = render_build(
-                context,
-                plan.orchestrator,
-                self.render_kind,
-                table,
-                builds.calls[table.name],
-                task_id=f"build_{table.name}",
-                where=f"table '{table.name}'",
-                variable=f"build_{table.name}",
-            )
-            lines.extend([*rendered.imports, *rendered.helpers, *rendered.lines])
-        text = "DATAPRODUCT_DIR = None\n" + "\n".join(lines) + "\n"
-        return [GeneratedFile(PurePosixPath(f"{plan.folder}.py"), text)]
 
 
 def test_a_third_party_orchestrator_of_kind_function_works_with_the_worker_runtime(
-    jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch
+    jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    register(monkeypatch, "orchestrator", "thirdparty", ThirdPartyOrchestrator)
+    install_distribution(
+        monkeypatch, tmp_path / "site", "orchestrator", "thirdparty", "plugin_fakes:ThirdPartyOrchestrator"
+    )
     product = jaffle_repo / "dataproducts/sa_jaffle_orders/dataproduct.yaml"
     product.write_text(product.read_text() + "orchestrator: thirdparty\n")
 

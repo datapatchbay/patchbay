@@ -15,6 +15,7 @@ from datapatchbay.plugins import (
     TablePlan,
     registry,
 )
+from datapatchbay.plugins.codegen.table_builds import plan_builds, render_build
 from datapatchbay.plugins.registry import PluginKind
 
 
@@ -84,3 +85,27 @@ class FakeWarehouse:
 
     def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask]:
         return [SqlTask(f"audit_{table.name}", f"SELECT 'it''s' FROM {table.name} WHERE false")]
+
+
+class ThirdPartyOrchestrator:
+    """An orchestrator that is not in this package: it asks each runtime for a plain function per Python table."""
+
+    render_kind: RenderKind = "function"
+
+    def generate(self, plan: DataProductPlan, context: GenerationContext) -> Sequence[GeneratedFile]:
+        builds = plan_builds(plan, context)
+        lines: list[str] = []
+        for table in builds.python_tables:
+            rendered = render_build(
+                context,
+                plan.orchestrator,
+                self.render_kind,
+                table,
+                builds.calls[table.name],
+                task_id=f"build_{table.name}",
+                where=f"table '{table.name}'",
+                variable=f"build_{table.name}",
+            )
+            lines.extend([*rendered.imports, *rendered.helpers, *rendered.lines])
+        text = "DATAPRODUCT_DIR = None\n" + "\n".join(lines) + "\n"
+        return [GeneratedFile(PurePosixPath(f"{plan.folder}.py"), text)]
