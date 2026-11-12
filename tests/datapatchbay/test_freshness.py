@@ -79,7 +79,8 @@ def _make_product(
     _write(
         root,
         f"{dp}/dataproduct.yaml",
-        f"schema_version: 1\nname: {folder.removeprefix('sa_')}\nkind: source-aligned\nowner: o\ninputs: {inputs}\noutputs: [{folder}]\n",
+        f"schema_version: 1\nname: {folder.removeprefix('sa_')}\nkind: source-aligned\nowner: o\n"
+        f"inputs: {inputs}\noutputs: [{folder}]\n",
     )
 
 
