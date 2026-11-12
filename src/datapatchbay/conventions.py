@@ -141,13 +141,13 @@ def _check_derived_names(dataproduct: DataProduct, derived: DerivedNames) -> Ite
 def _check_port_name(
     dataproduct: DataProduct, port: Port, role: str, default: str, derived: DerivedNames
 ) -> Iterator[Problem]:
-    """A port is the default one the template produces, or a further port that starts with the derived name."""
-    if port.name == default or port.name.startswith(derived.dataproduct):
+    """A port is the default one the template produces, or a further port named like the data product or starting with it and an underscore."""
+    if port.name == default or port.name == derived.dataproduct or port.name.startswith(f"{derived.dataproduct}_"):
         return
     yield Problem(
         *_port_position(dataproduct, port),
         f"port '{port.name}' must be the {role} '{default}' or start with the data product's name "
-        f"'{derived.dataproduct}'",
+        f"'{derived.dataproduct}_'",
     )
 
 

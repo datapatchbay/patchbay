@@ -6,6 +6,7 @@ SQL is a dbt model in the `models/` folder of its data product, and dbt takes th
 Nothing here imports or runs dbt (ADR-0004).
 """
 
+import re
 from collections.abc import Iterator
 from pathlib import PurePosixPath
 
@@ -22,6 +23,7 @@ MODELS_FOLDER = "models"
 """The folder of a data product that holds its dbt models."""
 
 _BUILD_KEYS = ("entrypoint", "params", "needs")
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Table) -> str | None:
@@ -58,6 +60,7 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     """Check how the executor of each table fits its table file, and what the folder of a dbt model must hold.
 
     - A table built by dbt has no `entrypoint`, `params` or `needs`, no table rule, and its model file exists.
+    Its rendered model name is a plain identifier and no other table built by dbt has the same name.
     - Any other table needs a `build.entrypoint`, because the python executor calls it.
     - No `.py` file sits in the `models/` folder of a data product, because dbt reads it as a dbt Python model.
 
@@ -69,19 +72,22 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
         The problems found, empty when the executors fit the table files.
     """
     problems: list[Problem] = []
+    used: dict[str, PurePosixPath] = {}  # model name -> table file, because model names are unique in a dbt project
     for dataproduct in repo.dataproducts:
         problems.extend(_check_models_folder(repo, dataproduct))
         for port in dataproduct.ports:
             for table in port.tables:
                 executor = resolve_setting("executor", settings, dataproduct=dataproduct, port=port, table=table)
                 if executor.value == DBT_EXECUTOR:
-                    problems.extend(_check_dbt_table(settings, dataproduct, table))
+                    problems.extend(_check_dbt_table(settings, dataproduct, table, used))
                 else:
                     problems.extend(_check_entrypoint(table, executor.value))
     return problems
 
 
-def _check_dbt_table(settings: EffectiveSettings, dataproduct: DataProduct, table: Table) -> Iterator[Problem]:
+def _check_dbt_table(
+    settings: EffectiveSettings, dataproduct: DataProduct, table: Table, used: dict[str, PurePosixPath]
+) -> Iterator[Problem]:
     file = table.file
     build = file.model.build
     if build is not None:
@@ -100,7 +106,27 @@ def _check_dbt_table(settings: EffectiveSettings, dataproduct: DataProduct, tabl
             f"table rule '{rule.rule}' is not supported for dbt yet; table '{table.name}' is built by dbt",
         )
     name = model_name(settings, dataproduct, table)
-    if name is not None and not (dataproduct.directory / MODELS_FOLDER / f"{name}.sql").is_file():
+    if name is not None and not _IDENTIFIER.fullmatch(name):
+        yield Problem(
+            file.path,
+            file.line("name"),
+            f"dbt model name '{name}' of table '{table.name}', rendered from `conventions.names.dbt_model`, is not "
+            "a plain identifier; use letters, digits and underscores, not starting with a digit",
+        )
+    elif name is not None and name in used:
+        yield Problem(
+            file.path,
+            file.line("name"),
+            f"dbt model name '{name}' is already used by {used[name]}; dbt model names are unique across the repo, "
+            "so include `{dataproduct}` in `conventions.names.dbt_model`",
+        )
+    elif name is not None:
+        used[name] = file.path
+    if (
+        name is not None
+        and _IDENTIFIER.fullmatch(name)
+        and not (dataproduct.directory / MODELS_FOLDER / f"{name}.sql").is_file()
+    ):
         yield Problem(
             file.path,
             file.line("name"),
