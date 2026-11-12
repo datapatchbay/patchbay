@@ -120,10 +120,10 @@ dpb generate
 dpb generate --output build/dags
 ```
 
-The same input gives byte-identical files. The orchestrator, executor, runtime and warehouse are plugins named in the settings (see [Settings and plugins](settings.md)); this release ships the Airflow orchestrator, the Python executor, the `worker` runtime and a Postgres warehouse that does not write any SQL yet.
+The same input gives byte-identical files. The orchestrator, executor, runtime and warehouse are plugins named in the settings (see [Settings and plugins](settings.md)); this release ships the Airflow orchestrator, the Python executor, the `worker` runtime and a Postgres warehouse that writes the SQL for views, masking and grants.
 
 One Airflow 3 DAG per data product
-: The file is named after the data product folder, and so is the DAG. Each table gets a build task followed by an audit task, and task order follows `needs`. A data product with a source input port runs on that port's schedule; all its source input ports must share one schedule. A data product that reads another data product's output port is triggered when that port is updated; with both, it runs on the schedule once the ports are updated. Each output port is an Airflow asset named after the port, and the DAG ends with a `publish_outputs` task that marks the output ports as updated when the DAG succeeds. Between the last table and that task come the tasks that apply the views and grants. (The build tasks exist now; the audit and apply tasks arrive with the Postgres warehouse.)
+: The file is named after the data product folder, and so is the DAG. Each table gets a build task followed by an audit task, and task order follows `needs`. A data product with a source input port runs on that port's schedule; all its source input ports must share one schedule. A data product that reads another data product's output port is triggered when that port is updated; with both, it runs on the schedule once the ports are updated. Each output port is an Airflow asset named after the port, and the DAG ends with a `publish_outputs` task that marks the output ports as updated when the DAG succeeds. Between the last table and that task comes the `apply_access` task, which applies the views and grants. (The audit tasks arrive with a later release.)
 
 Three runtimes
 : `worker` calls the entrypoint on the Airflow worker: the task loads the entrypoint file from the data product folder and calls the function with the table's `params`. It finds the folder from the DAG file's own location, so the output folder and the data product folders must keep their relative places when deployed; deploying the whole repo as the DAG bundle does that. The `params` must be plain YAML values: a date has to be quoted. `docker` and `kubernetes` run it in a container from an image named in the settings.
@@ -132,7 +132,7 @@ No connection management
 : The views, grants and audits run on the orchestrator, through a connection that already exists there. The settings only name it. Build code connects by itself.
 
 Views and grants for Postgres
-: The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else, and readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access.
+: The executor builds every output table in the data product's private schema. An output port holds only generated views over those tables. A PII column shows its value to PII readers and NULL to everyone else, and readers are granted access to the views. The statements can be re-applied on every run, and removing a reader removes that reader's access. The roles must already exist in the warehouse; the SQL grants to them and never creates them (ADR-0016). The views are dropped and created again on every run, so a view in another schema that depends on an output port's view blocks the apply.
 
 Audit tasks
 : Each quality rule becomes SQL that runs through the orchestrator's connection. A broken rule with severity `error` fails the run, `warning` reports and continues, and `none` is skipped. For a table built by dbt, the rules run as dbt data tests during the dbt build instead.
