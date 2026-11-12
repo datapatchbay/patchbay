@@ -11,6 +11,7 @@ MODULE_OF = {
         "Executor",
         "GenerationContext",
         "Orchestrator",
+        "RenderKind",
         "Runtime",
         "UnsupportedCombinationError",
         "Warehouse",

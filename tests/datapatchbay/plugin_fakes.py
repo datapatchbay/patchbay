@@ -6,7 +6,15 @@ from typing import Any
 
 import pytest
 
-from datapatchbay.plugins import DataProductPlan, GeneratedFile, GenerationContext, SqlTask, TablePlan, registry
+from datapatchbay.plugins import (
+    DataProductPlan,
+    GeneratedFile,
+    GenerationContext,
+    RenderKind,
+    SqlTask,
+    TablePlan,
+    registry,
+)
 from datapatchbay.plugins.registry import PluginKind
 
 
@@ -56,6 +64,8 @@ def install_distribution(monkeypatch: pytest.MonkeyPatch, site: Path, kind: Plug
 
 class FakeOrchestrator:
     """Write one text file per data product that lists its tables, and remember what it was asked."""
+
+    render_kind: RenderKind = "task"
 
     def __init__(self) -> None:
         self.plans: list[DataProductPlan] = []
