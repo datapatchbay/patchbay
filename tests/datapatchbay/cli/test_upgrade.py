@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from datapatchbay import upgrade
 from datapatchbay.cli import app
+from datapatchbay.cli.upgrade import report_upgrade
 
 
 def rename_owner(data: CommentedMap) -> None:
@@ -13,11 +14,18 @@ def rename_owner(data: CommentedMap) -> None:
         upgrade.rename_key(data, "ownr", "owner")
 
 
+def upgrade_outdated(*, dry_run: bool, capsys: pytest.CaptureFixture[str]) -> str:
+    """Upgrade the working directory with a test-only migration to version 2, report it, return what was printed."""
+    result = upgrade.upgrade_repo(
+        Path.cwd(), dry_run=dry_run, migrations={1: upgrade.Migration(rename_owner)}, current_version=2
+    )
+    report_upgrade(result, dry_run=dry_run)
+    return capsys.readouterr().out
+
+
 @pytest.fixture
-def outdated(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A repo one version behind, with a test-only migration registered."""
-    monkeypatch.setattr(upgrade, "SCHEMA_VERSION", 2)
-    monkeypatch.setattr(upgrade, "MIGRATIONS", {1: upgrade.Migration(rename_owner)})
+def outdated(repo: Path) -> Path:
+    """A repo one version behind."""
     path = repo / "dataproducts" / "a" / "dataproduct.yaml"
     path.parent.mkdir(parents=True)
     path.write_text("schema_version: 1\nownr: Jane  # who\n")
@@ -30,19 +38,17 @@ def test_upgrade_says_nothing_to_do_and_exits_zero(runner: CliRunner, repo: Path
     assert "nothing to do" in result.output
 
 
-def test_upgrade_rewrites_files_and_lists_them(runner: CliRunner, outdated: Path):
-    result = runner.invoke(app, ["upgrade"])
-    assert result.exit_code == 0, result.output
-    assert "upgraded dataproducts/a/dataproduct.yaml (1 -> 2)" in result.output
+def test_upgrade_rewrites_files_and_lists_them(outdated: Path, capsys: pytest.CaptureFixture[str]):
+    output = upgrade_outdated(dry_run=False, capsys=capsys)
+    assert "upgraded dataproducts/a/dataproduct.yaml (1 -> 2)" in output
     assert outdated.read_text() == "schema_version: 2\nowner: Jane  # who\n"
 
 
-def test_upgrade_dry_run_shows_a_diff_and_writes_nothing(runner: CliRunner, outdated: Path):
-    result = runner.invoke(app, ["upgrade", "--dry-run"])
-    assert result.exit_code == 0, result.output
-    assert "would upgrade dataproducts/a/dataproduct.yaml (1 -> 2)" in result.output
-    assert "-ownr: Jane  # who" in result.output
-    assert "+owner: Jane  # who" in result.output
+def test_upgrade_dry_run_shows_a_diff_and_writes_nothing(outdated: Path, capsys: pytest.CaptureFixture[str]):
+    output = upgrade_outdated(dry_run=True, capsys=capsys)
+    assert "would upgrade dataproducts/a/dataproduct.yaml (1 -> 2)" in output
+    assert "-ownr: Jane  # who" in output
+    assert "+owner: Jane  # who" in output
     assert outdated.read_text() == "schema_version: 1\nownr: Jane  # who\n"
 
 

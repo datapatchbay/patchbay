@@ -8,13 +8,18 @@ import typer
 
 from datapatchbay import upgrade as upgrade_module
 from datapatchbay.repo import find_repo_root
+from datapatchbay.upgrade import UpgradeResult
 
 
 def upgrade(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would change and write nothing.")] = False,
 ) -> None:
     """Rewrite every file to the current schema version, keeping comments and key order."""
-    result = upgrade_module.upgrade_repo(find_repo_root(Path.cwd()), dry_run=dry_run)
+    report_upgrade(upgrade_module.upgrade_repo(find_repo_root(Path.cwd()), dry_run=dry_run), dry_run=dry_run)
+
+
+def report_upgrade(result: UpgradeResult, *, dry_run: bool) -> None:
+    """Print what an upgrade changed, or the problems that stopped it, and exit 1 on problems."""
     if result.problems:
         for problem in result.problems:
             typer.echo(problem.render(), err=True)
