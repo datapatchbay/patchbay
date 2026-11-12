@@ -19,11 +19,11 @@ from datapatchbay.builtin.dagster_helpers import (
     READ_SENSOR_HELPER,
     SQL_CHECK_HELPER,
 )
+from datapatchbay.builtin.table_builds import plan_builds, render_build
 from datapatchbay.genheader import generated_header
 from datapatchbay.literals import python_literal
 from datapatchbay.plugins import (
     AuditTask,
-    BuildTask,
     DataProductPlan,
     DbtCall,
     GeneratedFile,
@@ -153,42 +153,26 @@ class _Module:
         The tables built by dbt share one multi-asset that depends on the Python tables no other table needs,
         because `dbt build` runs their models and data tests together.
         """
-        plan = self._plan
-        calls = {table.name: self._context.executors[table.executor].call(table) for table in plan.tables}
-        dbt_tables = [table for table in plan.tables if isinstance(calls[table.name], DbtCall)]
-        dbt_names = {table.name for table in dbt_tables}
-        for table in plan.tables:
+        builds = plan_builds(self._plan, self._context)
+        for table in self._plan.tables:
             self._check_name("table", table.name, "asset key")
             self._keys[table.name] = self._key(table.name)
         needed: set[str] = set()
-        python_names: list[str] = []
-        for table in plan.tables:
-            if table.name in dbt_names:
-                continue
-            for need in table.needs:
-                if need in dbt_names:
-                    raise UnsupportedCombinationError(
-                        f"table '{table.name}' needs table '{need}', which dbt builds after the Python tables; "
-                        "dbt tables cannot be needed"
-                    )
-            call = calls[table.name]
+        for table in builds.python_tables:
+            call = builds.calls[table.name]
             assert isinstance(call, PythonCall)
             self._python_table(table, call)
-            python_names.append(table.name)
             needed.update(table.needs)
-        if dbt_tables:
-            leaves = [name for name in python_names if name not in needed]
-            self._dbt_tables(dbt_tables, calls, leaves)
+        if builds.dbt_call is not None:
+            leaves = [table.name for table in builds.python_tables if table.name not in needed]
+            self._dbt_tables(builds.dbt_tables, builds.dbt_call, leaves)
 
     def _build(self, table: TablePlan, call: PythonCall | DbtCall, *, task_id: str, where: str) -> str:
         """Add the build function that the runtime renders; return its name."""
-        runtime = self._context.runtimes[table.runtime]
         variable = self._variable(task_id)
-        task = BuildTask(task_id=task_id, table=table, call=call)
-        try:
-            rendered = runtime.render_build_task(task, orchestrator=self._plan.orchestrator, variable=variable)
-        except ValueError as exc:
-            raise UnsupportedCombinationError(f"{where}: {exc}") from exc
+        rendered = render_build(
+            self._context, self._plan.orchestrator, table, call, task_id=task_id, where=where, variable=variable
+        )
         self._imports.update(rendered.imports)
         for helper in rendered.helpers:
             self._helper(helper)
@@ -262,18 +246,11 @@ class _Module:
         self._helper(AUDIT_CHECK_HELPER)
         self._checks.extend(_call(f"{variable} = _audit_check", arguments))
 
-    def _dbt_tables(self, tables: list[TablePlan], calls: dict[str, PythonCall | DbtCall], leaves: list[str]) -> None:
+    def _dbt_tables(self, tables: Sequence[TablePlan], call: DbtCall, leaves: list[str]) -> None:
         """Add the one multi-asset that builds the dbt tables with `dbt build`, after the Python tables."""
         plan = self._plan
-        first = tables[0]
-        for table in tables:
-            if table.runtime != first.runtime:
-                raise UnsupportedCombinationError(
-                    f"tables '{first.name}' and '{table.name}' are built by dbt in one task, "
-                    f"but their runtimes are '{first.runtime}' and '{table.runtime}'"
-                )
         op = self._claim_name(f"{plan.folder}__build_dbt", "tables built by dbt")
-        build = self._build(first, calls[first.name], task_id="build_dbt", where="tables built by dbt")
+        build = self._build(tables[0], call, task_id="build_dbt", where="tables built by dbt")
         function = self._variable(op)
         deps = self._deps(leaves, reads=True)
         specs = [self._spec(self._key(t.name), deps) for t in tables]
