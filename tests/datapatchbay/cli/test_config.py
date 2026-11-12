@@ -28,7 +28,7 @@ def test_config_json_prints_the_same_as_json(runner: CliRunner, repo: Path):
 
 
 def test_config_fails_on_invalid_file_with_line(runner: CliRunner, repo: Path):
-    (repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: lambda\n")
+    (repo / "datapatchbay.yaml").write_text("schema_version: 1\nseverity: loud\n")
     result = runner.invoke(app, ["config"])
     assert result.exit_code == 2
     assert "datapatchbay.yaml:2" in result.output

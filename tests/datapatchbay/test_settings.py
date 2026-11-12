@@ -72,7 +72,7 @@ def test_lists_replace_defaults(tmp_path: Path):
 
 
 def test_invalid_repo_file_raises_with_file_and_line(tmp_path: Path):
-    write_root(tmp_path, "schema_version: 1\nruntime: lambda\n")
+    write_root(tmp_path, "schema_version: 1\nseverity: loud\n")
     with pytest.raises(DatapatchbayError, match=r"datapatchbay\.yaml:2"):
         load_settings(tmp_path)
 

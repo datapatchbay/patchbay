@@ -105,3 +105,23 @@ def test_every_model_field_is_in_its_schema_with_a_description(model: type[BaseM
 
 def test_the_file_models_are_found():
     assert len(_file_models()) >= 6
+
+
+@pytest.mark.parametrize(
+    ("kind", "file"),
+    [
+        ("root", {"schema_version": 1, "executor": "python", "runtime": "docker", "image": "x:1", "severity": "none"}),
+        ("dataproduct", {"schema_version": 1, "name": "x", "kind": "k", "owner": "o", "runtime": "any-plugin"}),
+        ("table", {"schema_version": 1, "name": "t", "build": {"entrypoint": "src/t.py:b", "image": "x:2"}}),
+    ],
+)
+def test_the_schema_accepts_cascading_settings_at_every_level(kind: Kind, file: Any):
+    errors = Draft202012Validator(schemas.json_schema(kind)).iter_errors(file)
+    assert not [e.message for e in errors if any(w in e.message for w in ("executor", "runtime", "image"))]
+
+
+def test_the_schema_rejects_orchestrator_on_a_table_build_block():
+    build = {"entrypoint": "src/t.py:b", "orchestrator": "prefect"}
+    assert not Draft202012Validator(schemas.json_schema("table")).is_valid(
+        {"schema_version": 1, "name": "t", "build": build}
+    )
