@@ -63,3 +63,33 @@ def line_of(data: CommentedMap, location: Sequence[str | int]) -> int:
             break
         node = node[part]
     return line
+
+
+def resolve_location(data: CommentedMap, location: Sequence[str | int], *, key_missing: bool) -> tuple[str | int, ...]:
+    """Drop the parts of a Pydantic error location that are not in the YAML, such as the tag of a union member.
+
+    Args:
+        data: The loaded file.
+        location: The `loc` of a Pydantic error.
+
+    Keyword Args:
+        key_missing: Whether the error is about a required key that is absent, so a last part that is not in the
+            data is that key and stays.
+
+    Returns:
+        The location written as it appears in the file.
+    """
+    kept: list[str | int] = []
+    node: Any = data
+    last = len(location) - 1
+    for index, part in enumerate(location):
+        in_map = isinstance(node, CommentedMap) and part in node
+        in_seq = isinstance(node, CommentedSeq) and isinstance(part, int) and 0 <= part < len(node)
+        if in_map or in_seq:
+            node = node[part]
+        elif index == last and key_missing:
+            pass
+        else:
+            continue
+        kept.append(part)
+    return tuple(kept)
