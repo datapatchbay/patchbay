@@ -50,6 +50,7 @@ build:
   entrypoint: src/orders.py:build
   needs: [ingested_orders]
 """
+SNAPSHOT = (Path(__file__).parent / "postgres_access_snapshot.sql").read_text()
 ROLES = ("grp-shop-reporting", "grp-shop-support", "grp-outsider", "dp_agg_order_turnaround", "grp-shop-former")
 
 
@@ -75,6 +76,10 @@ def test_the_apply_is_one_task_with_a_stable_id_and_the_same_sql_for_the_same_in
     (task,) = PostgresWarehouse().apply_tasks(plan_of(repo))
     assert task.task_id == "apply_access"
     assert apply_sql(repo) == apply_sql(repo)
+
+
+def test_the_sql_is_the_same_text_as_before_the_view_statement_was_shared_with_duckdb(repo: Path):
+    assert apply_sql(repo) == SNAPSHOT
 
 
 def test_a_data_product_without_output_ports_applies_nothing(repo: Path):
