@@ -21,6 +21,7 @@ def check_repo(repo: Repo) -> list[Problem]:
         problems.extend(_check_table_names(dataproduct))
         problems.extend(_check_builds(dataproduct))
         problems.extend(_check_reads(repo, dataproduct))
+        problems.extend(_check_product_readers(repo, dataproduct))
     return problems
 
 
@@ -173,6 +174,24 @@ def _check_reads(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
                 f"data product '{dataproduct.folder}' reads '{target}' but is not listed in the readers of that port; "
                 f"add `- product: {dataproduct.folder}` under access.readers in {found.file.path}",
             )
+
+
+def _check_product_readers(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
+    """A `product:` reader of an output port names a data product in this repo."""
+    if len(repo.dataproducts) != repo.dataproduct_dirs:
+        return  # some data products failed to load; their problems are reported already, and one may be the reader
+    folders = {other.folder for other in repo.dataproducts}
+    for port in dataproduct.outputs:
+        model = port.file.model
+        if not isinstance(model, OutputPortFile):
+            continue
+        for index, reader in enumerate(model.access.readers):
+            if isinstance(reader, ProductReader) and reader.product not in folders:
+                yield Problem(
+                    port.file.path,
+                    port.file.line("access", "readers", index),
+                    f"reader `product: {reader.product}` is not a data product in this repo",
+                )
 
 
 def find_other_output(repo: Repo, reader: DataProduct, name: str) -> Port | Literal["unreadable"] | None:

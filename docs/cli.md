@@ -71,7 +71,7 @@ Your hand-written properties are never touched. The ones below the new data prod
 - An output port with `freshness` does not promise fresher data than its inputs deliver: its freshness is not shorter than the longest gap in the `schedule` of any source input port of the same data product, nor than the `freshness` of any output port the data product reads. The message names both ports and both values. An output port without `freshness` is not checked. The longest gap is computed from the cron expression alone, and `dpb` never looks at data.
 - `freshness_column` names a column of its table.
 - An input port's `from` names an existing output port of another data product.
-- A data product that reads an output port is listed in that port's readers as a `product:` entry.
+- A data product that reads an output port is listed in that port's readers as a `product:` entry. A `product:` reader must name a data product in the repo.
 - `kind` is one of the kinds in the conventions. `domain` is in the domain list when the list is not empty, and is accepted as written when it is empty.
 - The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name is the data product's derived name or starts with it and an underscore (`sa_jaffle_orders_extra`, not `sa_jaffle_orders2`). An input port that reads another data product keeps the name of the output port it reads.
 - Data product, port, table and column names are snake_case.

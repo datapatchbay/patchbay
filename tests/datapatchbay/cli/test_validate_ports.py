@@ -283,6 +283,11 @@ def test_plain_string_reader_does_not_count_as_product_reader(runner: CliRunner,
     expect_problem(runner, READER_PORT, 2, "not listed in the readers")
 
 
+def test_product_reader_must_name_a_data_product(runner: CliRunner, product: None, write_file: Writer):
+    write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("product: agg_order_turnaround", "product: nosuchproduct"))
+    expect_problem(runner, f"{OUT}/port.yaml", 7, "`product: nosuchproduct` is not a data product")
+
+
 # --- tables -----------------------------------------------------------------------------------------------------
 
 
