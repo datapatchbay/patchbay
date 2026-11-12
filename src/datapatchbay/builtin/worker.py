@@ -105,7 +105,7 @@ class WorkerRuntime:
         if orchestrator == "airflow":
             return _airflow_task(task, variable)
         if orchestrator in FUNCTION_ORCHESTRATORS:
-            return _function(task, variable)
+            return _plain_function(task, variable)
         raise UnsupportedCombinationError(f"the worker runtime cannot render tasks for orchestrator '{orchestrator}'")
 
 
@@ -138,7 +138,7 @@ def _airflow_task(task: BuildTask, variable: str) -> RenderedTask:
     )
 
 
-def _function(task: BuildTask, variable: str) -> RenderedTask:
+def _plain_function(task: BuildTask, variable: str) -> RenderedTask:
     call = task.call
     if isinstance(call, DbtCall):
         return RenderedTask(
