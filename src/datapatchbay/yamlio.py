@@ -1,6 +1,7 @@
 """Reading YAML with line information, so every problem can name the line it came from."""
 
 from collections.abc import Sequence
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -63,3 +64,13 @@ def line_of(data: CommentedMap, location: Sequence[str | int]) -> int:
             break
         node = node[part]
     return line
+
+
+def dump_mapping(data: CommentedMap) -> str:
+    """Write a round-trip mapping back to text, keeping its comments and key order."""
+    yaml = YAML(typ="rt")
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    yaml.preserve_quotes = True
+    buffer = StringIO()
+    yaml.dump(data, buffer)
+    return buffer.getvalue()

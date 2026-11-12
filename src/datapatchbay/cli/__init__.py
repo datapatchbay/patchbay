@@ -5,6 +5,7 @@ from typing import Any
 import typer
 from typer.core import TyperGroup
 
+from datapatchbay.cli.upgrade import upgrade
 from datapatchbay.cli.validate import validate
 from datapatchbay.errors import DatapatchbayError
 
@@ -29,6 +30,7 @@ app = typer.Typer(
     add_completion=False,
 )
 app.command()(validate)
+app.command()(upgrade)
 
 
 @app.callback()
