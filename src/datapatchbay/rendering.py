@@ -4,19 +4,19 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.errors import DatapatchbayError
-from datapatchbay.planning import PlannedRepo
 from datapatchbay.plugins import (
     DataProductPlan,
     Executor,
     GeneratedFile,
     GenerationContext,
     Orchestrator,
+    PlannedRepo,
     Runtime,
     UnsupportedCombinationError,
     Warehouse,
 )
+from datapatchbay.plugins.registry import load_plugin
 from datapatchbay.problems import Problem
-from datapatchbay.registry import load_plugin
 from datapatchbay.settings import EffectiveSettings
 
 

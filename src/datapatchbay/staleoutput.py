@@ -3,7 +3,7 @@
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.genheader import generated_from
-from datapatchbay.planning import PlannedRepo
+from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Problem
 
 

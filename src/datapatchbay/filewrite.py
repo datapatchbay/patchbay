@@ -4,13 +4,9 @@ import contextlib
 import os
 from pathlib import Path
 
-from datapatchbay.errors import DatapatchbayError
+from datapatchbay.errors import GenerationError
 
-__all__ = ["GenerationError", "remove_file", "write_file"]
-
-
-class GenerationError(DatapatchbayError):
-    """Raised when `dpb generate` cannot write, delete or sync a file, so the command exits with code 2."""
+__all__ = ["remove_file", "write_file"]
 
 
 def write_file(destination: Path, content: str) -> None:

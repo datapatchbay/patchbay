@@ -10,8 +10,8 @@ from ruamel.yaml.comments import CommentedMap
 from datapatchbay.cascade import ResolvedCascade, ResolvedSetting
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.plugins import Runtime
+from datapatchbay.plugins.registry import PluginKind, load_plugin, plugin_names
 from datapatchbay.problems import Problem
-from datapatchbay.registry import PluginKind, load_plugin, plugin_names
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import DataProduct, Repo, Table
 from datapatchbay.settings import EffectiveSettings

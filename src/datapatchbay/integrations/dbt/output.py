@@ -22,8 +22,7 @@ from datapatchbay.integrations.dbt.project import DBT_PROJECT_FILE, DbtProjectEr
 from datapatchbay.integrations.dbt.properties import GROUP_FILE, generate_dbt_properties
 from datapatchbay.integrations.dbt.sources import generate_dbt_sources
 from datapatchbay.integrations.dbt.tests import generate_dbt_tests
-from datapatchbay.planning import PlannedRepo
-from datapatchbay.plugins import DataProductPlan
+from datapatchbay.plugins import DataProductPlan, PlannedRepo
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import Repo
 from datapatchbay.yamlio import YamlLoadError, load_mapping

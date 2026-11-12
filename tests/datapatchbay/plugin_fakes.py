@@ -6,9 +6,8 @@ from typing import Any
 
 import pytest
 
-from datapatchbay import registry
-from datapatchbay.plugins import DataProductPlan, GeneratedFile, GenerationContext, SqlTask, TablePlan
-from datapatchbay.registry import PluginKind
+from datapatchbay.plugins import DataProductPlan, GeneratedFile, GenerationContext, SqlTask, TablePlan, registry
+from datapatchbay.plugins.registry import PluginKind
 
 
 class FakeEntryPoint:
@@ -39,7 +38,7 @@ def install_distribution(monkeypatch: pytest.MonkeyPatch, site: Path, kind: Plug
     """Install a distribution whose metadata registers a plugin, so it is found as a real third-party plugin.
 
     Writes `entry_points.txt` into a `*.dist-info` folder under `site` and puts `site` on `sys.path`, which is what
-    `pip install` does for a package. Nothing in `datapatchbay.registry` is replaced.
+    `pip install` does for a package. Nothing in `datapatchbay.plugins.registry` is replaced.
 
     Args:
         monkeypatch: Restores `sys.path` after the test.
