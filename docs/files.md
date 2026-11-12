@@ -32,7 +32,7 @@ dataproducts/
     models/
       agg_lab_turnaround__turnaround.sql
       agg_lab_turnaround__turnaround.yml   # generated, committed
-dbt_project.yml                            # only for dbt; `dpb generate` keeps its `model-paths` in step
+dbt_project.yml                            # only for dbt; `dpb generate` keeps its `model-paths` and `test-paths` in step
 ```
 
 There are four kinds of file:
@@ -176,7 +176,9 @@ build:
 - `needs` lists the tables of the same data product that must be built first, in any of its ports. It must not contain a cycle.
 - Table names are unique within a data product.
 
-A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. A table rule (`primary_key`, `row_count`, `sql`) fails on it with "not supported for dbt yet", until the mapping of table rules to dbt is decided. Any other table needs a `build.entrypoint`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand.
+A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. A table rule (`primary_key`, `row_count`, `sql`) becomes a generated singular dbt data test, one SQL file per rule in the data product's `tests/` folder (ADR-0019). Each rule's SQL selects the rows that break it: `primary_key` rows with a null in a key column or a key that occurs more than once, `row_count` one row when the count is outside `min` and `max`, and `sql` the rule's SELECT as written. Severity maps as for column rules (`error` as `error`, `warning` as `warn`, `none` writes no test). Until `dpb generate` writes them, a table rule on a table built by dbt fails with "not supported for dbt yet". Any other table needs a `build.entrypoint`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand. A dbt model reads another data product's output port with `source('<port>', '<table>')`: for each input port that reads an output port, `dpb generate` writes a dbt source named after the port, pointing at the output port's schema and listing the producer's tables and columns from its table files. A `ref()` into another data product's models is a read of a private table and fails the boundary check.
+
+The generated sources are in `models/_sources.yml` of the reading data product; when several data products read one output port, the source is written once, in the first reader built by dbt in name order. Only the contract is copied (table names, columns and their descriptions), not quality rules or freshness.
 
 The generated properties put each model in its data product's private schema with `config: {schema: <private port name>}`. By default dbt does not use that name as written: it builds `<target schema>_<custom schema>`. For models to land in the private schema as written, the team's dbt project must override the `generate_schema_name` macro, for example in `macros/generate_schema_name.sql`:
 
