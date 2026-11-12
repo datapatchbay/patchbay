@@ -71,6 +71,7 @@ def test_resolve_settings_returns_every_cascading_setting(sample_repo: Path):
         "executor": ("dbt", "table"),
         "runtime": ("kubernetes", "port"),
         "image": ("registry/orders:2", "table"),
+        "container": ({"environment": {"WAREHOUSE": "orders"}, "mem_limit": "1g"}, "table"),
         "severity": ("warning", "dataproduct"),
     }
     assert got["image"].to_json() == {
@@ -78,3 +79,18 @@ def test_resolve_settings_returns_every_cascading_setting(sample_repo: Path):
         "level": "table",
         "file": "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml",
     }
+
+
+def test_container_cascades_as_a_whole_and_the_nearest_one_wins(sample_repo: Path):
+    settings, orders, reader = setup(sample_repo)
+    port = orders.outputs[0]
+    table = resolve_setting("container", settings, dataproduct=orders, port=port, table=port.tables[0])
+    assert (table.value, table.level) == ({"environment": {"WAREHOUSE": "orders"}, "mem_limit": "1g"}, "table")
+    root = resolve_setting("container", settings, dataproduct=reader)
+    assert (root.value, root.level) == ({"environment": {"WAREHOUSE": "root"}}, "root")
+
+
+def test_container_is_unset_when_no_level_sets_it(sample_repo: Path):
+    (sample_repo / "datapatchbay.yaml").write_text("schema_version: 1\n")
+    settings, _, reader = setup(sample_repo)
+    assert resolve_setting("container", settings, dataproduct=reader).level == "unset"

@@ -19,10 +19,10 @@ def test_a_repo_that_uses_only_installed_plugins_is_valid(lab_repo: Path):
 
 def test_a_runtime_without_a_plugin_names_the_data_product_table_and_line(lab_repo: Path):
     path = lab_repo / ORDERS
-    path.write_text(path.read_text().replace("build:\n", "build:\n  runtime: docker\n"))
+    path.write_text(path.read_text().replace("build:\n", "build:\n  runtime: podman\n"))
     assert rendered(lab_repo) == [
-        f"{ORDERS}:7: runtime 'docker' has no plugin (data product 'sa_ilab_orders', table 'orders'); "
-        "available runtime plugins: worker"
+        f"{ORDERS}:7: runtime 'podman' has no plugin (data product 'sa_ilab_orders', table 'orders'); "
+        "available runtime plugins: docker, kubernetes, worker"
     ]
 
 
@@ -36,10 +36,10 @@ def test_an_executor_without_a_plugin_is_reported_where_it_is_set_for_each_table
 
 
 def test_a_root_level_runtime_is_reported_once_per_table_at_the_root_file(lab_repo: Path):
-    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: kubernetes\n")
+    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\nruntime: podman\n")
     messages = rendered(lab_repo)
-    assert len(messages) == 5
-    assert messages[0].startswith("datapatchbay.yaml:2: runtime 'kubernetes' has no plugin (data product ")
+    assert len(messages) == 4
+    assert messages[0].startswith("datapatchbay.yaml:2: runtime 'podman' has no plugin (data product ")
     assert any("table 'turnaround'" in message for message in messages)
 
 

@@ -234,7 +234,7 @@ Generated files are build output of CD and are not committed, with one exception
 
 **One Airflow 3 DAG per data product.** Each table gets a build task followed by an audit task. Task order follows `needs`. A data product with a source input port runs on that port's schedule. A data product that reads another data product's output port is triggered when that port is updated. The DAG ends with a task that applies the views and grants.
 
-**Three runtimes.** `worker` calls the entrypoint on the Airflow worker. `docker` and `kubernetes` run it in a container from an image named in the settings.
+**Three runtimes.** `worker` calls the entrypoint on the Airflow worker. `docker` and `kubernetes` run it in a container from an image named in the settings (see ADR-0016).
 
 **No connection management.** The views, grants and audits run on the orchestrator through a connection that already exists there; the settings only name it. Build code connects by itself: on the worker it can use that same connection, and in a container it reads what the team put in the container's environment.
 
@@ -275,7 +275,6 @@ Later, as someone needs them: more orchestrators, more warehouses, more port kin
 ## Open questions
 
 - A data product with more than one source: one private input port or several?
-- How does a container runtime receive the entrypoint and its params?
 - Are warehouse roles created by the generated SQL, or expected to exist?
 - Is the thin semantic language enough, or will it grow into a second Cube?
 - Which warehouses after Postgres?

@@ -200,7 +200,7 @@ def test_a_fake_orchestrator_plugin_registered_through_entry_points_generates_in
         "sa_ilab_orders.txt",
     ]
     assert generated(lab_repo, "sa_ilab_orders.txt") == "sa_ilab_orders: ingested_orders,orders\n"
-    assert generated(lab_repo, "agg_lab_weekly.txt") == "agg_lab_weekly: weekly_raw,weekly\n"
+    assert generated(lab_repo, "agg_lab_weekly.txt") == "agg_lab_weekly: weekly_raw,weekly,weekly_pod\n"
 
 
 def test_an_orchestrator_set_on_one_data_product_applies_to_that_data_product_only(

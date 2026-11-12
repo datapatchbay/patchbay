@@ -18,6 +18,7 @@ These settings can be set at four levels: root, data product, port and table. Th
 - `executor`
 - `runtime`
 - `image`, the container image for container runtimes
+- `container`, free-form arguments for the container task of a container runtime
 - the default `severity`
 
 The root level is `datapatchbay.yaml` over the packaged defaults. On a data product or a port, write the setting as a key in `dataproduct.yaml` or `port.yaml`. On a table, write it in the `build` block.
@@ -36,6 +37,21 @@ build:
 ```
 
 `executor` and `runtime` name plugins, so the files accept any name. `dpb validate` and `dpb generate` check that a plugin of that name is installed, and name the data product and table when it is not.
+
+`container` is a map that dpb hands to the Docker or Kubernetes task as written, without reading it, so a team can set environment variables, secrets, a namespace or resource limits. The nearest `container` wins as a whole; maps at different levels are not merged. Values must be plain YAML values. dpb refuses a key that it sets itself (`task_id`, `image`, `entrypoint` and `command` for Docker; `task_id`, `name`, `image`, `cmds` and `arguments` for Kubernetes). dpb passes no credentials: Airflow renders templates in `environment` and `env_vars`, so `PGPASSWORD: "{{ conn.warehouse.password }}"` reads the orchestrator's connection.
+
+```yaml
+# a table file
+build:
+  entrypoint: src/orders.py:build
+  runtime: docker
+  image: registry.example.com/orders:2
+  container:
+    environment: {PGHOST: warehouse.example.com}
+    mem_limit: 1g
+```
+
+A runtime that runs an image needs one: `dpb validate` fails when `runtime` is `docker` or `kubernetes` and no level sets `image`.
 
 `orchestrator` can be set at root or data product level only, because one data product is one DAG. On a port or a table, `dpb validate` fails.
 
