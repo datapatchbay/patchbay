@@ -162,3 +162,50 @@ def test_generate_lists_the_repo_files_it_wrote(synced_repo: Path):
     (synced_repo / PROJECT).write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
     result = generate_repo(synced_repo)
     assert [path.as_posix() for path in result.committed] == [GROUP, SOURCES, PROPERTIES, PROJECT]
+
+
+TURNAROUND = f"{DP}/outputs/agg_lab_turnaround/turnaround.yaml"
+TEST_FILE = f"{DP}/tests/agg_lab_turnaround__turnaround__row_count.sql"
+
+
+@pytest.fixture
+def tested_repo(synced_repo: Path) -> Path:
+    """A repo in step whose dbt table has a table rule, so a generated singular test exists."""
+    write(synced_repo, TURNAROUND, TABLE_YAML + "rules:\n  - {rule: row_count, min: 1}\n")
+    generate_repo(synced_repo)
+    assert (synced_repo / TEST_FILE).is_file()
+    assert rendered(synced_repo) == []
+    return synced_repo
+
+
+def test_a_generated_test_whose_table_is_no_longer_built_by_dbt_is_an_orphan(tested_repo: Path):
+    # The tests/ folder drops out of test-paths here, and the scan must still look at it.
+    _remove_the_dbt_table(tested_repo)
+    problems = rendered(tested_repo)
+    assert any(p.startswith(f"{TEST_FILE}: ") and "delete it" in p for p in problems)
+
+
+def test_a_generated_test_whose_rule_was_removed_is_an_orphan(tested_repo: Path):
+    write(tested_repo, TURNAROUND, TABLE_YAML)
+    problems = rendered(tested_repo)
+    assert any(p.startswith(f"{TEST_FILE}: ") and "delete it" in p for p in problems)
+
+
+def test_a_hand_written_test_is_not_an_orphan(tested_repo: Path):
+    write(tested_repo, f"{DP}/tests/my_own.sql", "select 1 where false\n")
+    _remove_the_dbt_table(tested_repo)
+    assert not any("my_own.sql" in p for p in rendered(tested_repo))
+
+
+def test_generate_deletes_orphaned_generated_tests_and_stale_test_paths(tested_repo: Path):
+    write(tested_repo, f"{DP}/tests/my_own.sql", "select 1 where false\n")
+    _remove_the_dbt_table(tested_repo)
+    result = generate_repo(tested_repo)
+    assert result.report.ok
+    assert not (tested_repo / TEST_FILE).exists()
+    assert (tested_repo / DP / "tests/my_own.sql").exists()  # hand-written, so left alone
+    assert TEST_FILE in {path.as_posix() for path in result.removed}
+    project = (tested_repo / PROJECT).read_text()
+    assert "model-paths" not in project
+    assert "test-paths" not in project
+    assert rendered(tested_repo) == []

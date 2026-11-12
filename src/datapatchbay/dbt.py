@@ -22,6 +22,9 @@ DBT_EXECUTOR = "dbt"
 MODELS_FOLDER = "models"
 """The folder of a data product that holds its dbt models."""
 
+TESTS_FOLDER = "tests"
+"""The folder of a data product that holds its generated singular dbt tests (ADR-0019)."""
+
 _BUILD_KEYS = ("entrypoint", "params", "needs")
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -59,7 +62,7 @@ def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Tab
 def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     """Check how the executor of each table fits its table file, and what the folder of a dbt model must hold.
 
-    - A table built by dbt has no `entrypoint`, `params` or `needs`, no table rule, and its model file exists.
+    - A table built by dbt has no `entrypoint`, `params` or `needs`, and its model file exists.
     - The rendered model name of a table built by dbt is a plain identifier, and no other such table has the same name.
     - Any other table needs a `build.entrypoint`, because the python executor calls it.
     - No `.py` file sits in the `models/` folder of a data product, because dbt reads it as a dbt Python model.
@@ -99,12 +102,6 @@ def _check_dbt_table(
                     f"`build.{key}` is not allowed on table '{table.name}', which dbt builds; "
                     "dbt takes the order from `ref()` in the model",
                 )
-    for index, rule in enumerate(file.model.rules):
-        yield Problem(
-            file.path,
-            file.line("rules", index),
-            f"table rule '{rule.rule}' is not supported for dbt yet; table '{table.name}' is built by dbt",
-        )
     name = model_name(settings, dataproduct, table)
     if name is not None and not _IDENTIFIER.fullmatch(name):
         yield Problem(

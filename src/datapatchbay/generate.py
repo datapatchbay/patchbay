@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
 from datapatchbay.dbt_sources import generate_dbt_files
-from datapatchbay.dbt_sync import orphaned_dbt_properties
+from datapatchbay.dbt_sync import orphaned_dbt_files
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.problems import Report
 from datapatchbay.rendering import GenerationError, render_dataproducts
@@ -47,12 +47,13 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     in place. The order limits the damage: output folder first, then the dbt properties, then the deletions, and
     `dbt_project.yml` last. Output files left from an earlier run are not removed.
 
-    When tables are built by dbt, the `model-paths` of `dbt_project.yml` at the repo root (not in `output_dir`, because
-    the file is committed) are also brought in step, only if that is needed, and only that key changes. Once any table
-    is built by dbt, `dpb generate` owns the whole key: a hand-set entry is replaced. When no table is built by dbt any
-    more, only the entries that point at the `models/` folder of a data product are removed.
-    The dbt properties and sources files, also committed, are written next to the models. A file that carries the
-    generated header but is no longer produced (its table is gone or no longer built by dbt) is deleted.
+    When tables are built by dbt, the `model-paths` and `test-paths` of `dbt_project.yml` at the repo root (not in
+    `output_dir`, because the file is committed) are also brought in step, only if that is needed,
+    and only those keys change. Once any table is built by dbt, `dpb generate` owns both keys: a hand-set entry is
+    replaced. When no table is built by dbt any more, only the entries that point at the `models/` or `tests/` folder
+    of a data product are removed.
+    The dbt properties, sources and singular test files, also committed, are written next to the models. A file that
+    carries the generated header but is no longer produced (its table is gone or no longer built by dbt) is deleted.
 
     Args:
         root: The repo root.
@@ -74,9 +75,9 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     plans = plan_dataproducts(repo, settings)
     files = render_dataproducts(plans, root, target, settings)
 
-    # The dbt properties and sources are committed source files, not build output, so they go next to the models.
+    # The dbt properties, sources and tests are committed source files, not build output, so they go next to the models.
     dbt_files = generate_dbt_files(plans, settings)
-    orphans = orphaned_dbt_properties(repo, dbt_files)
+    orphans = orphaned_dbt_files(repo, dbt_files)
 
     try:
         dbt_project = synced_dbt_project(repo, settings)

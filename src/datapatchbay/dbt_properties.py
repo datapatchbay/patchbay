@@ -4,8 +4,7 @@ For each such table this writes the properties file of its model, next to the mo
 such a table one file with its dbt group. The files are committed, so the output must be the same for the same input:
 keys come in a fixed order and lists keep the order of the table file. Nothing here imports or runs dbt (ADR-0004).
 
-Table rules (`primary_key`, `row_count`, `sql`) are not mapped yet; `dpb validate` rejects them on a table built by
-dbt until the mapping is decided.
+Table rules (`primary_key`, `row_count`, `sql`) are generated as singular tests by `dbt_tests` (ADR-0019).
 """
 
 from collections.abc import Sequence
