@@ -69,7 +69,7 @@ def test_validate_reports_all_problems_across_files_in_one_run(
 
 
 def test_validate_accepts_meta_map_with_any_content(runner: CliRunner, repo: Path, write_dataproduct: Writer):
-    write_dataproduct("a", VALID_DATAPRODUCT + "meta:\n  team: {slack: '#lab', tags: [a, b]}\n  n: 3\n")
+    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT + "meta:\n  team: {slack: '#lab', tags: [a, b]}\n  n: 3\n")
     (repo / "datapatchbay.yaml").write_text("schema_version: 1\nmeta: {anything: [1, 2]}\n")
     assert runner.invoke(app, ["validate"]).exit_code == 0
 
@@ -111,7 +111,7 @@ def test_validate_reports_wrong_type_with_line_of_list_item(runner: CliRunner, r
 
 
 def test_validate_json_on_valid_repo(runner: CliRunner, repo: Path, write_dataproduct: Writer):
-    write_dataproduct("a", VALID_DATAPRODUCT)
+    write_dataproduct("sa_ilab_orders", VALID_DATAPRODUCT)
     result = runner.invoke(app, ["validate", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {"ok": True, "dataproducts_checked": 1, "problems": []}

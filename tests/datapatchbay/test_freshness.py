@@ -72,14 +72,15 @@ def _make_product(
         inputs.append(reads)
         _write(root, f"{dp}/inputs/{reads}/port.yaml", f"schema_version: 1\nfrom: {reads}\n")
     fresh = f"freshness: {freshness}\n" if freshness else ""
-    readers = "access:\n  readers:\n    - product: reader\n"
+    readers = "access:\n  readers:\n    - product: sa_reader\n"
     _write(root, f"{dp}/outputs/{folder}/port.yaml", f"schema_version: 1\nkind: table\n{fresh}{readers}")
     _write(root, f"{dp}/outputs/{folder}/t_out.yaml", _table("t_out"))
     _write(root, f"{dp}/src/t_out.py", "def build(): ...\n")
     _write(
         root,
         f"{dp}/dataproduct.yaml",
-        f"schema_version: 1\nname: {folder}\nkind: source-aligned\nowner: o\ninputs: {inputs}\noutputs: [{folder}]\n",
+        f"schema_version: 1\nname: {folder.removeprefix('sa_')}\nkind: source-aligned\nowner: o\n"
+        f"inputs: {inputs}\noutputs: [{folder}]\n",
     )
 
 
@@ -94,48 +95,48 @@ def _messages(root: Path) -> list[tuple[str, int | None, str]]:
 
 
 def test_output_fresher_than_source_schedule_gap_fails_naming_both_ports_and_values(root: Path):
-    _make_product(root, "reader", freshness="12h", schedule="0 5 * * *")
+    _make_product(root, "sa_reader", freshness="12h", schedule="0 5 * * *")
     problems = _messages(root)
     assert len(problems) == 1
     file, line, message = problems[0]
-    assert (file, line) == ("dataproducts/reader/outputs/reader/port.yaml", 3)
-    for text in ("reader", "12h", "reader_in", "24h", "0 5 * * *"):
+    assert (file, line) == ("dataproducts/sa_reader/outputs/sa_reader/port.yaml", 3)
+    for text in ("sa_reader", "12h", "sa_reader_in", "24h", "0 5 * * *"):
         assert text in message
 
 
 def test_output_not_fresher_than_source_schedule_gap_passes(root: Path):
-    _make_product(root, "reader", freshness="24h", schedule="0 5 * * *")
+    _make_product(root, "sa_reader", freshness="24h", schedule="0 5 * * *")
     assert _messages(root) == []
 
 
 def test_weekday_schedule_gap_counts_the_weekend(root: Path):
-    _make_product(root, "reader", freshness="48h", schedule="0 5 * * 1-5")
+    _make_product(root, "sa_reader", freshness="48h", schedule="0 5 * * 1-5")
     assert len(_messages(root)) == 1
 
 
 def test_output_without_freshness_is_not_checked(root: Path):
-    _make_product(root, "reader", freshness=None, schedule="0 5 1 * *")
+    _make_product(root, "sa_reader", freshness=None, schedule="0 5 1 * *")
     assert _messages(root) == []
 
 
 def test_output_fresher_than_a_read_output_port_fails_naming_both_ports_and_values(root: Path):
-    _make_product(root, "upstream", freshness="24h")
-    _make_product(root, "reader", freshness="1h", reads="upstream")
+    _make_product(root, "sa_upstream", freshness="24h")
+    _make_product(root, "sa_reader", freshness="1h", reads="sa_upstream")
     problems = _messages(root)
     assert len(problems) == 1
     file, line, message = problems[0]
-    assert (file, line) == ("dataproducts/reader/outputs/reader/port.yaml", 3)
-    for text in ("reader", "1h", "upstream", "24h"):
+    assert (file, line) == ("dataproducts/sa_reader/outputs/sa_reader/port.yaml", 3)
+    for text in ("sa_reader", "1h", "sa_upstream", "24h"):
         assert text in message
 
 
 def test_output_as_fresh_as_a_read_output_port_passes(root: Path):
-    _make_product(root, "upstream", freshness="24h")
-    _make_product(root, "reader", freshness="24h", reads="upstream")
+    _make_product(root, "sa_upstream", freshness="24h")
+    _make_product(root, "sa_reader", freshness="24h", reads="sa_upstream")
     assert _messages(root) == []
 
 
 def test_read_output_port_without_freshness_is_not_compared(root: Path):
-    _make_product(root, "upstream", freshness=None)
-    _make_product(root, "reader", freshness="1h", reads="upstream")
+    _make_product(root, "sa_upstream", freshness=None)
+    _make_product(root, "sa_reader", freshness="1h", reads="sa_upstream")
     assert _messages(root) == []

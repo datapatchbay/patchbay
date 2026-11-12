@@ -28,9 +28,13 @@
 - `freshness_column` names a column of its table.
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
+- `kind` is one of the kinds in the conventions. `domain` is in the domain list when the list is not empty, and is accepted as written when it is empty.
+- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name starts with the data product's derived name. An input port that reads another data product keeps the name of the output port it reads.
+- Data product, port, table and column names are snake_case.
+- Derived data product names and port names are unique across the repo.
+- A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
 - `executor`, `runtime`, `image` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
 - In the `build` block, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
-- Every derived name matches its naming template, and every name is snake_case. Port names and data product names are unique across the repo. `kind` is a declared kind. `domain` is in the domain list when one is declared. These rules arrive with later releases.
 
 `dpb validate` looks for `datapatchbay.yaml` in the working directory and its parents, and fails with exit code 2 and a message when it finds none. It exits 0 when every file is valid and 1 when there are problems. Each problem is one line, `file:line: message`, on stderr.
 
