@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -62,8 +63,15 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     settings = load_settings(root)
     target = (output_dir or root / settings.values.output_dir).resolve()
 
+    plans = plan_dataproducts(repo, settings)
+    # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
+    for generated in generate_dbt_properties(plans, settings):
+        destination = root / generated.path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(generated.content.encode("utf-8"))
+
     files: dict[PurePosixPath, str] = {}
-    for plan in plan_dataproducts(repo, settings):
+    for plan in plans:
         for generated in _generate(plan, root, target, settings):
             if generated.path in files:
                 raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
