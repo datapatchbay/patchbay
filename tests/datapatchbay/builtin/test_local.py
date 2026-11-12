@@ -420,8 +420,8 @@ def test_the_docker_runtime_is_refused_when_generating(tmp_path: Path):
             "image: registry.example.com/shop:1\n"
         },
     )
-    with pytest.raises(GenerationError, match="the docker runtime cannot render tasks for orchestrator 'local'"):
-        generate_repo(root)
+    result = generate_repo(root)
+    assert any("the docker runtime cannot render tasks for orchestrator 'local'" in p.message for p in result.report.problems)
     assert not (root / "generated").exists()
 
 
@@ -433,8 +433,8 @@ def test_the_kubernetes_runtime_is_refused_when_generating(tmp_path: Path):
             "image: registry.example.com/shop:1\n"
         },
     )
-    with pytest.raises(GenerationError, match="the kubernetes runtime cannot render tasks for orchestrator 'local'"):
-        generate_repo(root)
+    result = generate_repo(root)
+    assert any("the kubernetes runtime cannot render tasks for orchestrator 'local'" in p.message for p in result.report.problems)
 
 
 def plan_of(root: Path, folder: str) -> DataProductPlan:
