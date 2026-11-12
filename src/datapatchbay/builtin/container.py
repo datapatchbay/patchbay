@@ -57,6 +57,8 @@ def operator_call(
 ) -> tuple[str, ...]:
     """Write `variable = operator(...)` with the arguments dpb sets, then the `container` setting as written.
 
+    The `container` arguments are sorted by name, so the file does not depend on their order in YAML.
+
     Raises:
         UnsupportedCombinationError: If `container` names an argument that dpb sets, or a name that is not an
             argument name.
@@ -69,7 +71,7 @@ def operator_call(
             raise UnsupportedCombinationError(
                 f"container setting '{key}' would replace what dpb sets on {operator}; dpb sets {', '.join(set_by_dpb)}"
             )
-    arguments = {**set_by_dpb, **container}
+    arguments = {**set_by_dpb, **dict(sorted(container.items()))}
     return (
         f"{variable} = {operator}(",
         *(f"{_INDENT}{key}={python_literal(value)}," for key, value in arguments.items()),

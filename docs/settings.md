@@ -38,7 +38,7 @@ build:
 
 `executor` and `runtime` name plugins, so the files accept any name. `dpb validate` and `dpb generate` check that a plugin of that name is installed, and name the data product and table when it is not.
 
-`container` is a map that dpb hands to the Docker or Kubernetes task as written, without reading it, so a team can set environment variables, secrets, a namespace or resource limits. The nearest `container` wins as a whole; maps at different levels are not merged. Values must be plain YAML values. dpb refuses a key that it sets itself (`task_id`, `image`, `entrypoint` and `command` for Docker; `task_id`, `name`, `image`, `cmds` and `arguments` for Kubernetes). dpb passes no credentials: Airflow renders templates in `environment` and `env_vars`, so `PGPASSWORD: "{{ conn.warehouse.password }}"` reads the orchestrator's connection.
+`container` is a map that dpb hands to the Docker or Kubernetes task as written, without reading it, so a team can set environment variables, secrets, a namespace or resource limits. The nearest `container` wins as a whole; maps at different levels are not merged. The arguments are written sorted by name, so the generated file does not depend on their order in YAML. Values must be plain YAML values. dpb refuses a key that it sets itself (`task_id`, `image`, `entrypoint` and `command` for Docker; `task_id`, `name`, `image`, `cmds` and `arguments` for Kubernetes). dpb passes no credentials: Airflow renders templates in `environment` and `env_vars`, so `PGPASSWORD: "{{ conn.warehouse.password }}"` reads the orchestrator's connection.
 
 ```yaml
 # a table file

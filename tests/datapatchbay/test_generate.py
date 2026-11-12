@@ -254,3 +254,20 @@ def test_a_warehouse_plugin_adds_audit_and_apply_tasks_that_run_through_the_conn
         "    publish = publish_outputs()\n"
         "    apply_grants >> publish\n"
     )
+
+
+def test_docker_and_kubernetes_tables_sit_in_one_dag_with_other_runtimes(lab_repo: Path):
+    ingested = lab_repo / "dataproducts/sa_ilab_orders/inputs/sa_ilab_orders_private/ingested.yaml"
+    ingested.write_text(ingested.read_text().replace("build:\n", "build:\n  runtime: docker\n  image: lab:1\n"))
+    orders = lab_repo / "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml"
+    orders.write_text(
+        orders.read_text().replace(
+            "build:\n", "build:\n  runtime: kubernetes\n  image: lab:2\n  container: {namespace: data}\n"
+        )
+    )
+    generate_repo(lab_repo)
+    dag = (lab_repo / "generated/sa_ilab_orders.py").read_text()
+    assert "build_ingested_orders = DockerOperator(" in dag
+    assert "build_orders = KubernetesPodOperator(" in dag
+    assert 'namespace="data"' in dag
+    assert "build_ingested_orders >> build_orders" in dag
