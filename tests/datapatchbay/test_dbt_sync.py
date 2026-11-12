@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
+from dbt_helpers import DP, MODEL, TABLE_YAML, rendered, write
 from plugin_fakes import FakeOrchestrator, register
-from test_dbt import DP, MODEL, TABLE_YAML, rendered, write
 
 from datapatchbay.generate import generate_repo
 

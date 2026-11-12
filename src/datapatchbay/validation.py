@@ -44,8 +44,8 @@ def validate_repo(root: Path) -> Report:
     """Validate a repo and return the report. See `load_and_validate`.
 
     On top of that, once everything else is valid, the committed dbt files are compared with what `dpb generate`
-    would write. `dpb generate` itself skips that comparison, because it is what refreshes
-    the files. Nothing is written.
+    would write. `dpb generate` uses `load_and_validate` and skips that comparison, because it is what refreshes the
+    files. Nothing is written.
     """
     repo, report = load_and_validate(root)
     if not report.ok:

@@ -5,7 +5,7 @@ computes them in memory, with the same functions `dpb generate` writes with, so 
 them with the files on disk. It also finds a model declared a second time by hand.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 
 from ruamel.yaml.comments import CommentedSeq
@@ -39,24 +39,26 @@ def check_dbt_files(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
             problems.append(Problem(file.path, None, f"dbt properties file is missing; {_REFRESH}"))
         elif path.read_bytes() != file.content.encode("utf-8"):
             problems.append(Problem(file.path, None, f"dbt properties file does not match its table file; {_REFRESH}"))
+    project = PurePosixPath(DBT_PROJECT_FILE)
     try:
         if synced_dbt_project(repo, settings) is not None:
             problems.append(
                 Problem(
-                    PurePosixPath(DBT_PROJECT_FILE),
+                    project,
                     None,
                     f"`model-paths` does not list the `{MODELS_FOLDER}/` folders of the data products built by dbt; "
                     f"{_REFRESH}",
                 )
             )
     except DbtProjectError as exc:
-        problems.append(Problem(PurePosixPath(DBT_PROJECT_FILE), None, str(exc)))
+        problems.append(Problem(project, None, str(exc)))
     problems.extend(_duplicates(repo, settings, generated))
     return problems
 
 
 def _duplicates(repo: Repo, settings: EffectiveSettings, generated: Sequence[GeneratedFile]) -> list[Problem]:
     built = {file.path.stem: file.path for file in generated if file.path.name != GROUP_FILE}
+    generated_paths = {file.path for file in generated}
     problems: list[Problem] = []
     for folder in model_paths(repo, settings):
         directory = repo.root / folder
@@ -64,12 +66,12 @@ def _duplicates(repo: Repo, settings: EffectiveSettings, generated: Sequence[Gen
             continue
         for path in sorted([*directory.rglob("*.yml"), *directory.rglob("*.yaml")]):
             relative = PurePosixPath(path.relative_to(repo.root).as_posix())
-            if relative not in {file.path for file in generated}:
+            if relative not in generated_paths:
                 problems.extend(_duplicates_in(path, relative, built))
     return problems
 
 
-def _duplicates_in(path: Path, relative: PurePosixPath, built: dict[str, PurePosixPath]) -> list[Problem]:
+def _duplicates_in(path: Path, relative: PurePosixPath, built: Mapping[str, PurePosixPath]) -> list[Problem]:
     try:
         data = load_mapping(path)
     except YamlLoadError:
