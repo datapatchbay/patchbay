@@ -57,6 +57,8 @@ An output port lists its **readers**, the roles allowed to read it:
 
 **PII readers** may also see the columns marked as personal data. In the view, a PII column shows its value to PII readers and NULL to everyone else, and both groups query the same object.
 
+On DuckDB, readers and PII readers are accepted and not applied. The DuckDB warehouse enforces no access and is meant for local development and tests, and a PII column always shows NULL in its view. See [ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md).
+
 Reading is not the same as access. A data product that declares an input port on someone else's output port must also be listed in that port's readers, and `dpb validate` fails if it is not. That way the owner of a port approves every new reader in a pull request.
 
 ## Freshness
