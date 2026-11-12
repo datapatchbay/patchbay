@@ -106,6 +106,16 @@ The groups are `datapatchbay.orchestrators`, `datapatchbay.executors`, `datapatc
 
 The plugin interface is not declared stable yet.
 
+## The connection for DuckDB
+
+The audit and apply tasks of the `duckdb` warehouse run through the Airflow connection that the `connection` setting names (`warehouse` by default), like the tasks of any warehouse. Install the official `apache-airflow-providers-duckdb` package on the workers and create a connection of type `duckdb` with that id. Its **Host** field is the path of the DuckDB file, for example `/data/shop.duckdb`; with no path, the hook opens an in-memory database that is gone when the task ends, so the views would never persist. As an environment variable:
+
+```sh
+AIRFLOW_CONN_WAREHOUSE='{"conn_type": "duckdb", "host": "/data/shop.duckdb"}'
+```
+
+DuckDB is a file opened by one process that writes at a time, and the file must be on a path that every worker running the DAG and the build code can reach. The build code opens the same file by itself ([ADR-0001](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0001-dpb-never-connects-to-the-warehouse.md)), so give a DAG that writes one run at a time. The integration tests run the generated DAGs of a repo with `warehouse: duckdb` this way, in Airflow 3 with that provider.
+
 ## DuckDB enforces no access
 
 The DuckDB warehouse enforces no access and is meant for local development and tests. Readers and PII readers are accepted and create no grants, and a PII column shows NULL to everyone. The same files then work on both warehouses, so a team can switch the `warehouse` setting between them ([ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)).

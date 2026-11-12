@@ -1,0 +1,6 @@
+schema_version: 1
+name: broken
+kind: source-aligned
+owner: Jane Doe
+inputs: [sa_broken_private]
+outputs: [sa_broken]

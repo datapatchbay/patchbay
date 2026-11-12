@@ -8,6 +8,7 @@ from datapatchbay.generate import generate_repo
 ROOT = Path(__file__).parents[2]
 FIXTURE_REPO = ROOT / "tests" / "airflow" / "repo"
 EXAMPLE_REPO = ROOT / "examples" / "jaffle_shop"
+DUCKDB_REPO = ROOT / "tests" / "airflow" / "duckdb_repo"
 
 # DAG id -> its task ids, for every DAG the repo generates
 FIXTURE_DAGS = {
@@ -18,6 +19,10 @@ FIXTURE_DAGS = {
 EXAMPLE_DAGS = {
     "sa_jaffle_orders": "apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs",
     "agg_order_turnaround": "apply_access,build_dbt,publish_outputs",
+}
+DUCKDB_DAGS = {
+    "sa_shop": "apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs",
+    "sa_broken": "apply_access,audit_orders,build_orders,publish_outputs",
 }
 
 
