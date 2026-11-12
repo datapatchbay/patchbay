@@ -33,6 +33,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "jsonschema>=4.26.0",
+    "psycopg[binary]>=3.2",
     "pytest>=9.2.0",
     "ruff>=0.15.0",
     "ty>=0.0.101",
@@ -48,6 +49,9 @@ minversion = "9.0"
 testpaths = ["tests"]
 addopts = ["-ra", "--import-mode=importlib"]
 strict = true
+markers = [
+    "postgres: needs a running Postgres, named by the PG* environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD); skipped when PGHOST is not set",
+]
 # Helper modules such as plugin_fakes.py sit next to the tests and are imported by name.
 pythonpath = ["tests/datapatchbay"]
 

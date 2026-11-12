@@ -11,8 +11,10 @@ from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
+from datapatchbay.builtin.airflow_audit import render_audit_task
 from datapatchbay.literals import python_literal
 from datapatchbay.plugins import (
+    AuditTask,
     BuildTask,
     DataProductPlan,
     GeneratedFile,
@@ -139,7 +141,7 @@ class _DagFile:
         for table in self._plan.tables:
             build = self._build(table)
             audits = [
-                self._sql_task(audit, f"audit of table '{table.name}'") for audit in self._warehouse_audits(table)
+                self._audit_task(audit, f"audit of table '{table.name}'") for audit in self._warehouse_audits(table)
             ]
             for audit in audits:
                 self._body.append(f"{build} >> {audit}")
@@ -165,7 +167,7 @@ class _DagFile:
         self._add(rendered)
         return variable
 
-    def _warehouse_audits(self, table: TablePlan) -> Sequence[SqlTask]:
+    def _warehouse_audits(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
         warehouse = self._context.warehouse
         return warehouse.audit_tasks(table) if warehouse is not None else ()
 
@@ -175,6 +177,17 @@ class _DagFile:
             if helper not in self._helpers:
                 self._helpers.append(helper)
         self._body.extend(rendered.lines)
+
+    def _audit_task(self, audit: SqlTask | AuditTask, where: str) -> str:
+        if isinstance(audit, SqlTask):
+            return self._sql_task(audit, where)
+        self._claim_task_id(audit.task_id, where)
+        variable = self._variable(audit.task_id)
+        try:
+            self._add(render_audit_task(audit, connection=self._plan.connection, variable=variable))
+        except ValueError as exc:
+            raise UnsupportedCombinationError(f"{where}: {exc}") from exc
+        return variable
 
     def _sql_task(self, sql_task: SqlTask, where: str) -> str:
         self._claim_task_id(sql_task.task_id, where)

@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 from datapatchbay.cascade import resolve_setting, resolve_settings
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, SourceInputPortFile
+from datapatchbay.naming import derive_names
 from datapatchbay.plugins import DataProductPlan, SourceSchedule, TablePlan
 from datapatchbay.repomodel import DataProduct, Repo
 from datapatchbay.settings import EffectiveSettings
@@ -29,6 +30,8 @@ def plan_dataproducts(repo: Repo, settings: EffectiveSettings) -> list[DataProdu
 
 
 def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: str) -> DataProductPlan:
+    product = dataproduct.file.model
+    private_schema = derive_names(settings.values.conventions, name=product.name, kind_name=product.kind).private_port
     tables = []
     for port in dataproduct.ports:
         for table in port.tables:
@@ -41,6 +44,7 @@ def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: s
                     dataproduct=dataproduct.folder,
                     port=port.name,
                     name=table.name,
+                    schema=port.name if port.direction == "inputs" else private_schema,
                     entrypoint=PurePosixPath(path),
                     function=function,
                     params=build.params,
