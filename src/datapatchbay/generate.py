@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -69,6 +70,13 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
                 raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
             files[generated.path] = generated.content
 
+    try:
+        dbt_project = synced_dbt_project(repo, settings)
+    except DbtProjectError as exc:
+        raise GenerationError(str(exc)) from exc
+
+    if dbt_project is not None:
+        dbt_project[0].write_bytes(dbt_project[1].encode("utf-8"))
     for path, content in files.items():
         destination = target / path
         destination.parent.mkdir(parents=True, exist_ok=True)
