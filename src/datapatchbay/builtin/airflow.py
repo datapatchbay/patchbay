@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.builtin.airflow_audit import render_audit_task
-from datapatchbay.genheader import header
+from datapatchbay.genheader import generated_header
 from datapatchbay.literals import python_literal
 from datapatchbay.plugins import (
     AuditTask,
@@ -73,7 +73,7 @@ class _DagFile:
         source = plan.source.file.path
         relative_dir = Path(os.path.relpath(plan.directory, self._context.output_dir)).as_posix()
         parts = [
-            header(source) + "\n" + _render_imports(self._imports),
+            generated_header(source) + "\n" + _render_imports(self._imports),
             f"DATAPRODUCT_DIR = (Path(__file__).resolve().parent / {python_literal(relative_dir)}).resolve()",
         ]
         parts.extend(self._helpers)

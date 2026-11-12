@@ -16,7 +16,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from datapatchbay.dbt import DBT_EXECUTOR, MODELS_FOLDER, model_name
-from datapatchbay.genheader import header
+from datapatchbay.genheader import generated_header
 from datapatchbay.models.table import AcceptedValuesRule, Column, NotNullRule, UniqueRule
 from datapatchbay.plugins import DataProductPlan, GeneratedFile, TablePlan
 from datapatchbay.settings import EffectiveSettings
@@ -103,7 +103,7 @@ def _sql_literal(text: str) -> str:
 
 
 def _header(source: PurePosixPath) -> str:
-    return header(source)
+    return generated_header(source)
 
 
 def _dump(document: dict[str, Any]) -> str:
