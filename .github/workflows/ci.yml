@@ -108,34 +108,6 @@ jobs:
             sa_ilab_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
             agg_lab_turnaround apply_access,build_dbt,publish_outputs
 
-  postgres:
-    name: postgres
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    env:
-      # Tests marked `postgres` create a database and roles of their own, so the user must be a superuser.
-      DPB_TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-
-      - name: Run the tests that need Postgres
-        run: uv run --locked pytest -m postgres
-
   example:
     name: example repo runs end to end
     runs-on: ubuntu-latest
@@ -194,21 +166,6 @@ jobs:
   dbt:
     name: dbt parse
     runs-on: ubuntu-latest
-    # The Postgres service lets `dbt build` run the generated tests for real (a failing rule must fail).
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    env:
-      DPB_TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
 
@@ -216,8 +173,9 @@ jobs:
         with:
           enable-cache: true
 
+      # `dbt build` against Postgres is an integration test (scripts/integration-tests), so no database is started here.
       # dbt is installed for this test only. It is never a dependency of the package.
       - name: Parse the generated dbt properties and tests
         env:
           DPB_REQUIRE_DBT: "1"  # a missing dbt fails the test instead of skipping it
-        run: uv run --locked --group dbt pytest -m dbt
+        run: uv run --locked --group dbt pytest -m "dbt and not integration"

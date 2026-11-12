@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Runs the integration tests (ADR-0020): starts a Postgres in Docker, runs the tests that need it, stops it again.
+# The only requirement is Docker. Extra arguments go to pytest, for example `scripts/integration-tests -k audit`.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! docker info >/dev/null 2>&1; then
+  echo "integration-tests: Docker is not running or not installed." >&2
+  exit 2
+fi
+
+container="$(docker run --detach --rm \
+  --label dpb-integration-tests \
+  --env POSTGRES_PASSWORD=postgres \
+  --publish 127.0.0.1::5432 \
+  postgres:17)"
+trap 'docker stop --time 5 "$container" >/dev/null 2>&1 || true' EXIT
+
+echo "integration-tests: waiting for Postgres in container ${container:0:12}"
+for _ in $(seq 1 60); do
+  # The image restarts the server once after initialising; two successful queries in a row mean it is final.
+  if docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null 2>&1 \
+    && sleep 1 && docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null
+
+port="$(docker port "$container" 5432/tcp | head -n 1 | sed 's/.*://')"
+export DPB_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${port}/postgres"
+
+# The `dbt` group provides dbt for the tests that run `dbt build`.
+uv run --group dbt pytest -m integration "$@"
