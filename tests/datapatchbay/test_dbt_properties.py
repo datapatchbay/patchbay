@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -153,6 +154,15 @@ def test_generate_writes_the_properties_into_the_repo(repo: Path):
     assert (repo / DP / "models/_group.yml").is_file()
 
 
+def test_a_second_run_leaves_the_files_byte_identical(repo: Path):
+    write(repo, TABLE, TABLE_FILE)
+    generate_repo(repo)
+    first = {p: p.read_bytes() for p in (repo / DP / "models").glob("*.yml")}
+    generate_repo(repo)
+    assert first
+    assert first == {p: p.read_bytes() for p in (repo / DP / "models").glob("*.yml")}
+
+
 def test_a_failing_orchestrator_writes_no_properties(repo: Path, monkeypatch: pytest.MonkeyPatch):
     def fail(self, plan, context):
         raise UnsupportedCombinationError("nope")
@@ -183,6 +193,8 @@ def test_a_table_rule_on_a_dbt_table_is_not_supported_yet(repo: Path, rule: str)
 @pytest.mark.dbt
 def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
     dbt = shutil.which("dbt")
+    if dbt is None and os.environ.get("CI"):
+        pytest.fail("dbt is missing in CI, so this test would silently not run")
     if dbt is None:
         pytest.skip("dbt is not installed; CI runs this test with `--group dbt`")
     write(repo, TABLE, TABLE_FILE)
@@ -207,5 +219,8 @@ def test_dbt_parses_the_generated_properties(repo: Path, tmp_path: Path):
     model = manifest["nodes"]["model.lab.agg_lab_turnaround__turnaround"]
     assert model["config"]["contract"]["enforced"] is True
     assert model["group"] == "agg_lab_turnaround"
+    assert model["alias"] == "turnaround"
+    assert model["schema"].endswith(model["config"]["schema"])
     tests = [n for n in manifest["nodes"].values() if n["resource_type"] == "test"]
+    assert {t["config"]["severity"].lower() for t in tests} <= {"error", "warn"}
     assert {t["test_metadata"]["name"] for t in tests} == {"not_null", "unique", "accepted_values"}

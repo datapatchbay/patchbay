@@ -45,9 +45,9 @@ def generate_dbt_properties(plans: Sequence[DataProductPlan], settings: Effectiv
         files.append(GeneratedFile(models / GROUP_FILE, _header(plan.source.file.path) + _dump(_group(plan))))
         for table in tables:
             name = model_name(settings, plan.source, table.source)
-            if name is not None:
-                content = _header(table.source.file.path) + _dump({"models": [_model(plan, table, name)]})
-                files.append(GeneratedFile(models / f"{name}.yml", content))
+            assert name is not None, "dpb validate guarantees a model name for a table built by dbt"
+            content = _header(table.source.file.path) + _dump({"models": [_model(plan, table, name)]})
+            files.append(GeneratedFile(models / f"{name}.yml", content))
     return sorted(files, key=lambda file: file.path)
 
 
