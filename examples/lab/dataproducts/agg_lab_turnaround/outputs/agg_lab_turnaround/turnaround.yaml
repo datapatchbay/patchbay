@@ -14,5 +14,3 @@ freshness_column: ordered_at
 rules:
   - rule: row_count
     min: 1
-build:
-  entrypoint: src/turnaround.py:build

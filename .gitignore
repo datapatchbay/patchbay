@@ -221,3 +221,7 @@ __marimo__/
 
 # Output of `dpb generate`
 generated/
+
+# Written by dbt when it runs in the example repo
+examples/lab/.user.yml
+examples/lab/logs/
