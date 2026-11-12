@@ -52,7 +52,7 @@ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ila
 - Data product, port, table and column names are snake_case.
 - Derived data product names and port names are unique across the repo.
 - A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
-- A table built by dbt (its executor resolves to `dbt`) has no `entrypoint`, `params`, `needs` or table rule (`primary_key`, `row_count`, `sql`: "not supported for dbt yet" until their dbt tests are generated, ADR-0019), has its model file `models/<dbt_model>.sql` in the data product's folder, and no `.py` file sits in a `models/` folder. Any other table has a `build.entrypoint`.
+- A table built by dbt (its executor resolves to `dbt`) has no `entrypoint`, `params`, `needs` or table rule (`primary_key`, `row_count`, `sql`: "not supported for dbt yet" until `dpb generate` writes their dbt tests, ADR-0019), has its model file `models/<dbt_model>.sql` in the data product's folder, and no `.py` file sits in a `models/` folder. Any other table has a `build.entrypoint`.
 - The committed dbt files match the table files: `dpb validate` computes the dbt properties files and the `model-paths` of `dbt_project.yml` in memory, as `dpb generate` would write them, and fails on any difference, naming the file and saying to run `dpb generate`. A model that a table file builds must not be declared again in any other YAML file of the `models/` folders. It fails as a duplicate and names both files. `dpb validate` writes nothing.
 - `executor`, `runtime`, `image`, `container` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
 - Every orchestrator, executor, runtime and warehouse named in the settings has a plugin. The message names the data product and, for an executor or runtime, the table, and points at the line where the name is written. A name set at the root or on a data product is reported for each table it applies to.
@@ -77,7 +77,7 @@ A missing `schema_version`, or one newer than the installed `dpb` knows, is repo
 For tables built by dbt, `dpb validate` already checks that the model file exists (see the executor settings). Planned for milestone 2, it will also check that:
 
 - Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest, so CI runs `dbt parse` first (ADR-0014). A model reads an output port through a generated `source()` (ADR-0018), so every `ref()` into another data product's models is a private read.
-- The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013).
+- The generated dbt properties, sources and singular data tests, and the `model-paths` and `test-paths` of `dbt_project.yml`, match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013, ADR-0018, ADR-0019).
 
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
@@ -119,7 +119,7 @@ Generated files are build output of CD and are not committed, with one exception
 
 The tables of a data product built by dbt share one task, `build_dbt`, that runs `dbt build` on the worker (see [Settings and plugins](settings.md#dbt-on-the-worker)).
 
-When a table is built by dbt, `dpb generate` also updates the `model-paths` key of the `dbt_project.yml` at the repo root, and only those two keys, `model-paths` and `test-paths`. This file is committed, so `--output` does not move it. A repo without such a table needs no `dbt_project.yml`; with one, a missing `dbt_project.yml` fails the run (exit 2) with a message saying it is expected at the repo root, and nothing is written.
+When a table is built by dbt, `dpb generate` also updates the `model-paths` and `test-paths` keys of the `dbt_project.yml` at the repo root, and only those. This file is committed, so `--output` does not move it. A repo without such a table needs no `dbt_project.yml`; with one, a missing `dbt_project.yml` fails the run (exit 2) with a message saying it is expected at the repo root, and nothing is written.
 
 ```sh
 dpb generate

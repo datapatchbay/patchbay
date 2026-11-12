@@ -13,5 +13,5 @@ Severity maps as it does for column rules: a rule's own severity, or else the ta
 
 - A table with table rules needs no dbt package, and `dpb validate` stops rejecting these rules on a table built by dbt once the mapping is generated.
 - `dpb generate` also keeps the `test-paths` of `dbt_project.yml` in step with the data product folders, changing only that key, as it does for `model-paths` (ADR-0015).
-- The file for a rule is named `<dbt_model>__<rule>.sql`. Further rules of the same name in one table file get a suffix `_2`, `_3` in file order. Test names must be unique across a dbt project, which the dbt model name already guarantees.
+- The file for a rule is named `<dbt_model>__<rule>.sql`. Further rules of the same kind (for example a second `sql` rule) in one table file get a suffix `_2`, `_3` in file order. Test names must be unique across a dbt project, which the dbt model name already guarantees.
 - A `sql` rule is copied as written, so it names the model with `ref()`; that is a read inside its own data product, and ADR-0014 accepts it.
