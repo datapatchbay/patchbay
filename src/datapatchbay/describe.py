@@ -4,13 +4,13 @@ Both are built as plain JSON-ready data first; the text output is rendered from 
 the text always say the same.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
-from datapatchbay.cascade import ResolvedSetting, resolve_setting, resolve_settings
+from datapatchbay.cascade import ResolvedCascade, ResolvedSetting
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.models import DataProductInputPortFile, OutputPortFile, ProductReader, SourceInputPortFile
 from datapatchbay.repomodel import DataProduct, Port, Repo, Table
-from datapatchbay.settings import EffectiveSettings
 
 type Json = dict[str, Any]
 
@@ -19,7 +19,7 @@ class UnknownDataProductError(DatapatchbayError):
     """Raised when `dpb describe` is given a name that is not a data product of the repo."""
 
 
-def _settings_json(resolved: dict[str, ResolvedSetting]) -> Json:
+def _settings_json(resolved: Mapping[str, ResolvedSetting]) -> Json:
     return {name: setting.to_json() for name, setting in resolved.items()}
 
 
@@ -82,9 +82,9 @@ def _rule_json(rule: Any, default: ResolvedSetting) -> Json:
     return data
 
 
-def _table_json(settings: EffectiveSettings, product: DataProduct, port: Port, table: Table) -> Json:
+def _table_json(cascade: ResolvedCascade, table: Table) -> Json:
     model = table.file.model
-    resolved = resolve_settings(settings, dataproduct=product, port=port, table=table)
+    resolved = cascade.for_table(table)
     severity = resolved["severity"]
     return {
         "name": model.name,
@@ -109,12 +109,12 @@ def _table_json(settings: EffectiveSettings, product: DataProduct, port: Port, t
     }
 
 
-def _port_json(repo: Repo, settings: EffectiveSettings, product: DataProduct, port: Port) -> Json:
+def _port_json(repo: Repo, cascade: ResolvedCascade, product: DataProduct, port: Port) -> Json:
     model = port.file.model
     data: Json = {
         "name": port.name,
         "file": str(port.file.path),
-        "settings": _settings_json(resolve_settings(settings, dataproduct=product, port=port)),
+        "settings": _settings_json(cascade.for_port(port)),
     }
     if isinstance(model, DataProductInputPortFile):
         data["from"] = model.from_
@@ -128,19 +128,17 @@ def _port_json(repo: Repo, settings: EffectiveSettings, product: DataProduct, po
         data["readers"] = _readers(port)
         data["pii_readers"] = model.access.pii_readers
         data["read_by"] = _read_by(repo, product, port)
-    data["tables"] = [_table_json(settings, product, port, table) for table in port.tables]
+    data["tables"] = [_table_json(cascade, table) for table in port.tables]
     return data
 
 
-def describe_dataproduct(repo: Repo, settings: EffectiveSettings, product: DataProduct) -> Json:
+def describe_dataproduct(repo: Repo, cascade: ResolvedCascade, product: DataProduct) -> Json:
     """Describe one data product in full: ports, tables, columns, quality rules, freshness, readers and settings.
 
     Every setting is resolved at the level it applies to, with the level and file the value came from. The
     orchestrator applies to the whole data product, so it appears only at the top.
     """
     model = product.file.model
-    resolved = resolve_settings(settings, dataproduct=product)
-    resolved["orchestrator"] = resolve_setting("orchestrator", settings, dataproduct=product)
     return {
         "folder": product.folder,
         "name": model.name,
@@ -150,9 +148,9 @@ def describe_dataproduct(repo: Repo, settings: EffectiveSettings, product: DataP
         "owner": model.owner,
         "technical_owner": model.technical_owner,
         "description": model.description,
-        "settings": _settings_json(resolved),
-        "inputs": [_port_json(repo, settings, product, port) for port in product.inputs],
-        "outputs": [_port_json(repo, settings, product, port) for port in product.outputs],
+        "settings": _settings_json(cascade.for_dataproduct(product)),
+        "inputs": [_port_json(repo, cascade, product, port) for port in product.inputs],
+        "outputs": [_port_json(repo, cascade, product, port) for port in product.outputs],
     }
 
 

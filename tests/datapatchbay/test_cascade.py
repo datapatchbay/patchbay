@@ -1,6 +1,6 @@
 from pathlib import Path, PurePosixPath
 
-from datapatchbay.cascade import resolve_setting, resolve_settings
+from datapatchbay.cascade import CASCADING_SETTINGS, resolve_cascade, resolve_setting
 from datapatchbay.loading import load_repo
 from datapatchbay.repomodel import DataProduct
 from datapatchbay.settings import EffectiveSettings, load_settings
@@ -63,10 +63,11 @@ def test_orchestrator_cascades_over_root_and_data_product_only(sample_repo: Path
     assert resolve_setting("orchestrator", settings, dataproduct=reader).level == "defaults"
 
 
-def test_resolve_settings_returns_every_cascading_setting(sample_repo: Path):
+def test_the_cascade_resolves_every_setting_of_a_table_with_its_provenance(sample_repo: Path):
     settings, orders, _ = setup(sample_repo)
     port = orders.outputs[0]
-    got = resolve_settings(settings, dataproduct=orders, port=port, table=port.tables[0])
+    table = port.tables[0]
+    got = resolve_cascade(load_repo(sample_repo)[0], settings).for_table(table)
     assert {name: (s.value, s.level) for name, s in got.items()} == {
         "executor": ("spark", "table"),
         "runtime": ("kubernetes", "port"),
@@ -79,6 +80,24 @@ def test_resolve_settings_returns_every_cascading_setting(sample_repo: Path):
         "level": "table",
         "file": "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml",
     }
+    assert got["image"].line == table.file.line("build", "image")
+    assert got["runtime"].line == port.file.line("runtime")
+    assert got["severity"].line == orders.file.line("severity")
+
+
+def test_the_cascade_of_a_data_product_adds_the_orchestrator_and_root_lines(sample_repo: Path):
+    settings, orders, reader = setup(sample_repo)
+    repo, _ = load_repo(sample_repo)
+    cascade = resolve_cascade(repo, settings)
+    assert list(cascade.for_dataproduct(orders)) == [*CASCADING_SETTINGS, "orchestrator"]
+    assert cascade.for_dataproduct(orders)["orchestrator"].level == "dataproduct"
+    assert cascade.for_dataproduct(reader)["orchestrator"].level == "defaults"
+    root = cascade.for_dataproduct(reader)["container"]
+    assert (root.level, root.line) == ("root", 4)  # the `container:` key of the sample root file
+
+
+def test_the_cascading_settings_are_the_fields_of_the_cascading_settings_model():
+    assert CASCADING_SETTINGS == ("executor", "runtime", "image", "container", "severity")
 
 
 def test_container_cascades_as_a_whole_and_the_nearest_one_wins(sample_repo: Path):

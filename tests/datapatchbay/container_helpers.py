@@ -1,18 +1,18 @@
 from pathlib import Path
 
+from plan_helpers import plan_all
+
 from datapatchbay.builtin.docker import DockerRuntime
 from datapatchbay.builtin.kubernetes import KubernetesRuntime
 from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import BuildTask, RenderedTask, TablePlan
-from datapatchbay.settings import load_settings
 
 
 def table_of(root: Path, name: str = "ingested_orders") -> TablePlan:
     repo, problems = load_repo(root)
     assert problems == []
-    plans = plan_dataproducts(repo, load_settings(root))
+    plans = plan_all(repo, root)
     return next(t for plan in plans for t in plan.tables if t.name == name)
 
 

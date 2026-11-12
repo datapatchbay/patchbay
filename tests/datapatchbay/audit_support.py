@@ -7,13 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
+from plan_helpers import plan_all
 
 from datapatchbay.builtin.airflow_audit import AUDIT_HELPER, check_rows
 from datapatchbay.builtin.postgres import PostgresWarehouse
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import AuditTask, Warehouse
-from datapatchbay.settings import load_settings
 
 SCHEMA = "sa_jaffle_orders_private"
 """Where the output table `orders` of the fixture data product is built."""
@@ -35,7 +34,7 @@ def audit_of(
         (root / "datapatchbay.yaml").write_text("schema_version: 1\n" + settings)
     repo, problems = load_repo(root)
     assert problems == []
-    plan = next(p for p in plan_dataproducts(repo, load_settings(root)) if p.folder == "sa_jaffle_orders")
+    plan = next(p for p in plan_all(repo, root) if p.folder == "sa_jaffle_orders")
     table = next(t for t in plan.tables if t.name == "orders")
     tasks = (warehouse or PostgresWarehouse()).audit_tasks(table)
     assert len(tasks) <= 1

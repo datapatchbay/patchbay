@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from datapatchbay.cascade import ResolvedCascade, resolve_cascade
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.dbt import check_dbt
@@ -31,14 +32,16 @@ def plan_repo(root: Path) -> PlannedRepo | Report:
     problems.extend(check_repo(repo))
     problems.extend(check_freshness(repo))
     settings: EffectiveSettings | None = None
+    cascade: ResolvedCascade | None = None
     if repo.root_file is not None:  # otherwise `load_repo` reported it, and no convention or plugin can be checked
         settings = resolve_settings(repo.root_file)
+        cascade = resolve_cascade(repo, settings)
         problems.extend(check_conventions(repo, settings, repo.root_file.data))
-        problems.extend(check_plugins(repo, settings, repo.root_file.data))
-        problems.extend(check_dbt(repo, settings))
-    if settings is None or problems:
+        problems.extend(check_plugins(repo, settings, cascade, repo.root_file.data))
+        problems.extend(check_dbt(repo, settings, cascade))
+    if settings is None or cascade is None or problems:
         return Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)
-    return PlannedRepo(repo, settings, plan_dataproducts(repo, settings))
+    return PlannedRepo(repo, settings, plan_dataproducts(repo, settings, cascade))
 
 
 def validate_repo(root: Path) -> Report:

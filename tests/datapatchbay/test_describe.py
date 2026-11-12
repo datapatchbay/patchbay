@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from datapatchbay.cascade import resolve_cascade
 from datapatchbay.describe import (
     UnknownDataProductError,
     describe_dataproduct,
@@ -17,7 +18,7 @@ from datapatchbay.settings import load_settings
 
 def describe(root: Path, folder: str) -> dict[str, Any]:
     repo, _ = load_repo(root)
-    return describe_dataproduct(repo, load_settings(root), find_dataproduct(repo, folder))
+    return describe_dataproduct(repo, resolve_cascade(repo, load_settings(root)), find_dataproduct(repo, folder))
 
 
 def test_list_has_kind_domain_owner_and_technical_owner(sample_repo: Path):

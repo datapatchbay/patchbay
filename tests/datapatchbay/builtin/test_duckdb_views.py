@@ -7,13 +7,12 @@ from pathlib import Path
 import duckdb
 import pytest
 from audit_support import SCHEMA
+from plan_helpers import plan_all
 
 from datapatchbay.builtin.duckdb import DuckDbWarehouse
 from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import DataProductPlan
-from datapatchbay.settings import load_settings
 
 PORT = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml"
 ORDERS = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
@@ -64,7 +63,7 @@ def write_orders(root: Path, columns: str) -> None:
 def plan_of(root: Path) -> DataProductPlan:
     loaded, problems = load_repo(root)
     assert problems == []
-    return next(p for p in plan_dataproducts(loaded, load_settings(root)) if p.folder == "sa_jaffle_orders")
+    return next(p for p in plan_all(loaded, root) if p.folder == "sa_jaffle_orders")
 
 
 def apply_sql(root: Path) -> str:

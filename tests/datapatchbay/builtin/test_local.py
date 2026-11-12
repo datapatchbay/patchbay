@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from local_expected import SA_SHOP_ORDERS
 from local_support import AGG, SA, generate, query, run_script, write_repo
+from plan_helpers import plan_all
 
 from datapatchbay import registry
 from datapatchbay.builtin.dbt_executor import DbtExecutor
@@ -19,9 +20,7 @@ from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.builtin.worker import WorkerRuntime
 from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import DataProductPlan, GenerationContext, UnsupportedCombinationError
-from datapatchbay.settings import load_settings
 
 # --- the generated text ---
 
@@ -445,7 +444,7 @@ def test_the_kubernetes_runtime_is_refused_when_generating(tmp_path: Path):
 def plan_of(root: Path, folder: str) -> DataProductPlan:
     repo, problems = load_repo(root)
     assert problems == []
-    plan = next(p for p in plan_dataproducts(repo, load_settings(root)) if p.folder == folder)
+    plan = next(p for p in plan_all(repo, root) if p.folder == folder)
     return replace(plan, orchestrator="local")
 
 

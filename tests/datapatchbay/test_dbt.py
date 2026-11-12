@@ -2,12 +2,12 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, checked, rendered, write
+from plan_helpers import plan_all
 
 from datapatchbay import schemas
 from datapatchbay.builtin.dbt_executor import DbtExecutor
 from datapatchbay.cascade import resolve_setting
 from datapatchbay.loading import load_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import DbtCall
 from datapatchbay.settings import load_settings
 
@@ -161,7 +161,7 @@ def test_the_dbt_model_template_defaults_and_is_in_the_schema(jaffle_repo: Path)
 
 def dbt_call_of(repo: Path) -> DbtCall:
     loaded, _ = load_repo(repo)
-    plans = plan_dataproducts(loaded, load_settings(repo))
+    plans = plan_all(loaded, repo)
     table = next(t for plan in plans for t in plan.tables if t.name == "turnaround")
     return DbtExecutor().call(table)
 

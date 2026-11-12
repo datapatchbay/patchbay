@@ -10,7 +10,7 @@ import re
 from collections.abc import Iterator
 from pathlib import PurePosixPath
 
-from datapatchbay.cascade import resolve_setting
+from datapatchbay.cascade import ResolvedCascade
 from datapatchbay.naming import NamingTemplateError, derive_names, render_name
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import DataProduct, Repo, Table
@@ -59,7 +59,7 @@ def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Tab
         return None
 
 
-def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
+def check_dbt(repo: Repo, settings: EffectiveSettings, cascade: ResolvedCascade) -> list[Problem]:
     """Check how the executor of each table fits its table file, and what the folder of a dbt model must hold.
 
     - A table built by dbt has no `entrypoint`, `params` or `needs`, and its model file exists.
@@ -69,7 +69,8 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
 
     Args:
         repo: The loaded repository.
-        settings: The effective settings, over which the executor of each table is resolved.
+        settings: The effective settings, which hold the naming templates.
+        cascade: The resolved settings, which give the executor of each table.
 
     Returns:
         The problems found, empty when the executors fit the table files.
@@ -81,7 +82,7 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
         problems.extend(_check_models_folder(repo, dataproduct))
         for port in dataproduct.ports:
             for table in port.tables:
-                executor = resolve_setting("executor", settings, dataproduct=dataproduct, port=port, table=table)
+                executor = cascade.for_table(table)["executor"]
                 if executor.value == DBT_EXECUTOR:
                     problems.extend(_check_dbt_table(settings, dataproduct, table, used))
                 else:

@@ -75,3 +75,31 @@ def test_validate_reports_a_render_failure_and_a_dbt_file_problem_in_one_run(jaf
     messages = [problem.message for problem in validate_repo(jaffle_dbt_repo).problems]
     assert any("used twice" in message for message in messages)
     assert any("dbt properties file is missing" in message for message in messages)
+
+
+def test_the_cascade_is_resolved_once_per_table_per_command(jaffle_dbt_repo: Path, monkeypatch: pytest.MonkeyPatch):
+    from datapatchbay import cascade as cascade_module
+    from datapatchbay.describe import describe_dataproduct
+    from datapatchbay.loading import load_repo
+    from datapatchbay.settings import load_settings
+
+    calls: list[tuple[str, object]] = []
+    real = cascade_module.resolve_setting
+
+    def counting(name, settings, *, dataproduct=None, port=None, table=None, root_data=None):
+        assert dataproduct is not None
+        calls.append((name, table.file.path if table else port.file.path if port else dataproduct.folder))
+        return real(name, settings, dataproduct=dataproduct, port=port, table=table, root_data=root_data)
+
+    monkeypatch.setattr(cascade_module, "resolve_setting", counting)
+    assert isinstance(plan_repo(jaffle_dbt_repo), PlannedRepo)
+    assert calls
+    assert len(calls) == len(set(calls))  # no setting is resolved twice for the same place
+
+    calls.clear()
+    repo, _ = load_repo(jaffle_dbt_repo)
+    cascade = cascade_module.resolve_cascade(repo, load_settings(jaffle_dbt_repo))
+    for dataproduct in repo.dataproducts:
+        describe_dataproduct(repo, cascade, dataproduct)
+    assert calls
+    assert len(calls) == len(set(calls))
