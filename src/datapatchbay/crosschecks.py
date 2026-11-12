@@ -154,7 +154,7 @@ def _check_reads(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
                 "output port of another data product",
             )
             continue
-        found = _find_other_output(repo, dataproduct, target)
+        found = find_other_output(repo, dataproduct, target)
         if found is None:
             yield Problem(
                 port.file.path, line, f"'{target}' is not an output port of another data product in this repo"
@@ -172,7 +172,7 @@ def _check_reads(repo: Repo, dataproduct: DataProduct) -> Iterator[Problem]:
             )
 
 
-def _find_other_output(repo: Repo, reader: DataProduct, name: str) -> Port | Literal["unreadable"] | None:
+def find_other_output(repo: Repo, reader: DataProduct, name: str) -> Port | Literal["unreadable"] | None:
     """Find an output port of another data product.
 
     Returns `None` when there is none, and `"unreadable"` when the folder exists but its files failed to load.
