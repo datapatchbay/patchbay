@@ -114,7 +114,7 @@ The audit and apply tasks of the `duckdb` warehouse run through the Airflow conn
 AIRFLOW_CONN_WAREHOUSE='{"conn_type": "duckdb", "host": "/data/shop.duckdb"}'
 ```
 
-DuckDB is a file opened by one process that writes at a time, and the file must be on a path that every worker running the DAG and the build code can reach. The build code opens the same file by itself ([ADR-0001](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0001-dpb-never-connects-to-the-warehouse.md)), and tasks of one DAG run one after another when they depend on each other, but two runs that write at once fail. The integration tests run the generated DAGs of a repo with `warehouse: duckdb` this way, in Airflow 3 with that provider.
+DuckDB is a file opened by one process that writes at a time, and the file must be on a path that every worker running the DAG and the build code can reach. The build code opens the same file by itself ([ADR-0001](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0001-dpb-never-connects-to-the-warehouse.md)), so give a DAG that writes one run at a time. The integration tests run the generated DAGs of a repo with `warehouse: duckdb` this way, in Airflow 3 with that provider.
 
 ## DuckDB enforces no access
 

@@ -20,6 +20,10 @@ EXAMPLE_DAGS = {
     "sa_jaffle_orders": "apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs",
     "agg_order_turnaround": "apply_access,build_dbt,publish_outputs",
 }
+DUCKDB_DAGS = {
+    "sa_shop": "apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs",
+    "sa_broken": "apply_access,audit_orders,build_orders,publish_outputs",
+}
 
 
 def copy_and_generate(repo: Path, work: Path) -> Path:

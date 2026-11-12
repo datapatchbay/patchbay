@@ -8,12 +8,24 @@ from pathlib import Path
 from subprocess import CompletedProcess
 
 import pytest
-from airflow_helpers import EXAMPLE_DAGS, EXAMPLE_REPO, FIXTURE_DAGS, FIXTURE_REPO, copy_and_generate
+from airflow_helpers import (
+    DUCKDB_DAGS,
+    DUCKDB_REPO,
+    EXAMPLE_DAGS,
+    EXAMPLE_REPO,
+    FIXTURE_DAGS,
+    FIXTURE_REPO,
+    copy_and_generate,
+)
 
 
 @pytest.mark.parametrize(
     ("repo", "expected"),
-    [pytest.param(FIXTURE_REPO, FIXTURE_DAGS, id="fixture"), pytest.param(EXAMPLE_REPO, EXAMPLE_DAGS, id="example")],
+    [
+        pytest.param(FIXTURE_REPO, FIXTURE_DAGS, id="fixture"),
+        pytest.param(EXAMPLE_REPO, EXAMPLE_DAGS, id="example"),
+        pytest.param(DUCKDB_REPO, DUCKDB_DAGS, id="duckdb"),
+    ],
 )
 def test_generated_dags_load_in_airflow(
     repo: Path, expected: dict[str, str], tmp_path: Path, run_in_airflow: Callable[..., CompletedProcess[str]]

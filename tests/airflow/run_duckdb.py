@@ -83,6 +83,7 @@ def main(dags_dir: str, database: str) -> None:
     expect(tasks["build_orders"], "success", "the table of sa_broken was built")
     expect(tasks["audit_orders"], "failed", "the audit task of sa_broken failed")
     expect(tasks["apply_access"], "upstream_failed", "the views of sa_broken were not applied")
+    expect(tasks["publish_outputs"], "upstream_failed", "sa_broken did not publish")
     with duckdb.connect(database, read_only=True) as db:
         expect(
             db.execute("SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'sa_broken'").fetchone(),

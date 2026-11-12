@@ -3,6 +3,8 @@ name: orders
 columns:
   - name: order_id
     type: text
-    rules: [not_null]
+    rules:
+      - rule: not_null
+        severity: error
 build:
   entrypoint: src/orders.py:build
