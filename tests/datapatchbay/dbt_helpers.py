@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from datapatchbay.validation import load_and_validate, validate_repo
+from datapatchbay.planning import PlannedRepo
+from datapatchbay.problems import Report
+from datapatchbay.validation import plan_repo, validate_repo
 
 DP = "dataproducts/agg_order_turnaround"
 TABLE = f"{DP}/outputs/agg_order_turnaround/turnaround.yaml"
@@ -23,7 +25,15 @@ def rendered(repo: Path) -> list[str]:
 
 def checked(repo: Path) -> list[str]:
     """The problems of the files themselves, before `validate_repo` compares the generated dbt files."""
-    return [problem.render() for problem in load_and_validate(repo).report.problems]
+    result = plan_repo(repo)
+    return [problem.render() for problem in result.problems] if isinstance(result, Report) else []
+
+
+def planned(repo: Path) -> PlannedRepo:
+    """The planned repo, which must have passed the gate."""
+    result = plan_repo(repo)
+    assert isinstance(result, PlannedRepo), [problem.render() for problem in result.problems]
+    return result
 
 
 def write(repo: Path, relative: str, text: str) -> None:

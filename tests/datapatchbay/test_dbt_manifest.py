@@ -4,12 +4,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
+from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_manifest import check_dbt_reads
-from datapatchbay.settings import load_settings
-from datapatchbay.validation import load_and_validate, validate_repo
+from datapatchbay.validation import validate_repo
 
 MANIFEST = "target/manifest.json"
 PRODUCER = "dataproducts/sa_jaffle_orders"
@@ -82,9 +81,7 @@ def write_manifest(
 
 
 def reads(repo: Path) -> list[str]:
-    loaded, _, report = load_and_validate(repo)
-    assert report.ok, [p.render() for p in report.problems]
-    return [problem.render() for problem in check_dbt_reads(loaded, load_settings(repo))]
+    return [problem.render() for problem in check_dbt_reads(planned(repo))]
 
 
 def test_a_missing_manifest_fails_and_says_to_run_dbt_parse(repo: Path):

@@ -17,7 +17,7 @@ from datapatchbay.dbt_properties import GROUP_FILE
 from datapatchbay.dbt_sources import SOURCES_FILE, generate_dbt_files
 from datapatchbay.dbt_tests import generate_dbt_tests
 from datapatchbay.genheader import generated_from
-from datapatchbay.planning import plan_dataproducts
+from datapatchbay.planning import PlannedRepo
 from datapatchbay.plugins import GeneratedFile
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import Repo
@@ -27,15 +27,16 @@ from datapatchbay.yamlio import YamlLoadError, load_mapping
 _REFRESH = "run `dpb generate` to refresh it"
 
 
-def check_dbt_files(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
+def check_dbt_files(planned: PlannedRepo) -> list[Problem]:
     """Compare the generated dbt files with the files on disk, and look for hand-written duplicates of a model.
 
-    Only call this for a repo whose other checks passed, because it plans the data products.
+    Args:
+        planned: The repo that passed the gate, with its plans.
 
     Returns:
         The problems found, empty when dbt builds no table or the files are in step.
     """
-    plans = plan_dataproducts(repo, settings)
+    repo, settings, plans = planned.repo, planned.settings, planned.plans
     tests = generate_dbt_tests(plans, settings)
     test_files = {file.path for file in tests}
     files = generate_dbt_files(plans, settings)

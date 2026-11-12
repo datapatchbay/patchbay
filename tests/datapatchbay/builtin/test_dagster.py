@@ -14,7 +14,7 @@ from datapatchbay.builtin.kubernetes import KubernetesRuntime
 from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.builtin.worker import WorkerRuntime
 from datapatchbay.cli import app
-from datapatchbay.generate import GenerationError, generate_repo
+from datapatchbay.generate import generate_repo
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -372,8 +372,10 @@ def test_validate_reports_a_container_runtime_with_dagster_naming_runtime_and_or
         and f"the {runtime} runtime cannot render tasks for orchestrator 'dagster'" in message
         for message in messages
     ), messages
-    with pytest.raises(GenerationError, match="data product"):
-        generate_repo(jaffle_repo)
+    result = generate_repo(jaffle_repo)
+    assert not result.report.ok
+    assert "data product" in result.report.problems[0].message
+    assert not (jaffle_repo / "generated").exists()
 
 
 def test_validate_reports_a_name_that_dagster_does_not_accept(jaffle_repo: Path):
@@ -381,8 +383,10 @@ def test_validate_reports_a_name_that_dagster_does_not_accept(jaffle_repo: Path)
     (jaffle_repo / "datapatchbay.yaml").write_text(SETTINGS + "connection: my-dwh\n")
     messages = [problem.render() for problem in validate_repo(jaffle_repo).problems]
     assert any("connection 'my-dwh' (resource key) is not a valid Dagster name" in message for message in messages)
-    with pytest.raises(GenerationError, match="data product"):
-        generate_repo(jaffle_repo)
+    result = generate_repo(jaffle_repo)
+    assert not result.report.ok
+    assert "data product" in result.report.problems[0].message
+    assert not (jaffle_repo / "generated").exists()
 
 
 def test_the_validate_command_exits_non_zero_for_a_container_runtime_with_dagster(

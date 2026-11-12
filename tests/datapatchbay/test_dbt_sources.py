@@ -1,14 +1,11 @@
 from pathlib import Path
 
 import pytest
-from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, rendered, write
+from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, rendered, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_sources import generate_dbt_sources
 from datapatchbay.generate import generate_repo
-from datapatchbay.planning import plan_dataproducts
-from datapatchbay.settings import load_settings
-from datapatchbay.validation import load_and_validate
 
 PRODUCER = "dataproducts/sa_jaffle_orders"
 ORDERS = f"{PRODUCER}/outputs/sa_jaffle_orders/orders.yaml"
@@ -69,10 +66,7 @@ def repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def sources(repo: Path) -> dict[str, str]:
-    loaded, _, report = load_and_validate(repo)
-    assert report.ok, [p.render() for p in report.problems]
-    settings = load_settings(repo)
-    return {str(f.path): f.content for f in generate_dbt_sources(plan_dataproducts(loaded, settings))}
+    return {str(f.path): f.content for f in generate_dbt_sources(planned(repo).plans)}
 
 
 def test_an_input_port_that_reads_a_data_product_becomes_a_dbt_source(repo: Path):

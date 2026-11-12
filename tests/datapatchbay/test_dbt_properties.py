@@ -1,15 +1,12 @@
 from pathlib import Path
 
 import pytest
-from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, write
+from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.generate import GenerationError, generate_repo
-from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import UnsupportedCombinationError
-from datapatchbay.settings import load_settings
-from datapatchbay.validation import load_and_validate
 
 TABLE_FILE = """\
 schema_version: 1
@@ -116,11 +113,8 @@ def repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def files(repo: Path) -> dict[str, str]:
-    loaded, _, report = load_and_validate(repo)
-    assert report.ok, [p.render() for p in report.problems]
-    settings = load_settings(repo)
-    plans = plan_dataproducts(loaded, settings)
-    return {str(f.path): f.content for f in generate_dbt_properties(plans, settings)}
+    gate = planned(repo)
+    return {str(f.path): f.content for f in generate_dbt_properties(gate.plans, gate.settings)}
 
 
 def owner_of(repo: Path) -> str:
@@ -168,8 +162,9 @@ def test_a_failing_orchestrator_writes_no_properties(repo: Path, monkeypatch: py
         raise UnsupportedCombinationError("nope")
 
     monkeypatch.setattr(FakeOrchestrator, "generate", fail)
-    with pytest.raises(GenerationError, match="nope"):
-        generate_repo(repo)
+    problems = generate_repo(repo).report.problems
+    assert problems
+    assert all("nope" in problem.message for problem in problems)
     assert list((repo / DP / "models").glob("*.yml")) == []
 
 

@@ -20,9 +20,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from datapatchbay.dbt_project import model_paths
+from datapatchbay.planning import PlannedRepo
 from datapatchbay.problems import Problem
 from datapatchbay.repomodel import DataProduct, Repo
-from datapatchbay.settings import EffectiveSettings
 
 
 class _ManifestError(ValueError):
@@ -50,7 +50,7 @@ class _Manifest:
     readers: tuple[str, ...]  # unique ids of the team's models, sorted
 
 
-def check_dbt_reads(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
+def check_dbt_reads(planned: PlannedRepo) -> list[Problem]:
     """Compare what each dbt model reads with the input ports of its data product.
 
     Fails a model that `ref()`s a model of another data product (a read of its private schema), and a model that
@@ -59,16 +59,14 @@ def check_dbt_reads(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     not checked, and neither is a table name written into the SQL (ADR-0014, ADR-0018). That a reading data product
     may have an input port on an output port at all (its readers, ADR-0007) is checked when the input ports are.
 
-    Only call this for a repo whose other checks passed.
-
     Args:
-        repo: The loaded repository.
-        settings: The effective settings, which say where the manifest is (`dbt.manifest`).
+        planned: The repo that passed the gate. Its settings say where the manifest is (`dbt.manifest`).
 
     Returns:
         The problems found, empty when no table is built by dbt or every read is allowed. A missing, unreadable or
         incomplete manifest is one problem on the manifest file.
     """
+    repo, settings = planned.repo, planned.settings
     if not model_paths(repo, settings):
         return []
     setting = settings.values.dbt.manifest

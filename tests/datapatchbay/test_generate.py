@@ -1,4 +1,5 @@
 import ast
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -201,8 +202,11 @@ def test_params_are_written_as_plain_literals(jaffle_repo: Path):
 def test_a_param_that_is_not_a_plain_value_names_the_data_product_and_table_and_writes_nothing(jaffle_repo: Path):
     table = jaffle_repo / "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
     table.write_text(table.read_text().replace("  needs:", "  params:\n    since: 2025-01-01\n  needs:"))
-    with pytest.raises(GenerationError, match=r"data product 'sa_jaffle_orders': table 'orders': .*date"):
-        generate_repo(jaffle_repo)
+    result = generate_repo(jaffle_repo)
+    [problem] = result.report.problems
+    assert problem.file.as_posix() == "dataproducts/sa_jaffle_orders/dataproduct.yaml"
+    assert re.match(r"data product 'sa_jaffle_orders': table 'orders': .*date", problem.message)
+    assert result.files == ()
     assert not (jaffle_repo / "generated").exists()
 
 
@@ -223,8 +227,8 @@ def test_source_input_ports_with_different_schedules_cannot_share_one_dag(jaffle
     product.write_text(
         product.read_text().replace("[sa_jaffle_orders_private]", "[sa_jaffle_orders_private, sa_jaffle_orders_extra]")
     )
-    with pytest.raises(GenerationError, match="data product 'sa_jaffle_orders': the source input ports have different"):
-        generate_repo(jaffle_repo)
+    [problem] = generate_repo(jaffle_repo).report.problems
+    assert problem.message.startswith("data product 'sa_jaffle_orders': the source input ports have different")
     assert not (jaffle_repo / "generated").exists()
     [problem] = validate_repo(jaffle_repo).problems
     assert problem.file.as_posix() == "dataproducts/sa_jaffle_orders/dataproduct.yaml"
@@ -239,8 +243,8 @@ def test_a_table_named_dbt_collides_with_the_dbt_task_and_validate_says_so(jaffl
     assert problem.file.as_posix() == "dataproducts/agg_weekly_orders/dataproduct.yaml"
     assert "task id 'build_dbt'" in problem.message
     assert "used twice" in problem.message
-    with pytest.raises(GenerationError, match="used twice"):
-        generate_repo(jaffle_dbt_repo)
+    [generate_problem] = generate_repo(jaffle_dbt_repo).report.problems
+    assert generate_problem == problem
 
 
 def test_validate_reports_what_a_plugin_refuses_to_generate(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch):

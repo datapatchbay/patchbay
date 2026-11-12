@@ -1,14 +1,11 @@
 from pathlib import Path
 
 import pytest
-from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, rendered, write
+from dbt_helpers import DP, MODEL, TABLE, TABLE_YAML, planned, rendered, write
 from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.dbt_tests import generate_dbt_tests
 from datapatchbay.generate import generate_repo
-from datapatchbay.planning import plan_dataproducts
-from datapatchbay.settings import load_settings
-from datapatchbay.validation import load_and_validate
 
 TESTS = f"{DP}/tests"
 NAME = "agg_order_turnaround__turnaround"
@@ -33,10 +30,8 @@ def with_rules(repo: Path, rules: str, extra: str = "") -> None:
 
 
 def generated_tests(repo: Path) -> dict[str, str]:
-    loaded, _, report = load_and_validate(repo)
-    assert report.ok, [p.render() for p in report.problems]
-    settings = load_settings(repo)
-    return {str(f.path): f.content for f in generate_dbt_tests(plan_dataproducts(loaded, settings), settings)}
+    gate = planned(repo)
+    return {str(f.path): f.content for f in generate_dbt_tests(gate.plans, gate.settings)}
 
 
 def test_a_primary_key_selects_null_and_repeated_keys(repo: Path):

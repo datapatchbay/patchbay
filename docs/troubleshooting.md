@@ -10,7 +10,7 @@ Every command uses the same three exit codes:
 | --- | --- |
 | 0 | The command did what it was asked |
 | 1 | The files have problems. `dpb` lists all of them and writes nothing |
-| 2 | The command could not run: a wrong option, no `datapatchbay.yaml`, an unknown data product, or a failure while generating |
+| 2 | The command could not run: a wrong option, no `datapatchbay.yaml`, an unknown data product, or a failure while writing a file or syncing `dbt_project.yml` |
 
 ## Starting a command
 
