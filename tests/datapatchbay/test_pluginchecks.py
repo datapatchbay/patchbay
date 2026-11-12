@@ -54,7 +54,7 @@ def test_an_orchestrator_without_a_plugin_names_the_data_product(jaffle_repo: Pa
     product.write_text(product.read_text() + "orchestrator: prefect\n")
     assert rendered(jaffle_repo) == [
         "dataproducts/agg_order_turnaround/dataproduct.yaml:7: orchestrator 'prefect' has no plugin "
-        "(data product 'agg_order_turnaround'); available orchestrator plugins: airflow"
+        "(data product 'agg_order_turnaround'); available orchestrator plugins: airflow, local"
     ]
 
 

@@ -16,6 +16,7 @@ dpb = "datapatchbay.cli:main"
 
 [project.entry-points."datapatchbay.orchestrators"]
 airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
+local = "datapatchbay.builtin.local:LocalOrchestrator"
 
 [project.entry-points."datapatchbay.executors"]
 python = "datapatchbay.builtin.python_executor:PythonExecutor"
