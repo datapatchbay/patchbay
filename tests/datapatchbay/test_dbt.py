@@ -113,7 +113,20 @@ def test_two_tables_with_the_same_rendered_model_name_fail(dbt_repo: Path):
     [message] = checked(dbt_repo)
     assert message.startswith("dataproducts/agg_other/outputs/agg_other/turnaround.yaml:2: ")
     assert "dbt model name 'turnaround' is already used by " + TABLE in message
-    assert "unique across the repo" in message
+    assert "unique across the repo, whatever their case" in message
+
+
+def test_model_names_that_differ_only_in_case_collide(dbt_repo: Path):
+    write(dbt_repo, "datapatchbay.yaml", 'schema_version: 1\nconventions:\n  names:\n    dbt_model: "{table}"\n')
+    write(dbt_repo, f"{DP}/models/turnaround.sql", "select 1 as days\n")
+    _second_dbt_product(dbt_repo)
+    write(
+        dbt_repo,
+        "dataproducts/agg_other/outputs/agg_other/turnaround.yaml",
+        TABLE_YAML.replace("turnaround", "Turnaround", 1),
+    )
+    write(dbt_repo, "dataproducts/agg_other/models/Turnaround.sql", "select 1 as days\n")
+    assert any("already used by " + TABLE in message for message in checked(dbt_repo))
 
 
 def test_unknown_placeholder_in_the_dbt_model_template_fails(dbt_repo: Path):

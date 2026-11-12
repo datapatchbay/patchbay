@@ -75,7 +75,8 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
         The problems found, empty when the executors fit the table files.
     """
     problems: list[Problem] = []
-    used: dict[str, PurePosixPath] = {}  # model name -> table file, because model names are unique in a dbt project
+    # Lower-cased model name -> table file: model names are unique in a dbt project, and a warehouse folds case.
+    used: dict[str, PurePosixPath] = {}
     for dataproduct in repo.dataproducts:
         problems.extend(_check_models_folder(repo, dataproduct))
         for port in dataproduct.ports:
@@ -110,15 +111,15 @@ def _check_dbt_table(
             f"dbt model name '{name}' of table '{table.name}', rendered from `conventions.names.dbt_model`, is not "
             "a plain identifier; use letters, digits and underscores, not starting with a digit",
         )
-    elif name is not None and name in used:
+    elif name is not None and name.lower() in used:
         yield Problem(
             file.path,
             file.line("name"),
-            f"dbt model name '{name}' is already used by {used[name]}; dbt model names are unique across the repo, "
-            "so include `{dataproduct}` in `conventions.names.dbt_model`",
+            f"dbt model name '{name}' is already used by {used[name.lower()]}; dbt model names are unique across the "
+            "repo, whatever their case, so include `{dataproduct}` in `conventions.names.dbt_model`",
         )
     elif name is not None:
-        used[name] = file.path
+        used[name.lower()] = file.path
     if (
         name is not None
         and _IDENTIFIER.fullmatch(name)
