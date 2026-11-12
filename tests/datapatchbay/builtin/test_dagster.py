@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from plugin_fakes import FakeWarehouse
+from typer.testing import CliRunner
 
 from datapatchbay.builtin.dagster import DagsterOrchestrator
 from datapatchbay.builtin.dbt_executor import DbtExecutor
@@ -12,7 +13,8 @@ from datapatchbay.builtin.duckdb import DuckDbWarehouse
 from datapatchbay.builtin.kubernetes import KubernetesRuntime
 from datapatchbay.builtin.python_executor import PythonExecutor
 from datapatchbay.builtin.worker import WorkerRuntime
-from datapatchbay.generate import generate_repo
+from datapatchbay.cli import app
+from datapatchbay.generate import GenerationError, generate_repo
 from datapatchbay.loading import load_repo
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -23,6 +25,7 @@ from datapatchbay.plugins import (
     Warehouse,
 )
 from datapatchbay.settings import load_settings
+from datapatchbay.validation import validate_repo
 
 SNAPSHOT = Path(__file__).with_name("dagster_sa_jaffle_orders_snapshot.txt")
 SETTINGS = "schema_version: 1\norchestrator: dagster\nwarehouse: duckdb\nruntime: worker\n"
@@ -351,3 +354,42 @@ def test_generate_writes_the_module_next_to_where_airflow_writes_its_dag_file(ja
     )
     assert module.endswith("    schedules=[\n        schedule,\n    ],\n)\n")
     assert module == SNAPSHOT.read_text()
+
+
+def use_container_runtime(root: Path, runtime: str) -> None:
+    use_dagster(root)
+    (root / "datapatchbay.yaml").write_text(SETTINGS.replace("runtime: worker", f"runtime: {runtime}\nimage: img:1"))
+
+
+@pytest.mark.parametrize("runtime", ["docker", "kubernetes"])
+def test_validate_reports_a_container_runtime_with_dagster_naming_runtime_and_orchestrator(
+    jaffle_repo: Path, runtime: str
+):
+    use_container_runtime(jaffle_repo, runtime)
+    messages = [problem.render() for problem in validate_repo(jaffle_repo).problems]
+    assert any(
+        message.startswith("dataproducts/")
+        and f"the {runtime} runtime cannot render tasks for orchestrator 'dagster'" in message
+        for message in messages
+    ), messages
+    with pytest.raises(GenerationError, match="data product"):
+        generate_repo(jaffle_repo)
+
+
+def test_validate_reports_a_name_that_dagster_does_not_accept(jaffle_repo: Path):
+    use_dagster(jaffle_repo)
+    (jaffle_repo / "datapatchbay.yaml").write_text(SETTINGS + "connection: my-dwh\n")
+    messages = [problem.render() for problem in validate_repo(jaffle_repo).problems]
+    assert any("connection 'my-dwh' (resource key) is not a valid Dagster name" in message for message in messages)
+    with pytest.raises(GenerationError, match="data product"):
+        generate_repo(jaffle_repo)
+
+
+def test_the_validate_command_exits_non_zero_for_a_container_runtime_with_dagster(
+    jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch
+):
+    use_container_runtime(jaffle_repo, "docker")
+    monkeypatch.chdir(jaffle_repo)
+    result = CliRunner().invoke(app, ["validate"])
+    assert result.exit_code != 0
+    assert "the docker runtime cannot render tasks for orchestrator 'dagster'" in result.output

@@ -39,6 +39,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dagster = [
     "dagster>=1.13",
+    "dagster-duckdb",
 ]
 dbt = [
     "dbt-postgres>=1.10",

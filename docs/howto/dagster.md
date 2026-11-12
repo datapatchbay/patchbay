@@ -91,9 +91,12 @@ class PostgresResource(dg.ConfigurableResource):
     def get_connection(self):
         with psycopg.connect(self.url, autocommit=True) as connection:
             yield connection
+
+
+warehouse = dg.Definitions(resources={"warehouse": PostgresResource(url=dg.EnvVar("WAREHOUSE_URL"))})
 ```
 
-Bind it in the definitions file with `dg.Definitions(resources={"warehouse": PostgresResource(url=dg.EnvVar("WAREHOUSE_URL"))})`. The build functions read their own credentials from the environment of the Dagster process, as they do on Airflow.
+Merge `warehouse` into the definitions file in place of the `DuckDBResource` one. The build functions read their own credentials from the environment of the Dagster process, as they do on Airflow.
 
 ## 5. Schedules and sensors
 

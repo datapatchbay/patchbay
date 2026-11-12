@@ -122,7 +122,7 @@ class _Module:
         self._names.add(name)
         return name
 
-    def _claim_op(self, name: str, where: str) -> str:
+    def _claim_name(self, name: str, where: str) -> str:
         self._check_name("name", name, where)
         if name in self._ops:
             raise UnsupportedCombinationError(f"Dagster name '{name}' ({where}) is used twice")
@@ -204,7 +204,7 @@ class _Module:
     def _python_table(self, table: TablePlan, call: PythonCall) -> None:
         plan = self._plan
         where = f"table '{table.name}'"
-        op = self._claim_op(f"{plan.folder}__{table.name}", where)
+        op = self._claim_name(f"{plan.folder}__{table.name}", where)
         build = self._build(table, call, task_id=f"build_{table.name}", where=where)
         function = self._variable(op)
         arguments = [
@@ -233,7 +233,7 @@ class _Module:
         used: set[str] = set()
         for audit in warehouse.audit_tasks(table) if warehouse is not None else ():
             where = f"audit of table '{table.name}'"
-            op = self._claim_op(f"{self._plan.folder}__{audit.task_id}", where)
+            op = self._claim_name(f"{self._plan.folder}__{audit.task_id}", where)
             variable = self._variable(audit.task_id)
             resource = python_literal(self._resource())
             if isinstance(audit, SqlTask):
@@ -272,7 +272,7 @@ class _Module:
                     f"tables '{first.name}' and '{table.name}' are built by dbt in one task, "
                     f"but their runtimes are '{first.runtime}' and '{table.runtime}'"
                 )
-        op = self._claim_op(f"{plan.folder}__build_dbt", "tables built by dbt")
+        op = self._claim_name(f"{plan.folder}__build_dbt", "tables built by dbt")
         build = self._build(first, calls[first.name], task_id="build_dbt", where="tables built by dbt")
         function = self._variable(op)
         deps = self._deps(leaves, reads=True)
@@ -300,7 +300,7 @@ class _Module:
             return
         warehouse = self._context.warehouse
         sql_tasks = list(warehouse.apply_tasks(plan)) if warehouse is not None else []
-        op = self._claim_op(f"{plan.folder}__output_ports", "output ports")
+        op = self._claim_name(f"{plan.folder}__output_ports", "output ports")
         function = self._variable(op)
         deps = self._deps(list(self._keys), reads=False)
         specs = [self._spec(python_literal([port]), deps) for port in plan.outputs]
@@ -334,7 +334,7 @@ class _Module:
             crons = sorted({schedule.cron for schedule in plan.source_schedules})
             if crons:
                 cron = python_literal(crons[0] if len(crons) == 1 else crons)
-                schedule_name = self._claim_op(f"{plan.folder}__schedule", "schedule")
+                schedule_name = self._claim_name(f"{plan.folder}__schedule", "schedule")
                 arguments = [
                     f"name={python_literal(schedule_name)}",
                     "job=job",
@@ -345,7 +345,7 @@ class _Module:
                 lines += ["", *_call("schedule = dg.ScheduleDefinition", arguments)]
                 names["schedules"].append("schedule")
             for port in plan.reads:
-                sensor_name = self._claim_op(f"{plan.folder}__on_{port}", "sensor")
+                sensor_name = self._claim_name(f"{plan.folder}__on_{port}", "sensor")
                 variable = self._variable(sensor_name)
                 self._helper(READ_SENSOR_HELPER)
                 call = f"{variable} = _read_sensor({python_literal(sensor_name)}, {python_literal(port)}, job)"
