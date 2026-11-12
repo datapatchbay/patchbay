@@ -42,7 +42,7 @@ class Conventions(_Strict):
 
 
 class DbtSettings(_Strict):
-    """Where dbt finds its project and its profile on the worker."""
+    """Where dbt finds its project and its profile on the worker, and the manifest `dpb validate` reads."""
 
     project_dir: str | None = Field(
         default=None,
@@ -55,6 +55,11 @@ class DbtSettings(_Strict):
         min_length=1,
         description="The folder with the dbt `profiles.yml` on the worker. `~` is the worker user's home; a relative "
         "path is relative to the dbt project.",
+    )
+    manifest: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The dbt manifest that `dpb validate` reads, made by `dbt parse`. Relative to the repo root.",
     )
 
 

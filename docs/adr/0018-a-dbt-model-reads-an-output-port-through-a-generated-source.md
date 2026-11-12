@@ -13,6 +13,6 @@ The source follows the input port, so a model can only name a source that the da
 
 - `dpb validate` fails when the committed sources differ from what the table files produce, as it does for the other generated dbt files.
 - A `ref()` that resolves to a model of another data product is a read of a private table. `dpb validate` fails on it (ADR-0014, case 1).
-- A `source()` that is not one of the generated ones, or whose port the data product has no input port on, fails the check of ADR-0014.
+- A `source()` of another data product's output port, whose port the data product has no input port on, fails the check of ADR-0014. A `source()` whose name is not the output port of any data product is not checked: it is a hand-written source of a table the team owns, such as one built by Python in the same data product, and `dpb validate` cannot tell it from a mistake without a second list of such tables. Its reads stay invisible to the check, like a table name written into the SQL.
 - Source names are unique in a dbt project, and several data products can read one output port. The source of a port is therefore written once, in `models/_sources.yml` of the first reading data product built by dbt, in name order, and every reader uses it.
 - A producer built by Python and one built by dbt are read the same way.

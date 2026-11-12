@@ -55,7 +55,7 @@ from {{ source('sa_ilab_orders', 'orders') }}
 where completed_at is not null
 ```
 
-A model reads another data product's output port with `source('<port>', '<table>')`. `dpb generate` writes that dbt source for each input port that reads an output port, so the data product must declare the input port first. Do not use `ref()` on another data product's models: that reads its private tables.
+A model reads another data product's output port with `source('<port>', '<table>')`. `dpb generate` writes that dbt source for each input port that reads an output port, so the data product must declare the input port first. Do not use `ref()` on another data product's models: that reads its private tables, and `dpb validate` fails on it.
 
 ## 4. Add a dbt project
 
@@ -85,12 +85,19 @@ Besides the DAG files, this writes inside the repo:
 
 Commit all of them. dbt reads them on every run. Never edit them by hand: change the table file and run `dpb generate` again.
 
-## 6. Validate
+## 6. Parse and validate
+
+`dpb validate` checks what the dbt models read. It does not run dbt: it reads the dbt manifest that `dbt parse` writes, `target/manifest.json` by default. So run `dbt parse` first, and again after every change to a model:
 
 ```console
+$ dbt parse
 $ dpb validate
 ok: 2 data product(s) valid
 ```
+
+`dbt parse` needs the dbt adapter and a profile, but it does not connect to the warehouse. If it writes the manifest somewhere else, set `dbt.manifest` in `datapatchbay.yaml`. Without a manifest, `dpb validate` fails and says to run `dbt parse`.
+
+The order matters in a new repo: `dpb generate` first, because dbt cannot parse the project without the generated sources, then `dbt parse`, then `dpb validate`.
 
 From now on `dpb validate` fails when a committed dbt file does not match the table file:
 

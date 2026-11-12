@@ -40,7 +40,7 @@ Install it with pip
 
 ## What you do not need
 
-`dpb` reads YAML and writes files. It never connects to the warehouse or to the orchestrator. On the machine where you run `dpb`, you need no Airflow, no dbt, no database driver and no credentials.
+`dpb` reads YAML and writes files. It never connects to the warehouse or to the orchestrator. On the machine where you run `dpb`, you need no Airflow, no database driver and no credentials. You need dbt only when tables are built by dbt: `dpb validate` then reads the manifest that `dbt parse` writes.
 
 ## What the orchestrator needs
 

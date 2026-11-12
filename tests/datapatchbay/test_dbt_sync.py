@@ -93,6 +93,7 @@ def test_other_models_in_other_files_are_fine(synced_repo: Path):
 def test_validate_writes_nothing(synced_repo: Path):
     (synced_repo / PROPERTIES).write_text("stale\n")
     write(synced_repo, f"{DP}/models/extra.yml", "models:\n  - name: agg_lab_turnaround__turnaround\n")
+    write(synced_repo, "target/manifest.json", '{"nodes": {}}')
     before = snapshot(synced_repo)
     assert rendered(synced_repo)
     assert snapshot(synced_repo) == before

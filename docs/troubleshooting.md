@@ -87,6 +87,18 @@ A setting does not have the value you expect
 
 ## dbt
 
+`` dbt manifest not found, but tables are built by dbt; run `dbt parse` or set `dbt.manifest` ``
+: `dpb validate` reads the dbt manifest to check what the models read. Run `dbt parse`, then `dpb validate` again. If `dbt parse` writes the manifest somewhere other than `target/manifest.json`, set `dbt.manifest` in `datapatchbay.yaml`.
+
+`` model '<model>' of data product '<reader>' reads model '<model>' of data product '<producer>' with `ref()`, which is a read of its private schema ``
+: A dbt model reads another data product's model directly. Declare an input port on the output port, run `dpb generate`, and read it with `source('<port>', '<table>')`. See [Build a table with dbt](howto/dbt.md).
+
+`model '<model>' of data product '<reader>' reads source '<port>', the output port of data product '<producer>', but '<reader>' has no input port on '<port>'`
+: The model reads an output port that its data product does not declare. Add the input port, and ask the owner of the output port to list the data product as a reader.
+
+A change to a model is not seen by `dpb validate`
+: `dpb` does not run dbt and does not check that the manifest is fresh. Run `dbt parse` after every change to a model.
+
 `` dbt properties file does not match its table file; run `dpb generate` to refresh it ``
 : The table file changed after the properties were generated, or someone edited the properties by hand. Run `dpb generate` and commit the result. The same fix applies to `dbt properties file is missing`, and to the same two messages about a `dbt test file`.
 

@@ -1,6 +1,6 @@
 # Validate in CI
 
-Run `dpb validate` on every pull request, so a broken contract never reaches `main`. It needs no warehouse, no orchestrator and no credentials: it only reads the files in the repo.
+Run `dpb validate` on every pull request, so a broken contract never reaches `main`. It needs no warehouse, no orchestrator and no credentials: it only reads the files in the repo. A repo with tables built by dbt runs `dbt parse` first (see [Repos with dbt](#repos-with-dbt)).
 
 ## GitHub Actions
 
@@ -72,7 +72,18 @@ The check is one command with an exit code, so it runs the same on GitLab CI, Az
 
 ## Repos with dbt
 
-`dpb validate` fails when a committed dbt properties file, or the `model-paths` of `dbt_project.yml`, does not match the table files. The message names the file and says to run `dpb generate`. Run it locally and commit the result. See [Build a table with dbt](dbt.md).
+When tables are built by dbt, `dpb validate` reads the dbt manifest to check what the models read. Run `dbt parse` before it. `dbt parse` needs the dbt adapter and a profile, but it does not connect to the warehouse:
+
+```yaml
+      - name: Parse the dbt project
+        run: uvx --from dbt-core --with dbt-postgres dbt parse
+      - name: Validate the data products
+        run: uvx --from git+https://github.com/datapatchbay/patchbay dpb validate
+```
+
+Without the manifest, `dpb validate` fails and says to run `dbt parse`.
+
+`dpb validate` also fails when a committed dbt file, or the `model-paths` and `test-paths` of `dbt_project.yml`, does not match the table files. The message names the file and says to run `dpb generate`. Run it locally and commit the result. See [Build a table with dbt](dbt.md).
 
 ## Let the owner approve changes to a port
 
