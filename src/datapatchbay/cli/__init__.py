@@ -7,6 +7,7 @@ from typer.core import TyperGroup
 
 from datapatchbay.cli.config import config
 from datapatchbay.cli.overview import describe, list_command
+from datapatchbay.cli.schema import schema
 from datapatchbay.cli.upgrade import upgrade
 from datapatchbay.cli.validate import validate
 from datapatchbay.errors import DatapatchbayError
@@ -36,6 +37,7 @@ app.command()(config)
 app.command()(upgrade)
 app.command("list")(list_command)
 app.command()(describe)
+app.command()(schema)
 
 
 @app.callback()
