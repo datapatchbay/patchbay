@@ -7,7 +7,9 @@ DP = "dataproducts/sa_ilab_orders"
 READER = "dataproducts/agg_lab_turnaround"
 
 FILES = {
-    "datapatchbay.yaml": "schema_version: 1\nruntime: docker\nimage: registry/root:1\n",
+    "datapatchbay.yaml": (
+        "schema_version: 1\nruntime: docker\nimage: registry/root:1\ncontainer:\n  environment: {WAREHOUSE: root}\n"
+    ),
     f"{DP}/dataproduct.yaml": """\
 schema_version: 1
 name: ilab_orders
@@ -69,6 +71,9 @@ build:
   entrypoint: src/orders.py:build
   executor: dbt
   image: registry/orders:2
+  container:
+    environment: {WAREHOUSE: orders}
+    mem_limit: 1g
   needs: [ingested_orders]
 """,
     f"{DP}/src/ingested.py": "def build(): ...\n",

@@ -25,6 +25,10 @@ type Origin = Literal["defaults", "datapatchbay.yaml"]
 _NOT_SETTINGS = frozenset({"schema_version", "meta"})
 
 
+# Root settings whose value is a map that belongs to a plugin: it is one value, never merged key by key.
+_VERBATIM = frozenset({"container"})
+
+
 class InvalidSettingsError(DatapatchbayError):
     """Raised when the repo's `datapatchbay.yaml` does not pass the root file schema."""
 
@@ -58,6 +62,7 @@ class ResolvedSettings(_Resolved):
     executor: str
     runtime: str
     image: str | None = None
+    container: dict[str, Any] | None = None
     severity: Severity
     connection: str
     output_dir: str
@@ -121,7 +126,9 @@ def _leaves(data: Mapping[str, Any], prefix: tuple[str, ...] = ()) -> dict[tuple
             continue
         if value is None:
             continue  # An empty key (`runtime:`) states no value, so the default stays.
-        if isinstance(value, Mapping):
+        if not prefix and key in _VERBATIM:
+            leaves[(key,)] = dict(value)
+        elif isinstance(value, Mapping):
             leaves.update(_leaves(value, (*prefix, key)))
         elif isinstance(value, list):
             leaves[(*prefix, key)] = list(value)

@@ -36,6 +36,7 @@ def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: s
             build = table.file.model.build
             path, _, function = build.entrypoint.rpartition(":")
             image = resolved["image"].value
+            container = resolved["container"].value
             tables.append(
                 TablePlan(
                     dataproduct=dataproduct.folder,
@@ -51,6 +52,7 @@ def _plan(dataproduct: DataProduct, settings: EffectiveSettings, orchestrator: s
                     severity=resolved["severity"].value,
                     port_source=port,
                     source=table,
+                    container={} if container is None else container,
                 )
             )
 
