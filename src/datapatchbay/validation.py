@@ -5,6 +5,7 @@ from pathlib import Path
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
 from datapatchbay.dbt import check_dbt
+from datapatchbay.dbt_manifest import check_dbt_reads
 from datapatchbay.dbt_sync import check_dbt_files
 from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
@@ -44,11 +45,13 @@ def validate_repo(root: Path) -> Report:
     """Validate a repo and return the report. See `load_and_validate`.
 
     On top of that, once everything else is valid, the committed dbt files are compared with what `dpb generate`
-    would write. `dpb generate` uses `load_and_validate` and skips that comparison, because it is what refreshes the
-    files. Nothing is written.
+    would write, and what the dbt models read is compared with the input ports (the dbt manifest must exist).
+    `dpb generate` uses `load_and_validate` and skips both, because it is what refreshes the files, and a manifest is
+    not needed to generate. Nothing is written.
     """
     repo, report = load_and_validate(root)
     if not report.ok:
         return report
-    problems = check_dbt_files(repo, load_settings(root))
+    settings = load_settings(root)
+    problems = [*check_dbt_files(repo, settings), *check_dbt_reads(repo, settings)]
     return Report(dataproducts_checked=report.dataproducts_checked, problems=problems)

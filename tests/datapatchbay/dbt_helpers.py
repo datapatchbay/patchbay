@@ -11,6 +11,9 @@ TABLE_YAML = "schema_version: 1\nname: turnaround\ncolumns:\n  - name: days\n   
 
 
 def rendered(repo: Path) -> list[str]:
+    """The problems of `validate_repo`, with an empty dbt manifest in place unless the test made one."""
+    if not (repo / "target" / "manifest.json").exists():
+        write(repo, "target/manifest.json", '{"metadata": {}, "nodes": {}, "sources": {}}')
     return [problem.render() for problem in validate_repo(repo).problems]
 
 

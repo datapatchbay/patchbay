@@ -56,10 +56,11 @@ class ResolvedConventions(_Resolved):
 
 
 class ResolvedDbt(_Resolved):
-    """Where dbt finds its project and profile on the worker, both present."""
+    """Where dbt finds its project and profile on the worker, and the manifest that `dpb validate` reads."""
 
     project_dir: str
     profiles_dir: str
+    manifest: str
 
 
 class ResolvedSettings(_Resolved):
