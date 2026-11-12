@@ -19,3 +19,4 @@ conventions:
     output_port: "{kind.prefix}_{name}"
     private_port: "{kind.prefix}_{name}_private"
     role: "dp_{kind.prefix}_{name}"
+    dbt_model: "{dataproduct}__{table}"

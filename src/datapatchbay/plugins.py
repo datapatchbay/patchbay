@@ -53,8 +53,9 @@ class TablePlan:
         dataproduct: Folder name of the data product the table belongs to.
         port: Name of the port the table is in.
         name: Name of the table.
-        entrypoint: The file of the build function, relative to the data product folder.
-        function: Name of the build function.
+        entrypoint: The file of the build function, relative to the data product folder; `None` for a table that
+            a dbt model builds.
+        function: Name of the build function; `None` when there is no entrypoint.
         params: Parameters passed to the function.
         needs: Names of the tables of the same data product that are built first.
         executor: Name of the executor plugin.
@@ -69,8 +70,8 @@ class TablePlan:
     dataproduct: str
     port: str
     name: str
-    entrypoint: PurePosixPath
-    function: str
+    entrypoint: PurePosixPath | None
+    function: str | None
     params: Mapping[str, Any]
     needs: tuple[str, ...]
     executor: str

@@ -68,7 +68,7 @@ def test_resolve_settings_returns_every_cascading_setting(sample_repo: Path):
     port = orders.outputs[0]
     got = resolve_settings(settings, dataproduct=orders, port=port, table=port.tables[0])
     assert {name: (s.value, s.level) for name, s in got.items()} == {
-        "executor": ("dbt", "table"),
+        "executor": ("spark", "table"),
         "runtime": ("kubernetes", "port"),
         "image": ("registry/orders:2", "table"),
         "container": ({"environment": {"WAREHOUSE": "orders"}, "mem_limit": "1g"}, "table"),

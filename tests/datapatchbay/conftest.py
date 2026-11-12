@@ -69,7 +69,7 @@ rules:
     min: 1
 build:
   entrypoint: src/orders.py:build
-  executor: dbt
+  executor: spark
   image: registry/orders:2
   container:
     environment: {WAREHOUSE: orders}

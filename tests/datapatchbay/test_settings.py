@@ -36,6 +36,7 @@ def test_schema_version_only_file_yields_the_defaults_from_product_md(tmp_path: 
         "output_port": "{kind.prefix}_{name}",
         "private_port": "{kind.prefix}_{name}_private",
         "role": "dp_{kind.prefix}_{name}",
+        "dbt_model": "{dataproduct}__{table}",
     }
     assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN}
 

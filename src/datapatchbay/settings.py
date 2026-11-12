@@ -44,6 +44,7 @@ class ResolvedNames(_Resolved):
     output_port: str
     private_port: str
     role: str
+    dbt_model: str
 
 
 class ResolvedConventions(_Resolved):

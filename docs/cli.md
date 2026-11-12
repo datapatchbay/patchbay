@@ -52,6 +52,7 @@ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ila
 - Data product, port, table and column names are snake_case.
 - Derived data product names and port names are unique across the repo.
 - A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
+- A table built by dbt (its executor resolves to `dbt`) has no `entrypoint`, `params` or `needs`, has its model file `models/<dbt_model>.sql` in the data product's folder, and no `.py` file sits in a `models/` folder. Any other table has a `build.entrypoint`.
 - `executor`, `runtime`, `image`, `container` and `severity` may be set in `datapatchbay.yaml`, `dataproduct.yaml`, `port.yaml` and a table's `build` block. `orchestrator` is only allowed in `datapatchbay.yaml` and `dataproduct.yaml`.
 - Every orchestrator, executor, runtime and warehouse named in the settings has a plugin. The message names the data product and, for an executor or runtime, the table, and points at the line where the name is written. A name set at the root or on a data product is reported for each table it applies to.
 - In the `build` block, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
@@ -72,7 +73,7 @@ With `--json`, stdout holds only this document:
 
 A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
 
-With the dbt executor, planned for milestone 2, `dpb validate` also checks that:
+For tables built by dbt, `dpb validate` already checks that the model file exists (see the executor settings). Planned for milestone 2, it will also check that:
 
 - Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest, so CI runs `dbt parse` first (ADR-0014).
 - The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013).

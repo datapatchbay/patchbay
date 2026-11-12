@@ -70,7 +70,7 @@ def resolve_setting(
         `orchestrator`, never sets it, so the setting passes through to the next level.
     """
     layers: list[tuple[Level, PurePosixPath, object]] = []
-    if table is not None:
+    if table is not None and table.file.model.build is not None:
         layers.append(("table", table.file.path, table.file.model.build))
     if port is not None:
         layers.append(("port", port.file.path, port.file.model))

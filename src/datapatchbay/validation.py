@@ -4,6 +4,7 @@ from pathlib import Path
 
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
+from datapatchbay.dbt import check_dbt
 from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
 from datapatchbay.pluginchecks import check_plugins
@@ -34,6 +35,7 @@ def load_and_validate(root: Path) -> tuple[Repo, Report]:
     else:
         problems.extend(check_conventions(repo, settings, load_mapping(root / ROOT_FILE)))
         problems.extend(check_plugins(repo, settings))
+        problems.extend(check_dbt(repo, settings))
     return repo, Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)
 
 

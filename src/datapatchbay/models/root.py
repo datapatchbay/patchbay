@@ -22,6 +22,11 @@ class NamesConvention(_Strict):
     output_port: str | None = Field(default=None, description="Naming template of an output port name.")
     private_port: str | None = Field(default=None, description="Naming template of a private input port name.")
     role: str | None = Field(default=None, description="Naming template of the warehouse role of a data product.")
+    dbt_model: str | None = Field(
+        default=None,
+        description="Naming template of the name of a dbt model, which is also its file name in `models/`. "
+        "Besides the usual placeholders it has `{dataproduct}` and `{table}`.",
+    )
 
 
 class Conventions(_Strict):

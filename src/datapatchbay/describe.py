@@ -102,9 +102,9 @@ def _table_json(settings: EffectiveSettings, product: DataProduct, port: Port, t
             for column in model.columns
         ],
         "rules": [_rule_json(rule, severity) for rule in model.rules],
-        "entrypoint": model.build.entrypoint,
-        "params": model.build.params,
-        "needs": model.build.needs,
+        "entrypoint": model.build.entrypoint if model.build else None,
+        "params": model.build.params if model.build else {},
+        "needs": model.build.needs if model.build else [],
         "settings": _settings_json(resolved),
     }
 
@@ -189,9 +189,11 @@ def _table_lines(table: Json) -> list[str]:
         lines.append(f"        {table['description']}")
     if table["freshness_column"]:
         lines.append(f"        freshness column: {table['freshness_column']}")
-    lines.append(
-        f"        build: {table['entrypoint']}" + (f"  needs: {', '.join(table['needs'])}" if table["needs"] else "")
-    )
+    if table["entrypoint"]:
+        lines.append(
+            f"        build: {table['entrypoint']}"
+            + (f"  needs: {', '.join(table['needs'])}" if table["needs"] else "")
+        )
     if table["params"]:
         lines.append(f"        params: {table['params']}")
     lines.extend(_settings_lines(table["settings"], "        "))

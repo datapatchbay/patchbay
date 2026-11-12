@@ -70,9 +70,10 @@ conventions:
     output_port: "{kind.prefix}_{name}"
     private_port: "{kind.prefix}_{name}_private"
     role: "dp_{kind.prefix}_{name}"
+    dbt_model: "{dataproduct}__{table}"
 ```
 
-A naming template may use `{name}` (the data product's bare name), `{kind.prefix}` and `{kind.name}`. `dpb validate` compares the folder name, the default output port name and the private port name with what the templates produce, so changing a prefix or a template changes what it expects.
+A naming template may use `{name}` (the data product's bare name), `{kind.prefix}` and `{kind.name}`. The `dbt_model` template also has `{dataproduct}` (the data product's derived name) and `{table}`, because dbt model names must be unique across a dbt project. `dpb validate` compares the folder name, the default output port name and the private port name with what the templates produce, so changing a prefix or a template changes what it expects.
 
 See [Settings and plugins](settings.md) for how these values merge with the defaults and with settings lower down.
 
@@ -172,7 +173,7 @@ build:
 - `needs` lists the tables of the same data product that must be built first, in any of its ports. It must not contain a cycle.
 - Table names are unique within a data product.
 
-With the dbt executor, planned for milestone 2, a table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher. Its SQL is the dbt model `models/<dbt_model>.sql`, named by a `dbt_model` naming template that milestone 2 adds to `conventions.names`, by default `{dataproduct}__{table}`, and its order comes from the model's `ref()` calls instead of `needs`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand.
+A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. Any other table needs a `build.entrypoint`. `dpb generate` will write the model's dbt properties from the table file; nobody writes them by hand.
 
 ## JSON Schema
 
