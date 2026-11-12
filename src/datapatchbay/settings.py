@@ -116,6 +116,8 @@ def _leaves(data: Mapping[str, Any], prefix: tuple[str, ...] = ()) -> dict[tuple
     for key, value in data.items():
         if not prefix and key in _NOT_SETTINGS:
             continue
+        if value is None:
+            continue  # An empty key (`runtime:`) states no value, so the default stays.
         if isinstance(value, Mapping):
             leaves.update(_leaves(value, (*prefix, key)))
         elif isinstance(value, list):

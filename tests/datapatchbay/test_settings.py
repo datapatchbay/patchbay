@@ -75,3 +75,12 @@ def test_invalid_repo_file_raises_with_file_and_line(tmp_path: Path):
     write_root(tmp_path, "schema_version: 1\nruntime: lambda\n")
     with pytest.raises(DatapatchbayError, match=r"datapatchbay\.yaml:2"):
         load_settings(tmp_path)
+
+
+@pytest.mark.parametrize("text", ["runtime:\n", "conventions:\n", "conventions:\n  domains:\n"])
+def test_empty_key_in_repo_file_keeps_the_default(tmp_path: Path, text: str):
+    write_root(tmp_path, "schema_version: 1\n" + text)
+    settings = load_settings(tmp_path)
+    assert {entry.origin for entry in settings.entries} == {DEFAULTS_ORIGIN}
+    assert settings.values.runtime == "worker"
+    assert settings.values.conventions.domains == []
