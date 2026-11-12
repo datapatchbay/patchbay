@@ -1,0 +1,92 @@
+# Writing a plugin
+
+A plugin adds support for one technology: an orchestrator, an executor, a runtime or a warehouse. This page shows the four extension points, how to register a plugin, and the two toolkits that the built-in plugins are written with. The plugin interface and both toolkits are public, but not yet stable in milestone 1: names may change.
+
+## The four extension points
+
+Each extension point is a `Protocol` in `datapatchbay.plugins`. A plugin is any object that has the same methods.
+
+| Extension point | Entry-point group | What it does |
+| --- | --- | --- |
+| `Orchestrator` | `datapatchbay.orchestrators` | `generate(plan, context)` returns the files for one data product. It composes the DAG from what the other three contribute. |
+| `Executor` | `datapatchbay.executors` | `call(table)` says what has to be called to build a table. |
+| `Runtime` | `datapatchbay.runtimes` | `render_build_task(task, orchestrator=, variable=)` renders the build task, the place where the code runs. |
+| `Warehouse` | `datapatchbay.warehouses` | `apply_tasks(dataproduct)` and `audit_tasks(table)` return the SQL that the orchestrator runs. It never connects to the warehouse. |
+
+The plan data that plugins receive (`DataProductPlan`, `TablePlan`, `GenerationContext`) and the tasks they return (`SqlTask`, `AuditTask`, `BuildTask`, `RenderedTask`, `GeneratedFile`, ...) are in `datapatchbay.plugins` too. A plugin imports only from `datapatchbay.plugins`, and the built-in integrations follow the same rule: no integration imports another integration's folder.
+
+## Register a plugin
+
+A plugin package registers a class, or a function without arguments that returns the plugin, in the entry-point group of its extension point. The entry point name is the name used in the settings:
+
+```toml
+[project.entry-points."datapatchbay.warehouses"]
+mywarehouse = "my_package.warehouse:MyWarehouse"
+```
+
+After `uv add my-package`, the `warehouse: mywarehouse` setting selects it. Plugins are selected by what they can do, never by name in the core. See [Settings and plugins](settings.md#plugins).
+
+## The SQL toolkit: `datapatchbay.plugins.sql`
+
+For warehouse plugins.
+
+`Dialect`
+: The parts of the SQL that depend on the warehouse: `identifier` quotes a schema, table or column name, and `literal` writes a value.
+
+`standard_identifier`, `standard_literal`
+: Quoting the standard way, which Postgres and DuckDB both read. Use them as the parts of a `Dialect`, or write your own.
+
+`audit_checks(table, dialect)`, `audit_tasks(table, dialect)`
+: The quality rules of a table as `AuditCheck` values, one query per rule that counts the rows that break it, and as the one `AuditTask` that holds them. They use only SQL that most warehouses run.
+
+`output_ports(plan)`, `view_sql(table, dialect, pii_column)`
+: The output ports of a data product with their tables, and the statement that creates the view of a table in its port's schema. `pii_column` turns the quoted name of a PII column into the expression that the view selects for it.
+
+## The codegen toolkit: `datapatchbay.plugins.codegen`
+
+For orchestrator and runtime plugins that write Python files. A generated file never imports datapatchbay (ADR-0001), so everything here returns source text.
+
+`plan_builds(plan, context)`, `TableBuilds`
+: Asks each table's executor how to build it, and returns the tables in build order, split by how they are built. It refuses the combinations that cannot run.
+
+`render_build(context, orchestrator, table, call, task_id=, where=, variable=)`
+: Has the table's runtime render its build, and turns a refusal into an `UnsupportedCombinationError` that names the table.
+
+`render_audit_task(audit, connection=, variable=)`, `check_rows`, `AUDIT_HELPER`, `RUN_AUDIT_HELPER`
+: The generated code that runs the quality rules of a table. `RUN_AUDIT_HELPER` does not depend on the orchestrator.
+
+`python_literal(value)`
+: Writes a plain YAML value as a Python literal, the same way every time.
+
+## A minimal warehouse
+
+This warehouse quotes names with backticks, writes the views of the output ports and audits the quality rules. It imports only `datapatchbay.plugins`:
+
+```python
+from collections.abc import Sequence
+
+from datapatchbay.plugins import AuditTask, DataProductPlan, SqlTask, TablePlan
+from datapatchbay.plugins.sql import Dialect, audit_tasks, output_ports, view_sql
+
+DIALECT = Dialect(
+    identifier=lambda name: "`" + name.replace("`", "``") + "`",
+    literal=lambda value: repr(value),
+)
+
+
+class MyWarehouse:
+    """Produce SQL for a warehouse that quotes names with backticks."""
+
+    def apply_tasks(self, dataproduct: DataProductPlan) -> Sequence[SqlTask]:
+        statements = [
+            view_sql(table, DIALECT, pii_column=lambda name: f"NULL AS {name}")
+            for _port, tables in output_ports(dataproduct)
+            for table in tables
+        ]
+        return (SqlTask("apply_access", "\n".join(statements)),) if statements else ()
+
+    def audit_tasks(self, table: TablePlan) -> Sequence[SqlTask | AuditTask]:
+        return audit_tasks(table, DIALECT)
+```
+
+Register it as shown above, then `dpb generate` puts its tasks into the DAG like those of the built-in warehouses.

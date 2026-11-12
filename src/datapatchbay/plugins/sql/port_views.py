@@ -7,8 +7,8 @@ the same.
 
 from collections.abc import Callable, Iterator, Sequence
 
-from datapatchbay.integrations._sql.audit_sql import Dialect
 from datapatchbay.plugins import DataProductPlan, TablePlan
+from datapatchbay.plugins.sql.audit_sql import Dialect
 from datapatchbay.repomodel import Port
 
 

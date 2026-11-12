@@ -2,10 +2,8 @@
 
 from collections.abc import Sequence
 
-from datapatchbay.integrations._sql.audit_sql import Dialect, audit_tasks
-from datapatchbay.integrations._sql.port_views import output_ports, view_sql
-from datapatchbay.integrations._sql.sqlquote import standard_identifier, standard_literal
 from datapatchbay.plugins import AuditTask, DataProductPlan, SqlTask, TablePlan
+from datapatchbay.plugins.sql import Dialect, audit_tasks, output_ports, standard_identifier, standard_literal, view_sql
 
 DUCKDB_DIALECT = Dialect(identifier=standard_identifier, literal=standard_literal)
 

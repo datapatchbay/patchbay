@@ -14,10 +14,10 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from datapatchbay.genheader import generated_header
-from datapatchbay.integrations._sql.sqlquote import standard_literal
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR, MODELS_FOLDER, model_name
 from datapatchbay.models.table import AcceptedValuesRule, Column, NotNullRule, UniqueRule
 from datapatchbay.plugins import DataProductPlan, GeneratedFile, TablePlan
+from datapatchbay.plugins.sql import standard_literal
 from datapatchbay.settings import EffectiveSettings
 
 GROUP_FILE = "_group.yml"

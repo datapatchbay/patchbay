@@ -142,6 +142,7 @@ troubleshooting
 cli
 files
 settings
+plugins
 glossary
 ```
 
