@@ -47,6 +47,18 @@ A missing `schema_version`, or one newer than the installed `dpb` knows, is repo
 
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
+## `dpb config`
+
+`dpb config` prints the effective settings: the packaged defaults with `datapatchbay.yaml` merged over them. Each line holds a setting, its value and where the value comes from, `(defaults)` or `(datapatchbay.yaml)`. Maps are listed leaf by leaf, with dotted names such as `conventions.kinds.aggregate.prefix`.
+
+```text
+warehouse                            postgres        (defaults)
+runtime                              docker          (datapatchbay.yaml)
+conventions.domains                  []              (defaults)
+```
+
+With `--json`, stdout holds one object from setting name to `{"value": ..., "origin": "defaults" | "datapatchbay.yaml"}`. An invalid `datapatchbay.yaml` is reported as `file:line: message` and exits with code 2.
+
 ## `dpb generate`
 
 Generated files are build output of CD and are not committed.
@@ -73,6 +85,15 @@ The generated DAG files do not import datapatchbay, so the orchestrator needs ne
 Each schema version bump comes with a migration. `dpb upgrade` rewrites a team's files to the current version and keeps their comments and key order. It ships from the first release, before there is a migration to run, so the first breaking change doesn't also have to invent the way out.
 
 `dpb` refuses files with a `schema_version` newer than it knows.
+
+`dpb upgrade` covers all four kinds of file: `datapatchbay.yaml`, every `dataproduct.yaml`, every `port.yaml` and every table file. A migration is one step from version n to n+1, and the steps run in order until a file is current. Version 1 is the only version, so for now the command reports that there is nothing to do and exits 0.
+
+```sh
+dpb upgrade             # rewrite files that are behind
+dpb upgrade --dry-run   # show what would change as a diff and write nothing
+```
+
+If any file cannot be upgraded, because its `schema_version` is newer than `dpb` knows, is missing or has no migration, `dpb upgrade` prints a problem for it, writes nothing and exits 1.
 
 ## Built for agents
 
