@@ -314,9 +314,8 @@ therefore pass in parallel as well as alone. Plain `uv run pytest` still runs se
 The integration tests also run serially, because they share Postgres roles. The pre-push hook in `.githooks` runs
 `scripts/check`; enable it once per clone with `git config core.hooksPath .githooks`.
 
-Every pull request runs ruff, ty, the unit tests on each supported Python version, the dbt tests, the Airflow DAG load
-and the example repo end to end (`.github/workflows/ci.yml`). A pull request that only changes the docs site skips
-them. The ruleset on `main` requires the `ci ok` job, which passes when every other job passed or was skipped.
+Every pull request runs ruff, ty and the unit tests on each supported Python version (`.github/workflows/ci.yml`). A
+pull request that only changes the docs site skips them. The ruleset on `main` requires the `ci ok` job, which passes when every other job passed or was skipped.
 
 ### Unit Tests and Integration Tests
 
@@ -324,8 +323,8 @@ There are two kinds of test (ADR-0020):
 
 - **Unit tests** run with `uv run pytest`, in CI and on every developer's machine. They need no network, server or
   Docker. The SQL that `dpb` generates is run against DuckDB in the test process.
-- **Integration tests** need a real service, which is a Postgres server for now. They live in
-  `tests/datapatchbay/integration/`, one file per tool or area, and every test in that folder carries the `integration`
+- **Integration tests** need a real service: a Postgres server, and Airflow in a container next to it. They live
+  in `tests/datapatchbay/integration/`, one file per tool or area, and every test in that folder carries the `integration`
   marker automatically (`conftest.py` adds it). `uv run pytest` deselects that marker. Put a new integration test in
   that folder; do not mark tests elsewhere.
 
@@ -337,12 +336,13 @@ scripts/integration-tests          # extra arguments go to pytest, for example -
 ```
 
 The same command installs the `dbt` dependency group and runs the tests marked `dbt`, which run the real `dbt parse` on
-the generated dbt files. Those tests live in the integration folder too, and a missing dbt fails them instead of
-skipping them. A selected integration test MUST run.
+the generated dbt files. It also loads the generated DAGs in Airflow 3 and runs the example repo end to end, in a
+container. Those tests live in the integration folder too, and a missing dbt fails them instead of skipping them. A
+selected integration test MUST run.
 
-Run it before pushing a change to the Postgres SQL or to the generated dbt files (properties, sources, tests,
-`dbt_project.yml`). CI does not run integration tests. A quality rule MUST also be
-checked on DuckDB by a unit test, so that CI keeps covering it.
+Run it before pushing a change to the Postgres SQL, to the generated DAGs or to the generated dbt files (properties,
+sources, tests, `dbt_project.yml`). CI does not run integration tests. A quality rule MUST also be checked on DuckDB by
+a unit test, so that CI keeps covering it.
 
 ## Related Guidance
 

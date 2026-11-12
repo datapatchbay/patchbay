@@ -6,7 +6,7 @@ Data products as code. Declare owners, ports and freshness in YAML, then scaffol
 
 Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `scripts/check`: ruff, ty and the unit tests in parallel, in about ten seconds. The pre-push hook runs it once `git config core.hooksPath .githooks` is set.
 
-`uv run pytest` runs the unit tests only (DuckDB, no server, no Docker). Integration tests (a real Postgres) live in `tests/datapatchbay/integration/` and run with one command, `scripts/integration-tests`, which needs Docker. Run it before pushing a change to the Postgres SQL or to the generated dbt files (properties, sources, tests, `dbt_project.yml`): it installs dbt and runs `dbt parse` on them. CI does not run it.
+`uv run pytest` runs the unit tests only (DuckDB, no server, no Docker). Integration tests (a real Postgres) live in `tests/datapatchbay/integration/` and run with one command, `scripts/integration-tests`, which needs Docker. Run it before pushing a change to the Postgres SQL, to the generated DAGs (it loads them in Airflow 3 and runs the example) or to the generated dbt files (properties, sources, tests, `dbt_project.yml`): it also runs `dbt parse` on them. CI does not run it.
 
 ## Pull requests
 

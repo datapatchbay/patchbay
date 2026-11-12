@@ -104,7 +104,7 @@ DBT_FIXTURE = frozenset({"dbt_project.yml", "models", "weekly_summary.yaml"})
 
 @pytest.fixture
 def jaffle_repo(tmp_path: Path) -> Path:
-    """A copy of the valid fixture repo that CI also loads in Airflow, without its table built by dbt.
+    """A copy of the valid fixture repo that the integration tests load in Airflow, without its table built by dbt.
 
     A source-fed data product and its reader, and a data product that mixes runtimes.
     """

@@ -260,7 +260,7 @@ The files in `src/` are stubs that raise `NotImplementedError`. To run the DAGs 
 3. Create the roles in the warehouse. The generated SQL grants to `grp-shop-reporting`, `grp-shop-support` and `dp_agg_order_turnaround`, and never creates them.
 4. Deploy the repo and the generated files to Airflow. See [Deploy the generated DAGs](howto/deploy.md).
 
-[`examples/jaffle_shop`](https://github.com/datapatchbay/patchbay/tree/main/examples/jaffle_shop) is the finished version of this tutorial, with build code for Postgres. The CI of datapatchbay runs both of its DAGs against a real Postgres.
+[`examples/jaffle_shop`](https://github.com/datapatchbay/patchbay/tree/main/examples/jaffle_shop) is the finished version of this tutorial, with build code for Postgres. The integration tests of datapatchbay run both of its DAGs in Airflow against a real Postgres.
 
 ## Next
 

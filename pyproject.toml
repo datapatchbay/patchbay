@@ -77,6 +77,13 @@ extra-paths = ["tests/datapatchbay"]
 # assets/build.py is a standalone script with its own dependencies (fontTools, Pillow).
 include = ["src", "tests"]
 
+# tests/airflow/*.py run inside the Airflow container, where airflow and psycopg2 are installed, not in this environment.
+[[tool.ty.overrides]]
+include = ["tests/airflow/*.py"]
+
+[tool.ty.overrides.rules]
+import-not-found = "ignore"
+
 [tool.ty.terminal]
 error-on-warning = true
 

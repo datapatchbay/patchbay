@@ -28,7 +28,7 @@ uv run ruff check            # lint
 uv run ruff format --check   # formatting; drop --check to fix
 ```
 
-CI runs the tests on Python 3.12, 3.13 and 3.14. It also loads the generated DAGs in Airflow 3 and runs the example repo end to end. CI does not run `dbt parse` on the generated dbt files: `scripts/integration-tests` does (ADR-0020), so run it before pushing a change to them.
+CI runs the unit tests on Python 3.12, 3.13 and 3.14, ty and ruff. The integration tests need Docker and run with `scripts/integration-tests` (ADR-0020): they apply the generated SQL to a real Postgres, run `dbt parse` on the generated dbt files, load the generated DAGs in Airflow 3, and run the example repo end to end. Run them before pushing a change to the Postgres SQL, the generated DAGs or the generated dbt files.
 
 ## Follow the standards
 
