@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Refuses a push that would fail CI on ruff, ty or the unit tests. Enable once per clone with
+# `git config core.hooksPath .githooks`. Skip it for one push with `git push --no-verify`.
+exec "$(git rev-parse --show-toplevel)/scripts/check"
