@@ -54,6 +54,8 @@ The generated DAG files do not import datapatchbay, so do not install it on Airf
 | `apache-airflow-providers-docker` | Tables with `runtime: docker` |
 | `apache-airflow-providers-cncf-kubernetes` | Tables with `runtime: kubernetes` |
 
+The `dagster` orchestrator needs Dagster and a resource that connects to the warehouse; see [Run data products in Dagster](howto/dagster.md). The `local` orchestrator needs Python and the driver of the warehouse; see [Run a data product without an orchestrator](howto/local.md).
+
 A data product with tables built by dbt also needs the `dbt` command on the worker. See [dbt on the worker](settings.md#dbt-on-the-worker).
 
 ## Upgrade

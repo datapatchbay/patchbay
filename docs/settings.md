@@ -88,10 +88,12 @@ datapatchbay has four extension points:
 
 | Extension point | Built in |
 | --- | --- |
-| Orchestrator | Airflow 3 |
+| Orchestrator | Airflow 3, Dagster, local |
 | Executor | Python, dbt |
 | Runtime | Worker, Docker, Kubernetes |
 | Warehouse | Postgres, DuckDB |
+
+The `airflow` orchestrator is the default. `dagster` writes Dagster definitions ([Run data products in Dagster](howto/dagster.md)) and `local` writes a script per data product that needs no orchestrator ([Run a data product without an orchestrator](howto/local.md)). Both support the `worker` runtime only: `dpb generate` fails for a table on `docker` or `kubernetes`.
 
 The `duckdb` warehouse writes the audit tasks of quality rules, the same as Postgres. It also writes the `apply_access` task, which makes each output port real: a schema per output port, dropped and created again on every apply, holding one view per table over the table in the private schema, with the columns of the table file. A PII column shows NULL in the view and no grants are written ([ADR-0021](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0021-duckdb-enforces-no-access.md)). It is the warehouse that the unit tests of datapatchbay run against (ADR-0020).
 

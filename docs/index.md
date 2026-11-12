@@ -126,6 +126,8 @@ tutorial
 
 howto/ci
 howto/deploy
+howto/local
+howto/dagster
 howto/access
 howto/dbt
 howto/containers
