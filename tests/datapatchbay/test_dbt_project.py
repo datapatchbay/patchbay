@@ -5,6 +5,7 @@ from plugin_fakes import FakeOrchestrator, register
 from test_dbt import DP, MODEL, TABLE_YAML, write
 
 from datapatchbay.generate import GenerationError, generate_repo
+from datapatchbay.plugins import UnsupportedCombinationError
 
 PROJECT = "dbt_project.yml"
 
@@ -83,3 +84,54 @@ def test_a_missing_model_paths_key_is_added_at_the_end(dbt_repo: Path):
     (dbt_repo / PROJECT).write_text("name: lab\nprofile: lab\n")
     generate_repo(dbt_repo)
     assert (dbt_repo / PROJECT).read_text() == f"name: lab\nprofile: lab\nmodel-paths:\n  - {DP}/models\n"
+
+
+def test_a_file_already_in_step_is_not_rewritten(dbt_repo: Path):
+    (dbt_repo / PROJECT).write_text(HEADER.replace('["models"]', f"[{DP}/models]"))
+    before = (dbt_repo / PROJECT).stat().st_mtime_ns
+    generate_repo(dbt_repo)
+    assert (dbt_repo / PROJECT).stat().st_mtime_ns == before
+
+
+def test_a_scalar_model_paths_is_replaced_by_the_list(dbt_repo: Path):
+    (dbt_repo / PROJECT).write_text("name: lab\nmodel-paths: models\n")
+    generate_repo(dbt_repo)
+    assert (dbt_repo / PROJECT).read_text() == f"name: lab\nmodel-paths:\n  - {DP}/models\n"
+
+
+def test_a_dbt_project_that_is_not_a_mapping_fails_naming_the_file(dbt_repo: Path):
+    (dbt_repo / PROJECT).write_text("- just\n- a list\n")
+    with pytest.raises(GenerationError, match=r"dbt_project\.yml"):
+        generate_repo(dbt_repo)
+    assert not (dbt_repo / "generated").exists()
+
+
+def test_an_invalid_repo_leaves_dbt_project_and_output_alone(dbt_repo: Path):
+    (dbt_repo / DP / "dataproduct.yaml").write_text("schema_version: 1\nname: broken\n")
+    assert not generate_repo(dbt_repo).report.ok
+    assert (dbt_repo / PROJECT).read_text() == HEADER
+    assert not (dbt_repo / "generated").exists()
+
+
+def test_a_failing_orchestrator_leaves_dbt_project_and_output_alone(dbt_repo: Path, monkeypatch: pytest.MonkeyPatch):
+    def fail(self, plan, context):
+        raise UnsupportedCombinationError("nope")
+
+    monkeypatch.setattr(FakeOrchestrator, "generate", fail)
+    with pytest.raises(GenerationError, match="nope"):
+        generate_repo(dbt_repo)
+    assert (dbt_repo / PROJECT).read_text() == HEADER
+    assert not (dbt_repo / "generated").exists()
+
+
+def test_a_failed_output_write_leaves_dbt_project_as_it_was(dbt_repo: Path):
+    (dbt_repo / "generated").write_text("a file where the output folder should be\n")
+    with pytest.raises(OSError, match="generated"):
+        generate_repo(dbt_repo)
+    assert (dbt_repo / PROJECT).read_text() == HEADER
+
+
+def test_output_option_does_not_move_dbt_project(dbt_repo: Path, tmp_path: Path):
+    generate_repo(dbt_repo, output_dir=tmp_path / "out")
+    assert not (tmp_path / "out" / PROJECT).exists()
+    assert f"{DP}/models" in (dbt_repo / PROJECT).read_text()
