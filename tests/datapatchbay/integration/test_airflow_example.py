@@ -31,5 +31,6 @@ def test_example_runs_in_airflow_and_roles_read_the_output_ports(
         "ok: a PII reader sees the value",
         "ok: a role that is not a reader cannot read the output port",
         "ok: a reader cannot read the private schema",
+        "ok: dbt ran 4 data tests and all passed",  # `build_dbt` ran the real `dbt build` in the container
     ):
         assert line in result.stdout
