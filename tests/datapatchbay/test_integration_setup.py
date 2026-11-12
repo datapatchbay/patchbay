@@ -28,11 +28,7 @@ def test_plain_pytest_does_not_run_the_integration_tests():
 
 def test_the_integration_marker_selects_every_test_of_the_integration_folder():
     files = {test.split("::")[0] for test in collect("-m", "integration", str(INTEGRATION))}
-    assert files == {
-        "tests/datapatchbay/integration/test_dbt_build.py",
-        "tests/datapatchbay/integration/test_postgres_access.py",
-        "tests/datapatchbay/integration/test_postgres_audit.py",
-    }
+    assert files == {str(f.relative_to(ROOT)) for f in INTEGRATION.glob("test_*.py")}
 
 
 def test_the_one_command_is_executable():

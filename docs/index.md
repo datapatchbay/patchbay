@@ -13,21 +13,21 @@ The command is `dpb`, and the project is licensed under Apache 2.0.
 An output port is a folder with a `port.yaml`. The file states how fresh the data is and who may read it:
 
 ```yaml
-# dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml
+# dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml
 schema_version: 1
 kind: schema
 freshness: 24h
 access:
   readers:
-    - grp-lab-reporting
-    - product: agg_lab_turnaround
-  pii_readers: [grp-lab-doctors]
+    - grp-shop-reporting
+    - product: agg_order_turnaround
+  pii_readers: [grp-shop-support]
 ```
 
 Three commands take a data product from nothing to a DAG:
 
 ```console
-$ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --no-input
+$ dpb new --name jaffle_orders --kind source-aligned --owner "Jane Doe" --source jaffle_shop --no-input
 $ dpb validate
 ok: 1 data product(s) valid
 $ dpb generate
@@ -109,7 +109,7 @@ One two-person data team, one source, and two data products running in productio
 ## Getting help
 
 - Ask a question or report a bug in the [GitHub issues](https://github.com/datapatchbay/patchbay/issues).
-- The source is at [github.com/datapatchbay/patchbay](https://github.com/datapatchbay/patchbay). [`examples/lab`](https://github.com/datapatchbay/patchbay/tree/main/examples/lab) is a finished repo with two data products.
+- The source is at [github.com/datapatchbay/patchbay](https://github.com/datapatchbay/patchbay). [`examples/jaffle_shop`](https://github.com/datapatchbay/patchbay/tree/main/examples/jaffle_shop) is a finished repo with two data products.
 - To change datapatchbay itself, see [Contributing](contributing.md).
 
 ```{toctree}

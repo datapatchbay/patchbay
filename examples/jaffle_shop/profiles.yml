@@ -1,0 +1,14 @@
+# The connection of dbt, read from the environment of the machine that runs it. The defaults let `dbt parse` run
+# without a server; `dbt build` needs the real values.
+jaffle_shop:
+  target: warehouse
+  outputs:
+    warehouse:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      user: "{{ env_var('PGUSER', 'postgres') }}"
+      password: "{{ env_var('PGPASSWORD', '') }}"
+      dbname: "{{ env_var('PGDATABASE', 'postgres') }}"
+      schema: public
+      threads: 1

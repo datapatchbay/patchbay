@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-DP = "dataproducts/sa_ilab_orders"
-READER = "dataproducts/agg_lab_turnaround"
+DP = "dataproducts/sa_jaffle_orders"
+READER = "dataproducts/agg_order_turnaround"
 
 FILES = {
     "datapatchbay.yaml": (
@@ -12,24 +12,24 @@ FILES = {
     ),
     f"{DP}/dataproduct.yaml": """\
 schema_version: 1
-name: ilab_orders
+name: jaffle_orders
 kind: source-aligned
-domain: lab
+domain: shop
 owner: Jane Doe
 technical_owner: Joe Dev
-description: Orders from iLab
+description: Orders from the jaffle shop
 severity: warning
 orchestrator: prefect
-inputs: [sa_ilab_orders_private]
-outputs: [sa_ilab_orders]
+inputs: [sa_jaffle_orders_private]
+outputs: [sa_jaffle_orders]
 """,
-    f"{DP}/inputs/sa_ilab_orders_private/port.yaml": """\
+    f"{DP}/inputs/sa_jaffle_orders_private/port.yaml": """\
 schema_version: 1
 kind: schema
-source: ilab
+source: jaffle_shop
 schedule: "0 5 * * *"
 """,
-    f"{DP}/inputs/sa_ilab_orders_private/ingested.yaml": """\
+    f"{DP}/inputs/sa_jaffle_orders_private/ingested.yaml": """\
 schema_version: 1
 name: ingested_orders
 columns:
@@ -38,21 +38,21 @@ columns:
 build:
   entrypoint: src/ingested.py:build
 """,
-    f"{DP}/outputs/sa_ilab_orders/port.yaml": """\
+    f"{DP}/outputs/sa_jaffle_orders/port.yaml": """\
 schema_version: 1
 kind: schema
 freshness: 24h
 runtime: kubernetes
 access:
   readers:
-    - grp-lab-reporting
-    - product: agg_lab_turnaround
-  pii_readers: [grp-lab-doctors]
+    - grp-shop-reporting
+    - product: agg_order_turnaround
+  pii_readers: [grp-shop-support]
 """,
-    f"{DP}/outputs/sa_ilab_orders/orders.yaml": """\
+    f"{DP}/outputs/sa_jaffle_orders/orders.yaml": """\
 schema_version: 1
 name: orders
-description: One row per lab order
+description: One row per jaffle shop order
 columns:
   - name: order_id
     type: text
@@ -79,9 +79,9 @@ build:
     f"{DP}/src/ingested.py": "def build(): ...\n",
     f"{DP}/src/orders.py": "def build(): ...\n",
     f"{READER}/dataproduct.yaml": (
-        "schema_version: 1\nname: lab_turnaround\nkind: aggregate\nowner: Ann\ninputs: [sa_ilab_orders]\n"
+        "schema_version: 1\nname: order_turnaround\nkind: aggregate\nowner: Ann\ninputs: [sa_jaffle_orders]\n"
     ),
-    f"{READER}/inputs/sa_ilab_orders/port.yaml": "schema_version: 1\nfrom: sa_ilab_orders\n",
+    f"{READER}/inputs/sa_jaffle_orders/port.yaml": "schema_version: 1\nfrom: sa_jaffle_orders\n",
 }
 
 
@@ -95,7 +95,7 @@ def sample_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-LAB_REPO = Path(__file__).parents[1] / "airflow" / "repo"
+JAFFLE_REPO = Path(__file__).parents[1] / "airflow" / "repo"
 
 
 DBT_FIXTURE = frozenset({"dbt_project.yml", "models", "weekly_summary.yaml"})
@@ -103,19 +103,19 @@ DBT_FIXTURE = frozenset({"dbt_project.yml", "models", "weekly_summary.yaml"})
 
 
 @pytest.fixture
-def lab_repo(tmp_path: Path) -> Path:
+def jaffle_repo(tmp_path: Path) -> Path:
     """A copy of the valid fixture repo that CI also loads in Airflow, without its table built by dbt.
 
     A source-fed data product and its reader, and a data product that mixes runtimes.
     """
     root = tmp_path / "repo"
-    shutil.copytree(LAB_REPO, root, ignore=lambda _folder, names: DBT_FIXTURE.intersection(names))
+    shutil.copytree(JAFFLE_REPO, root, ignore=lambda _folder, names: DBT_FIXTURE.intersection(names))
     return root
 
 
 @pytest.fixture
-def lab_dbt_repo(tmp_path: Path) -> Path:
-    """A copy of the whole fixture repo, where `agg_lab_weekly` also has a table that dbt builds."""
+def jaffle_dbt_repo(tmp_path: Path) -> Path:
+    """A copy of the whole fixture repo, where `agg_weekly_orders` also has a table that dbt builds."""
     root = tmp_path / "repo"
-    shutil.copytree(LAB_REPO, root)
+    shutil.copytree(JAFFLE_REPO, root)
     return root

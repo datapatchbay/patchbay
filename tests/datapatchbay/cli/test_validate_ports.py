@@ -11,19 +11,19 @@ from datapatchbay.cli import app
 
 Writer = Callable[[str, str], Path]
 
-DP = "dataproducts/sa_ilab_orders"
-OUT = f"{DP}/outputs/sa_ilab_orders"
-PRIVATE = f"{DP}/inputs/sa_ilab_orders_private"
-READER_DP = "dataproducts/agg_lab_turnaround"
-READER_PORT = f"{READER_DP}/inputs/sa_ilab_orders/port.yaml"
+DP = "dataproducts/sa_jaffle_orders"
+OUT = f"{DP}/outputs/sa_jaffle_orders"
+PRIVATE = f"{DP}/inputs/sa_jaffle_orders_private"
+READER_DP = "dataproducts/agg_order_turnaround"
+READER_PORT = f"{READER_DP}/inputs/sa_jaffle_orders/port.yaml"
 
 DATAPRODUCT = """\
 schema_version: 1
-name: ilab_orders
+name: jaffle_orders
 kind: source-aligned
 owner: Jane Doe
-inputs: [sa_ilab_orders_private]
-outputs: [sa_ilab_orders]
+inputs: [sa_jaffle_orders_private]
+outputs: [sa_jaffle_orders]
 """
 OUTPUT_PORT = """\
 schema_version: 1
@@ -31,18 +31,18 @@ kind: schema
 freshness: 24h
 access:
   readers:
-    - grp-lab-reporting
-    - product: agg_lab_turnaround
-  pii_readers: [grp-lab-doctors]
+    - grp-shop-reporting
+    - product: agg_order_turnaround
+  pii_readers: [grp-shop-support]
 """
 SOURCE_PORT = """\
 schema_version: 1
 kind: schema
-source: ilab
+source: jaffle_shop
 schedule: "0 5 * * *"
 """
-READER_PRODUCT = "schema_version: 1\nname: lab_turnaround\nkind: aggregate\nowner: o\ninputs: [sa_ilab_orders]\n"
-FROM_PORT = "schema_version: 1\nfrom: sa_ilab_orders\n"
+READER_PRODUCT = "schema_version: 1\nname: order_turnaround\nkind: aggregate\nowner: o\ninputs: [sa_jaffle_orders]\n"
+FROM_PORT = "schema_version: 1\nfrom: sa_jaffle_orders\n"
 INGESTED = """\
 schema_version: 1
 name: ingested_orders
@@ -56,12 +56,12 @@ build:
 ORDERS = """\
 schema_version: 1
 name: orders
-description: One row per lab order
+description: One row per jaffle shop order
 columns:
   - name: order_id
     type: text
     rules: [not_null, unique]
-  - name: patient_id
+  - name: customer_id
     type: text
     pii: true
   - name: status
@@ -93,9 +93,11 @@ build:
 def product(write_file: Writer) -> None:
     """A valid data product with a private input port and a default output port.
 
-    Its output port lists `agg_lab_turnaround` as a reader, so that data product exists too, without any input.
+    Its output port lists `agg_order_turnaround` as a reader, so that data product exists too, without any input.
     """
-    write_file(f"{READER_DP}/dataproduct.yaml", "schema_version: 1\nname: lab_turnaround\nkind: aggregate\nowner: o\n")
+    write_file(
+        f"{READER_DP}/dataproduct.yaml", "schema_version: 1\nname: order_turnaround\nkind: aggregate\nowner: o\n"
+    )
     write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT)
     write_file(f"{PRIVATE}/port.yaml", SOURCE_PORT)
     write_file(f"{PRIVATE}/ingested_orders.yaml", INGESTED)
@@ -139,7 +141,7 @@ def test_freshness_on_input_port_fails_naming_the_other_form(runner: CliRunner, 
 
 
 def test_source_on_output_port_fails(runner: CliRunner, product: None, write_file: Writer):
-    write_file(f"{OUT}/port.yaml", OUTPUT_PORT + "source: ilab\n")
+    write_file(f"{OUT}/port.yaml", OUTPUT_PORT + "source: jaffle_shop\n")
     expect_problem(runner, f"{OUT}/port.yaml", 9, "'source' belongs to an input port")
 
 
@@ -202,7 +204,7 @@ def test_reader_entry_with_unknown_key_fails(runner: CliRunner, product: None, w
 
 
 def test_listed_port_without_folder_fails_at_list_item(runner: CliRunner, product: None, write_file: Writer):
-    write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT.replace("[sa_ilab_orders]", "[sa_ilab_orders, sa_extra]"))
+    write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT.replace("[sa_jaffle_orders]", "[sa_jaffle_orders, sa_extra]"))
     expect_problem(runner, f"{DP}/dataproduct.yaml", 6, "'sa_extra'")
 
 
@@ -218,7 +220,9 @@ def test_listed_port_folder_without_port_file_fails(runner: CliRunner, product: 
 
 
 def test_duplicate_port_in_list_fails(runner: CliRunner, product: None, write_file: Writer):
-    write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT.replace("[sa_ilab_orders]", "[sa_ilab_orders, sa_ilab_orders]"))
+    write_file(
+        f"{DP}/dataproduct.yaml", DATAPRODUCT.replace("[sa_jaffle_orders]", "[sa_jaffle_orders, sa_jaffle_orders]")
+    )
     expect_problem(runner, f"{DP}/dataproduct.yaml", 6, "more than once")
 
 
@@ -243,7 +247,7 @@ def test_table_port_with_one_table_file_passes(runner: CliRunner, product: None,
 
 
 def test_input_port_reading_a_product_with_table_file_fails(runner: CliRunner, reader: None, write_file: Writer):
-    table = f"{READER_DP}/inputs/sa_ilab_orders/t.yaml"
+    table = f"{READER_DP}/inputs/sa_jaffle_orders/t.yaml"
     write_file(table, ORDERS)
     expect_problem(runner, table, 1, "no table files")
 
@@ -257,25 +261,25 @@ def test_from_must_name_existing_output_port(runner: CliRunner, reader: None, wr
 
 
 def test_from_must_name_port_of_another_data_product(runner: CliRunner, product: None, write_file: Writer):
-    write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT.replace("[sa_ilab_orders_private]", "[loop]"))
+    write_file(f"{DP}/dataproduct.yaml", DATAPRODUCT.replace("[sa_jaffle_orders_private]", "[loop]"))
     (Path.cwd() / PRIVATE / "port.yaml").unlink()
     (Path.cwd() / PRIVATE / "ingested_orders.yaml").unlink()
-    write_file(f"{DP}/inputs/loop/port.yaml", "schema_version: 1\nfrom: sa_ilab_orders\n")
+    write_file(f"{DP}/inputs/loop/port.yaml", "schema_version: 1\nfrom: sa_jaffle_orders\n")
     expect_problem(runner, f"{DP}/inputs/loop/port.yaml", 2, "another data product")
 
 
 def test_from_must_not_name_an_input_port(runner: CliRunner, reader: None, write_file: Writer):
-    write_file(READER_PORT, "schema_version: 1\nfrom: sa_ilab_orders_private\n")
-    expect_problem(runner, READER_PORT, 2, "'sa_ilab_orders_private'")
+    write_file(READER_PORT, "schema_version: 1\nfrom: sa_jaffle_orders_private\n")
+    expect_problem(runner, READER_PORT, 2, "'sa_jaffle_orders_private'")
 
 
 def test_reading_product_must_be_a_reader(runner: CliRunner, reader: None, write_file: Writer):
-    write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("    - product: agg_lab_turnaround\n", ""))
+    write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("    - product: agg_order_turnaround\n", ""))
     expect_problem(runner, READER_PORT, 2, "not listed in the readers")
 
 
 def test_plain_string_reader_does_not_count_as_product_reader(runner: CliRunner, reader: None, write_file: Writer):
-    write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("product: agg_lab_turnaround", "agg_lab_turnaround"))
+    write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("product: agg_order_turnaround", "agg_order_turnaround"))
     expect_problem(runner, READER_PORT, 2, "not listed in the readers")
 
 
@@ -344,7 +348,7 @@ def test_freshness_column_must_be_a_column(runner: CliRunner, product: None, wri
 
 
 def test_duplicate_column_names_fail(runner: CliRunner, product: None, write_file: Writer):
-    write_file(f"{OUT}/orders.yaml", ORDERS.replace("name: patient_id", "name: order_id"))
+    write_file(f"{OUT}/orders.yaml", ORDERS.replace("name: customer_id", "name: order_id"))
     expect_problem(runner, f"{OUT}/orders.yaml", 4, "order_id")
 
 
@@ -364,7 +368,7 @@ def test_same_table_name_in_different_data_products_is_fine(runner: CliRunner, p
         f"{other}/dataproduct.yaml",
         "schema_version: 1\nname: other\nkind: source-aligned\nowner: o\noutputs: [sa_other]\n",
     )
-    write_file(f"{other}/outputs/sa_other/port.yaml", OUTPUT_PORT.replace("    - product: agg_lab_turnaround\n", ""))
+    write_file(f"{other}/outputs/sa_other/port.yaml", OUTPUT_PORT.replace("    - product: agg_order_turnaround\n", ""))
     write_file(f"{other}/outputs/sa_other/orders.yaml", ORDERS.replace("  needs: [ingested_orders]\n", ""))
     write_file(f"{other}/src/orders.py", "")
     assert problems_of(runner) == []

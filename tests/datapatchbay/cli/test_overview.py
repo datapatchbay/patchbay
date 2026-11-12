@@ -7,9 +7,9 @@ from typer.testing import CliRunner
 from datapatchbay.cli import app
 
 ORCHESTRATOR_HINT = "orchestrator can only be set in datapatchbay.yaml or dataproduct.yaml"
-OUT_PORT = "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/port.yaml"
-IN_PORT = "dataproducts/sa_ilab_orders/inputs/sa_ilab_orders_private/port.yaml"
-TABLE = "dataproducts/sa_ilab_orders/outputs/sa_ilab_orders/orders.yaml"
+OUT_PORT = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/port.yaml"
+IN_PORT = "dataproducts/sa_jaffle_orders/inputs/sa_jaffle_orders_private/port.yaml"
+TABLE = "dataproducts/sa_jaffle_orders/outputs/sa_jaffle_orders/orders.yaml"
 
 
 @pytest.fixture
@@ -21,30 +21,30 @@ def in_repo(sample_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_list_prints_every_data_product(runner: CliRunner, in_repo: Path):
     result = runner.invoke(app, ["list"])
     assert result.exit_code == 0, result.output
-    assert "agg_lab_turnaround" in result.stdout
-    assert "sa_ilab_orders" in result.stdout
+    assert "agg_order_turnaround" in result.stdout
+    assert "sa_jaffle_orders" in result.stdout
     assert "Joe Dev" in result.stdout
 
 
 def test_list_json_matches_the_content(runner: CliRunner, in_repo: Path):
     result = runner.invoke(app, ["list", "--json"])
     data = json.loads(result.stdout)
-    assert [entry["folder"] for entry in data] == ["agg_lab_turnaround", "sa_ilab_orders"]
+    assert [entry["folder"] for entry in data] == ["agg_order_turnaround", "sa_jaffle_orders"]
     assert data[1]["technical_owner"] == "Joe Dev"
 
 
 def test_describe_prints_settings_with_their_levels(runner: CliRunner, in_repo: Path):
-    result = runner.invoke(app, ["describe", "sa_ilab_orders"])
+    result = runner.invoke(app, ["describe", "sa_jaffle_orders"])
     assert result.exit_code == 0, result.output
     assert "orchestrator: prefect  (dataproduct" in result.stdout
     assert "image: registry/orders:2  (table" in result.stdout
-    assert "read by: agg_lab_turnaround" in result.stdout
+    assert "read by: agg_order_turnaround" in result.stdout
 
 
 def test_describe_json_has_the_same_content(runner: CliRunner, in_repo: Path):
-    result = runner.invoke(app, ["describe", "sa_ilab_orders", "--json"])
+    result = runner.invoke(app, ["describe", "sa_jaffle_orders", "--json"])
     data = json.loads(result.stdout)
-    assert data["outputs"][0]["read_by"] == ["agg_lab_turnaround"]
+    assert data["outputs"][0]["read_by"] == ["agg_order_turnaround"]
     assert data["outputs"][0]["tables"][0]["settings"]["image"]["level"] == "table"
 
 
@@ -52,15 +52,15 @@ def test_describe_unknown_name_names_the_data_products_that_exist(runner: CliRun
     result = runner.invoke(app, ["describe", "nope"])
     assert result.exit_code == 2
     assert "'nope'" in result.output
-    assert "agg_lab_turnaround, sa_ilab_orders" in result.output
+    assert "agg_order_turnaround, sa_jaffle_orders" in result.output
 
 
 def test_list_warns_on_stderr_when_files_have_problems(runner: CliRunner, in_repo: Path):
-    (in_repo / "dataproducts/agg_lab_turnaround/dataproduct.yaml").write_text("schema_version: 1\nbad: x\n")
+    (in_repo / "dataproducts/agg_order_turnaround/dataproduct.yaml").write_text("schema_version: 1\nbad: x\n")
     result = runner.invoke(app, ["list", "--json"])
     assert result.exit_code == 0
     assert "problem(s) found" in result.stderr
-    assert [e["folder"] for e in json.loads(result.stdout)] == ["sa_ilab_orders"]
+    assert [e["folder"] for e in json.loads(result.stdout)] == ["sa_jaffle_orders"]
 
 
 @pytest.mark.parametrize("relative", [OUT_PORT, IN_PORT])

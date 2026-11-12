@@ -12,14 +12,14 @@ import pytest
 from access_support import ORDERS, ORDERS_FILE, PORT, PORT_FILE, apply_sql
 from psycopg import sql
 
-ROLES = ("grp-lab-reporting", "grp-lab-doctors", "grp-outsider", "dp_agg_lab_turnaround", "grp-lab-former")
+ROLES = ("grp-shop-reporting", "grp-shop-support", "grp-outsider", "dp_agg_order_turnaround", "grp-shop-former")
 
 
 @pytest.fixture
-def repo(lab_repo: Path) -> Path:
-    (lab_repo / PORT).write_text(PORT_FILE)
-    (lab_repo / ORDERS).write_text(ORDERS_FILE)
-    return lab_repo
+def repo(jaffle_repo: Path) -> Path:
+    (jaffle_repo / PORT).write_text(PORT_FILE)
+    (jaffle_repo / ORDERS).write_text(ORDERS_FILE)
+    return jaffle_repo
 
 
 @pytest.fixture
@@ -40,9 +40,11 @@ def warehouse(roles: None, pg_db: psycopg.Connection) -> psycopg.Connection:
                 sql.Identifier(role)
             )
         )
-    connection.execute("CREATE SCHEMA sa_ilab_orders_private")
-    connection.execute("CREATE TABLE sa_ilab_orders_private.orders (order_id text, patient_id text, status text)")
-    connection.execute("INSERT INTO sa_ilab_orders_private.orders VALUES ('o1', 'p1', 'open'), ('o2', 'p2', 'closed')")
+    connection.execute("CREATE SCHEMA sa_jaffle_orders_private")
+    connection.execute("CREATE TABLE sa_jaffle_orders_private.orders (order_id text, customer_id text, status text)")
+    connection.execute(
+        "INSERT INTO sa_jaffle_orders_private.orders VALUES ('o1', 'p1', 'open'), ('o2', 'p2', 'closed')"
+    )
     return connection
 
 
@@ -65,8 +67,8 @@ def query_as(warehouse: psycopg.Connection) -> QueryAs:
     return query
 
 
-VIEW = "SELECT * FROM sa_ilab_orders.orders ORDER BY order_id"
-PRIVATE = "SELECT * FROM sa_ilab_orders_private.orders"
+VIEW = "SELECT * FROM sa_jaffle_orders.orders ORDER BY order_id"
+PRIVATE = "SELECT * FROM sa_jaffle_orders_private.orders"
 MASKED = [("o1", None, "open"), ("o2", None, "closed")]
 UNMASKED = [("o1", "p1", "open"), ("o2", "p2", "closed")]
 
@@ -75,18 +77,18 @@ def test_a_reader_sees_null_in_a_pii_column_and_a_pii_reader_sees_the_value(
     repo: Path, warehouse: psycopg.Connection, query_as: QueryAs
 ):
     run(warehouse, apply_sql(repo))
-    assert query_as("grp-lab-reporting", VIEW) == MASKED
-    assert query_as("grp-lab-doctors", VIEW) == UNMASKED
+    assert query_as("grp-shop-reporting", VIEW) == MASKED
+    assert query_as("grp-shop-support", VIEW) == UNMASKED
 
 
 def test_a_product_reader_reads_through_the_role_of_its_data_product(
     repo: Path, warehouse: psycopg.Connection, query_as: QueryAs
 ):
     run(warehouse, apply_sql(repo))
-    assert query_as("dp_agg_lab_turnaround", VIEW) == MASKED
+    assert query_as("dp_agg_order_turnaround", VIEW) == MASKED
 
 
-@pytest.mark.parametrize("role", ["grp-lab-reporting", "grp-lab-doctors", "dp_agg_lab_turnaround"])
+@pytest.mark.parametrize("role", ["grp-shop-reporting", "grp-shop-support", "dp_agg_order_turnaround"])
 def test_nobody_is_granted_access_to_the_private_schema(
     repo: Path, warehouse: psycopg.Connection, query_as: QueryAs, role: str
 ):
@@ -105,29 +107,29 @@ def test_applying_again_gives_the_same_result(repo: Path, warehouse: psycopg.Con
     statements = apply_sql(repo)
     run(warehouse, statements)
     run(warehouse, statements)
-    assert query_as("grp-lab-reporting", VIEW) == MASKED
-    assert query_as("grp-lab-doctors", VIEW) == UNMASKED
+    assert query_as("grp-shop-reporting", VIEW) == MASKED
+    assert query_as("grp-shop-support", VIEW) == UNMASKED
 
 
 def test_a_removed_reader_loses_access_on_the_next_apply(repo: Path, warehouse: psycopg.Connection, query_as: QueryAs):
-    (repo / PORT).write_text(PORT_FILE.replace("grp-lab-reporting", "grp-lab-former"))
+    (repo / PORT).write_text(PORT_FILE.replace("grp-shop-reporting", "grp-shop-former"))
     run(warehouse, apply_sql(repo))
-    assert query_as("grp-lab-former", VIEW) == MASKED
+    assert query_as("grp-shop-former", VIEW) == MASKED
     (repo / PORT).write_text(PORT_FILE)
     run(warehouse, apply_sql(repo))
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        query_as("grp-lab-former", VIEW)
-    assert query_as("grp-lab-reporting", VIEW) == MASKED
+        query_as("grp-shop-former", VIEW)
+    assert query_as("grp-shop-reporting", VIEW) == MASKED
 
 
 def test_a_removed_pii_reader_loses_access_on_the_next_apply(
     repo: Path, warehouse: psycopg.Connection, query_as: QueryAs
 ):
     run(warehouse, apply_sql(repo))
-    (repo / PORT).write_text(PORT_FILE.replace("pii_readers: [grp-lab-doctors]", "pii_readers: []"))
+    (repo / PORT).write_text(PORT_FILE.replace("pii_readers: [grp-shop-support]", "pii_readers: []"))
     run(warehouse, apply_sql(repo))
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        query_as("grp-lab-doctors", VIEW)
+        query_as("grp-shop-support", VIEW)
 
 
 def test_a_column_removed_from_the_table_file_applies_cleanly(
@@ -136,12 +138,12 @@ def test_a_column_removed_from_the_table_file_applies_cleanly(
     run(warehouse, apply_sql(repo))
     (repo / ORDERS).write_text(ORDERS_FILE.replace("  - name: status\n    type: text\n", ""))
     run(warehouse, apply_sql(repo))
-    assert query_as("grp-lab-doctors", VIEW) == [("o1", "p1"), ("o2", "p2")]
+    assert query_as("grp-shop-support", VIEW) == [("o1", "p1"), ("o2", "p2")]
 
 
 def test_a_failing_apply_changes_nothing(repo: Path, warehouse: psycopg.Connection, query_as: QueryAs):
     run(warehouse, apply_sql(repo))
-    (repo / PORT).write_text(PORT_FILE.replace("grp-lab-reporting", "grp-does-not-exist"))
+    (repo / PORT).write_text(PORT_FILE.replace("grp-shop-reporting", "grp-does-not-exist"))
     with pytest.raises(psycopg.errors.UndefinedObject):
         run(warehouse, apply_sql(repo))
-    assert query_as("grp-lab-reporting", VIEW) == MASKED
+    assert query_as("grp-shop-reporting", VIEW) == MASKED

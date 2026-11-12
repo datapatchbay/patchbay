@@ -2,7 +2,7 @@
 
 | Command | What it does |
 | --- | --- |
-| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table (a stub dbt model per table when the executor is `dbt`). Asks questions in a terminal. With `--no-input` it fails instead of asking |
+| `dpb new` | Scaffolds a data product folder that follows the conventions, with a stub function per table (a stub dbt model per table when the executor is `dbt`), or with `--from-dbt` from an existing dbt project's models and properties. Asks questions in a terminal. With `--no-input` it fails instead of asking |
 | `dpb validate` | Validates every data product. Meant for CI |
 | `dpb list` | Shows all data products with their kind, domain and owners |
 | `dpb describe` | Prints one data product with all settings resolved, for humans or agents |
@@ -31,9 +31,9 @@ Every command uses the same exit codes, so a script or CI job can act on them:
 
 ```sh
 dpb new                                                     # asks for what is missing
-dpb new --name ilab_orders --kind source-aligned --domain lab \
+dpb new --name jaffle_orders --kind source-aligned --domain sales \
   --owner "Jane Doe" --technical-owner "Joe Dev" --no-input
-dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ilab --schedule "0 5 * * *"
+dpb new --name jaffle_orders --kind source-aligned --owner "Jane Doe" --source jaffle_shop --schedule "0 5 * * *"
 ```
 
 | Flag | Meaning |
@@ -41,8 +41,21 @@ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ila
 | `--name`, `--kind`, `--domain`, `--owner`, `--technical-owner` | The answers. Each one given as a flag is not asked. `domain` and `technical-owner` can be left empty, except that `domain` is required when the conventions declare domains |
 | `--source` | Also creates the private input port, fed by this source, with a schedule and one ingested table. The example table `needs` it |
 | `--schedule` | Cron expression of the source's deliveries. Default `0 5 * * *`. Only used with `--source` |
+| `--from-dbt` | A folder with the models (`.sql`) and properties (`.yml`) of an existing dbt project. See below. Cannot be combined with `--source` |
 | `--no-input` | Never prompts. Fails with exit code 2 and lists the missing values |
-| `--json` | Prints `{"created": [...]}` on stdout: the files it created, relative to the repo root |
+| `--json` | Prints `{"created": [...]}` on stdout: the files it created, relative to the repo root. With `--from-dbt` it also has `unmapped_tests`, `skipped`, `untyped_columns` and `unrewritten_refs` |
+
+### Importing a dbt project with `--from-dbt`
+
+`dpb new --from-dbt <path>` asks for the name, kind, domain and owners as usual (`--no-input` still lists what is missing) and builds the data product from the dbt project below `<path>`, which is read recursively. The data product gets `executor: dbt`, whatever the repo's executor. For each model that has a `.sql` file and properties with at least one column it writes:
+
+- `models/<dbt_model>.sql` in the data product, named by the `dbt_model` naming template. The SQL is **copied**, not moved, so the old project keeps working until you switch over and `dpb` never deletes your files. Delete the originals when you are done, or dbt finds two models. `ref('old_name')` calls to other imported models are renamed to the new model names.
+- `outputs/<port>/<model>.yaml`, a table file with the model's description and its columns with `data_type` as `type`, `description`, and `pii` from `meta: {pii: true}`. A column without `data_type` is written as `text` and reported, because dbt would check the contract against it.
+- Quality rules from the data tests of each column: `not_null`, `unique` and `accepted_values`, with `severity: warn` as `warning`. This is the reverse of what `dpb generate` writes, so `dpb generate` then reproduces the same tests. Both `data_tests:` and the older `tests:` are read, arguments directly under the test or under `arguments:`, and `severity` directly or under `config:`. A rule gets an explicit `severity` only when it differs from the default severity in the settings. `primary_key`, `row_count` and `sql` are not imported: ADR-0019 generates them as singular tests in `tests/`, which are not tied to a model by a property, so write them by hand from your singular tests.
+
+What is not imported is reported, never dropped silently: as `not imported: <model>.<column> <test>: <reason>` lines, or in the `--json` lists. This covers data tests with no matching rule (`relationships`, package tests, tests on a whole model), tests with an option that changes what they check (`where`, `limit`, `warn_if`, `error_if`, `store_failures`, a templated severity) and `accepted_values` that hold SQL. Models without properties or columns, and properties without a `.sql` file, are listed as `skipped`, and so are properties files that are not readable YAML. The reports go to stderr. The SQL is copied with `ref('model')` renamed to the new model names; a `ref` with a package or a version (`ref('pkg', 'model')`, `ref('model', v=2)`) and a `ref` to a model that is not imported are copied as written and reported as `ref not renamed:`, so edit them by hand. A model name that is not snake_case, two models with the same name, or a `dbt_model` template that gives two models one name fails the command and writes nothing.
+
+Your hand-written properties are never touched. The ones below the new data product's `models/` folder are a duplicate of the generated ones: `dpb validate` points them out and tells you to remove them. Those elsewhere in the old project stay as they are. Run `dpb generate` afterwards to write the dbt properties and the `dbt_project.yml` paths.
 
 ## `dpb validate`
 
@@ -60,7 +73,7 @@ dpb new --name ilab_orders --kind source-aligned --owner "Jane Doe" --source ila
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
 - `kind` is one of the kinds in the conventions. `domain` is in the domain list when the list is not empty, and is accepted as written when it is empty.
-- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name is the data product's derived name or starts with it and an underscore (`sa_ilab_orders_extra`, not `sa_ilab_orders2`). An input port that reads another data product keeps the name of the output port it reads.
+- The data product folder name, its default output port name and its private port name equal what the naming templates produce from `name` and `kind`. Any further port name is the data product's derived name or starts with it and an underscore (`sa_jaffle_orders_extra`, not `sa_jaffle_orders2`). An input port that reads another data product keeps the name of the output port it reads.
 - Data product, port, table and column names are snake_case.
 - Derived data product names and port names are unique across the repo.
 - A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
@@ -81,7 +94,7 @@ With `--json`, stdout holds only this document:
   "ok": false,
   "dataproducts_checked": 1,
   "problems": [
-    {"file": "dataproducts/sa_ilab_orders/dataproduct.yaml", "line": 5, "message": "unknown key 'ownr'; ..."}
+    {"file": "dataproducts/sa_jaffle_orders/dataproduct.yaml", "line": 5, "message": "unknown key 'ownr'; ..."}
   ]
 }
 ```
@@ -118,11 +131,11 @@ With `--json`, stdout holds one object from setting name to `{"value": ..., "ori
 `dpb describe <data product>` takes the folder name or the `name` of a data product. It prints the data product with its ports, tables, columns, quality rules, freshness and readers. For each output port it also shows which data products read it (`read by`). Every setting is resolved and shown with the level it came from, for example `runtime: kubernetes  (port, dataproducts/.../port.yaml)`; a quality rule shows its severity and whether the rule or a level set it.
 
 ```text
-sa_ilab_orders  (dataproducts/sa_ilab_orders/dataproduct.yaml)
+sa_jaffle_orders  (dataproducts/sa_jaffle_orders/dataproduct.yaml)
   settings:
     executor: python  (defaults)
     runtime: docker  (root, datapatchbay.yaml)
-    orchestrator: prefect  (dataproduct, dataproducts/sa_ilab_orders/dataproduct.yaml)
+    orchestrator: prefect  (dataproduct, dataproducts/sa_jaffle_orders/dataproduct.yaml)
 ```
 
 With `--json`, stdout holds one object with the same content. Its keys are `folder`, `name`, `file`, `kind`, `domain`, `owner`, `technical_owner`, `description`, `settings`, `inputs` and `outputs`. Each port has `name`, `file`, `settings` and `tables`, plus `from` or `kind`; output ports add `freshness`, `readers`, `pii_readers` and `read_by`. Each table has `name`, `file`, `description`, `freshness_column`, `columns`, `rules`, `entrypoint`, `params`, `needs` and `settings`. Each setting is `{"value", "level", "file"}`, where `level` is `table`, `port`, `dataproduct`, `root`, `defaults` or `unset`. Each rule carries its own fields, its resolved `severity` and `severity_from`, which is `rule` when the rule sets the severity itself and otherwise the level the default came from. An unknown name fails with exit code 2 and a message naming the data products that exist.

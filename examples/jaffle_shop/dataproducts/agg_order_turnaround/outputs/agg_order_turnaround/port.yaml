@@ -1,0 +1,5 @@
+schema_version: 1
+kind: table
+freshness: 24h
+access:
+  readers: [grp-shop-management]

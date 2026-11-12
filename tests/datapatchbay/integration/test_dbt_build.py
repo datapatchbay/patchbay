@@ -14,36 +14,35 @@ from plugin_fakes import FakeOrchestrator, register
 
 from datapatchbay.generate import generate_repo
 
-NAME = "agg_lab_turnaround__turnaround"
+NAME = "agg_order_turnaround__turnaround"
 REF = f"{{{{ ref('{NAME}') }}}}"
 
 
 @pytest.fixture
-def repo(lab_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def repo(jaffle_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     register(monkeypatch, "orchestrator", "fake", FakeOrchestrator)
-    (lab_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
-    write(lab_repo, "dbt_project.yml", "name: lab\nversion: '1.0.0'\nprofile: lab\n")
-    product = lab_repo / DP / "dataproduct.yaml"
+    (jaffle_repo / "datapatchbay.yaml").write_text("schema_version: 1\norchestrator: fake\n")
+    write(jaffle_repo, "dbt_project.yml", "name: jaffle_shop\nversion: '1.0.0'\nprofile: jaffle_shop\n")
+    product = jaffle_repo / DP / "dataproduct.yaml"
     product.write_text(product.read_text() + "executor: dbt\n")
-    write(lab_repo, TABLE, TABLE_YAML)
-    write(lab_repo, MODEL, "select 1 as days\n")
-    return lab_repo
+    write(jaffle_repo, TABLE, TABLE_YAML)
+    write(jaffle_repo, MODEL, "select 1 as days\n")
+    return jaffle_repo
 
 
 def with_rules(repo: Path, rules: str) -> None:
     write(repo, TABLE, TABLE_YAML + "rules:\n" + rules)
 
 
-@pytest.mark.dbt
 def test_dbt_build_runs_the_generated_tests_against_postgres(repo: Path, tmp_path: Path):
     dbt = shutil.which("dbt")
     url = os.environ.get("DPB_TEST_POSTGRES_URL")
     if url is None:
         pytest.fail("DPB_TEST_POSTGRES_URL is not set; run the integration tests with scripts/integration-tests")
-    if dbt is None and os.environ.get("DPB_REQUIRE_DBT"):
-        pytest.fail("dbt is missing but DPB_REQUIRE_DBT is set, so this test would silently not run")
     if dbt is None:
-        pytest.skip("dbt is not installed (dependency group `dbt`)")
+        pytest.fail(
+            "dbt is not installed (dependency group `dbt`); run the integration tests with scripts/integration-tests"
+        )
     parsed = urlparse(url)
     write(repo, MODEL, "select 1::numeric as days union all select 1::numeric\n")  # the key `days` repeats
     with_rules(
@@ -57,7 +56,7 @@ def test_dbt_build_runs_the_generated_tests_against_postgres(repo: Path, tmp_pat
     write(
         profiles,
         "profiles.yml",
-        "lab:\n  target: dev\n  outputs:\n    dev:\n"
+        "jaffle_shop:\n  target: dev\n  outputs:\n    dev:\n"
         f"      {{type: postgres, host: '{parsed.hostname}', port: {parsed.port or 5432}, user: '{parsed.username}', "
         f"password: '{parsed.password}', dbname: '{parsed.path.lstrip('/')}', "
         f"schema: dpb_test_{uuid.uuid4().hex[:8]}, threads: 1}}\n",

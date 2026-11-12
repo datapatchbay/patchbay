@@ -17,16 +17,17 @@ container="$(docker run --detach --rm \
   postgres:17)"
 trap 'docker stop --time 5 "$container" >/dev/null 2>&1 || true' EXIT
 
+ready() { docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null 2>&1; }
+
 echo "integration-tests: waiting for Postgres in container ${container:0:12}"
 for _ in $(seq 1 60); do
   # The image restarts the server once after initialising; two successful queries in a row mean it is final.
-  if docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null 2>&1 \
-    && sleep 1 && docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null 2>&1; then
+  if ready && sleep 1 && ready; then
     break
   fi
   sleep 1
 done
-docker exec "$container" psql -U postgres -tAc 'select 1' >/dev/null
+ready
 
 port="$(docker port "$container" 5432/tcp | head -n 1 | sed 's/.*://')"
 export DPB_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${port}/postgres"

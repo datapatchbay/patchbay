@@ -68,7 +68,7 @@ def render_name(
         template: The naming template, for example `"{kind.prefix}_{name}"`.
 
     Keyword Args:
-        name: The data product's bare name, for example `"ilab_orders"`.
+        name: The data product's bare name, for example `"jaffle_orders"`.
         kind_name: The name of the data product's kind, for example `"source-aligned"`.
         kind: The convention of that kind, which holds its prefix.
         extra: Values of further placeholders, such as `{"table": "orders"}` for the `dbt_model` template.

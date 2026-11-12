@@ -90,5 +90,5 @@ Without the manifest, `dpb validate` fails and says to run `dbt parse`.
 A new reader of an output port is a change to that port's `port.yaml`. To make sure that the owner of the data product reviews it, give the folder a code owner. On GitHub, in `.github/CODEOWNERS`:
 
 ```text
-/dataproducts/sa_ilab_orders/  @your-org/lab-team
+/dataproducts/sa_jaffle_orders/  @your-org/shop-team
 ```

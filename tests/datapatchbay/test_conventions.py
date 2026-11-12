@@ -7,7 +7,7 @@ from datapatchbay.validation import validate_repo
 
 Writer = Callable[[str, str], Path]
 
-DP = "dataproducts/sa_ilab_orders"
+DP = "dataproducts/sa_jaffle_orders"
 SOURCE_PORT = "schema_version: 1\nkind: schema\nsource: s\nschedule: '0 5 * * *'\n"
 OUTPUT_PORT = "schema_version: 1\nkind: schema\n"
 TABLE = """\
@@ -34,7 +34,7 @@ def write(tmp_path: Path) -> Writer:
     return write_file
 
 
-def product_yaml(name: str = "ilab_orders", kind: str = "source-aligned", extra: str = "") -> str:
+def product_yaml(name: str = "jaffle_orders", kind: str = "source-aligned", extra: str = "") -> str:
     return f"schema_version: 1\nname: {name}\nkind: {kind}\nowner: o\n{extra}"
 
 
@@ -49,11 +49,11 @@ def has_problem(root: Path, file: str, line: int | None, text: str) -> bool:
 def test_conforming_data_product_passes(tmp_path: Path, write: Writer):
     write(
         f"{DP}/dataproduct.yaml",
-        product_yaml(extra="inputs: [sa_ilab_orders_private]\noutputs: [sa_ilab_orders, sa_ilab_orders_extra]\n"),
+        product_yaml(extra="inputs: [sa_jaffle_orders_private]\noutputs: [sa_jaffle_orders, sa_jaffle_orders_extra]\n"),
     )
-    write(f"{DP}/inputs/sa_ilab_orders_private/port.yaml", SOURCE_PORT)
-    write(f"{DP}/outputs/sa_ilab_orders/port.yaml", OUTPUT_PORT)
-    write(f"{DP}/outputs/sa_ilab_orders_extra/port.yaml", OUTPUT_PORT)
+    write(f"{DP}/inputs/sa_jaffle_orders_private/port.yaml", SOURCE_PORT)
+    write(f"{DP}/outputs/sa_jaffle_orders/port.yaml", OUTPUT_PORT)
+    write(f"{DP}/outputs/sa_jaffle_orders_extra/port.yaml", OUTPUT_PORT)
     assert problems(tmp_path) == []
 
 
@@ -65,8 +65,8 @@ def test_unknown_kind_fails_listing_declared_kinds(tmp_path: Path, write: Writer
 
 def test_domain_must_be_in_declared_list(tmp_path: Path, write: Writer):
     write("datapatchbay.yaml", "schema_version: 1\nconventions:\n  domains: [finance, sales]\n")
-    write(f"{DP}/dataproduct.yaml", product_yaml(extra="domain: lab\n"))
-    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "domain 'lab'")
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="domain: shop\n"))
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "domain 'shop'")
 
 
 def test_declared_domain_is_accepted(tmp_path: Path, write: Writer):
@@ -81,8 +81,8 @@ def test_any_domain_is_accepted_when_the_list_is_empty(tmp_path: Path, write: Wr
 
 
 def test_folder_name_must_equal_the_derived_name(tmp_path: Path, write: Writer):
-    write("dataproducts/ilab_orders/dataproduct.yaml", product_yaml())
-    assert has_problem(tmp_path, "dataproducts/ilab_orders/dataproduct.yaml", 2, "must be named 'sa_ilab_orders'")
+    write("dataproducts/jaffle_orders/dataproduct.yaml", product_yaml())
+    assert has_problem(tmp_path, "dataproducts/jaffle_orders/dataproduct.yaml", 2, "must be named 'sa_jaffle_orders'")
 
 
 def test_default_output_port_must_be_the_derived_name(tmp_path: Path, write: Writer):
@@ -94,42 +94,42 @@ def test_default_output_port_must_be_the_derived_name(tmp_path: Path, write: Wri
 def test_private_port_must_be_the_derived_name_or_start_with_it(tmp_path: Path, write: Writer):
     write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [landing]\n"))
     write(f"{DP}/inputs/landing/port.yaml", SOURCE_PORT)
-    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "private port 'sa_ilab_orders_private'")
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "private port 'sa_jaffle_orders_private'")
 
 
 def test_a_further_port_needs_an_underscore_after_the_derived_name(tmp_path: Path, write: Writer):
-    write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [sa_ilab_orders2]\n"))
-    write(f"{DP}/inputs/sa_ilab_orders2/port.yaml", SOURCE_PORT)
-    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "private port 'sa_ilab_orders_private'")
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [sa_jaffle_orders2]\n"))
+    write(f"{DP}/inputs/sa_jaffle_orders2/port.yaml", SOURCE_PORT)
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "private port 'sa_jaffle_orders_private'")
 
 
 def test_the_derived_name_itself_is_a_valid_port_name(tmp_path: Path, write: Writer):
-    write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [sa_ilab_orders]\n"))
-    write(f"{DP}/inputs/sa_ilab_orders/port.yaml", SOURCE_PORT)
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="inputs: [sa_jaffle_orders]\n"))
+    write(f"{DP}/inputs/sa_jaffle_orders/port.yaml", SOURCE_PORT)
     assert not [p for p in validate_repo(tmp_path).problems if "private port" in p.message]
 
 
 def test_input_port_reading_another_data_product_keeps_its_name(tmp_path: Path, write: Writer):
-    write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_ilab_orders]\n"))
-    write(f"{DP}/outputs/sa_ilab_orders/port.yaml", OUTPUT_PORT + "access:\n  readers:\n    - product: agg_report\n")
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_jaffle_orders]\n"))
+    write(f"{DP}/outputs/sa_jaffle_orders/port.yaml", OUTPUT_PORT + "access:\n  readers:\n    - product: agg_report\n")
     write(
         "dataproducts/agg_report/dataproduct.yaml",
-        product_yaml(name="report", kind="aggregate", extra="inputs: [sa_ilab_orders]\n"),
+        product_yaml(name="report", kind="aggregate", extra="inputs: [sa_jaffle_orders]\n"),
     )
-    write("dataproducts/agg_report/inputs/sa_ilab_orders/port.yaml", "schema_version: 1\nfrom: sa_ilab_orders\n")
+    write("dataproducts/agg_report/inputs/sa_jaffle_orders/port.yaml", "schema_version: 1\nfrom: sa_jaffle_orders\n")
     assert problems(tmp_path) == []
 
 
 def test_changing_a_kind_prefix_changes_what_validate_expects(tmp_path: Path, write: Writer):
     write("datapatchbay.yaml", "schema_version: 1\nconventions:\n  kinds:\n    source-aligned: {prefix: src}\n")
     write(f"{DP}/dataproduct.yaml", product_yaml())
-    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 2, "must be named 'src_ilab_orders'")
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 2, "must be named 'src_jaffle_orders'")
 
 
 def test_changing_a_template_changes_what_validate_expects(tmp_path: Path, write: Writer):
     write("datapatchbay.yaml", 'schema_version: 1\nconventions:\n  names:\n    dataproduct: "dp_{name}"\n')
     write(f"{DP}/dataproduct.yaml", product_yaml())
-    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 2, "must be named 'dp_ilab_orders'")
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 2, "must be named 'dp_jaffle_orders'")
 
 
 def test_template_with_unknown_placeholder_fails_listing_available_ones(tmp_path: Path, write: Writer):
@@ -143,41 +143,41 @@ def test_template_with_unknown_placeholder_fails_listing_available_ones(tmp_path
     assert "{name}, {kind.prefix}, {kind.name}" in message
 
 
-@pytest.mark.parametrize("name", ["IlabOrders", "ilab-orders"])
+@pytest.mark.parametrize("name", ["JaffleOrders", "jaffle-orders"])
 def test_data_product_name_must_be_snake_case(tmp_path: Path, write: Writer, name: str):
     write(f"dataproducts/sa_{name}/dataproduct.yaml", product_yaml(name=name))
     assert has_problem(tmp_path, f"dataproducts/sa_{name}/dataproduct.yaml", 2, "must be snake_case")
 
 
 def test_port_table_and_column_names_must_be_snake_case(tmp_path: Path, write: Writer):
-    write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_ilab_orders_Extra]\n"))
-    write(f"{DP}/outputs/sa_ilab_orders_Extra/port.yaml", OUTPUT_PORT)
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_jaffle_orders_Extra]\n"))
+    write(f"{DP}/outputs/sa_jaffle_orders_Extra/port.yaml", OUTPUT_PORT)
     write(
-        f"{DP}/outputs/sa_ilab_orders_Extra/t.yaml",
+        f"{DP}/outputs/sa_jaffle_orders_Extra/t.yaml",
         TABLE.replace("name: orders", "name: Orders").replace("name: order_id", "name: orderId"),
     )
     write(f"{DP}/src/o.py", "")
-    table = f"{DP}/outputs/sa_ilab_orders_Extra/t.yaml"
-    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "port name 'sa_ilab_orders_Extra' must be snake_case")
+    table = f"{DP}/outputs/sa_jaffle_orders_Extra/t.yaml"
+    assert has_problem(tmp_path, f"{DP}/dataproduct.yaml", 5, "port name 'sa_jaffle_orders_Extra' must be snake_case")
     assert has_problem(tmp_path, table, 2, "table name 'Orders' must be snake_case")
     assert has_problem(tmp_path, table, 4, "column name 'orderId' must be snake_case")
 
 
 def test_derived_data_product_names_are_unique_across_the_repo(tmp_path: Path, write: Writer):
-    write("dataproducts/a/sa_ilab_orders/dataproduct.yaml", product_yaml())
-    write("dataproducts/b/sa_ilab_orders/dataproduct.yaml", product_yaml())
+    write("dataproducts/a/sa_jaffle_orders/dataproduct.yaml", product_yaml())
+    write("dataproducts/b/sa_jaffle_orders/dataproduct.yaml", product_yaml())
     assert has_problem(
-        tmp_path, "dataproducts/b/sa_ilab_orders/dataproduct.yaml", 2, "'sa_ilab_orders' is already used by"
+        tmp_path, "dataproducts/b/sa_jaffle_orders/dataproduct.yaml", 2, "'sa_jaffle_orders' is already used by"
     )
 
 
 def test_port_names_are_unique_across_the_repo(tmp_path: Path, write: Writer):
-    write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_ilab_orders_x]\n"))
-    write(f"{DP}/outputs/sa_ilab_orders_x/port.yaml", OUTPUT_PORT)
-    other = "dataproducts/sa_ilab_orders_x"
-    write(f"{other}/dataproduct.yaml", product_yaml(name="ilab_orders_x", extra="outputs: [sa_ilab_orders_x]\n"))
-    write(f"{other}/outputs/sa_ilab_orders_x/port.yaml", OUTPUT_PORT)
-    assert has_problem(tmp_path, f"{other}/dataproduct.yaml", 5, "port name 'sa_ilab_orders_x' is already used")
+    write(f"{DP}/dataproduct.yaml", product_yaml(extra="outputs: [sa_jaffle_orders_x]\n"))
+    write(f"{DP}/outputs/sa_jaffle_orders_x/port.yaml", OUTPUT_PORT)
+    other = "dataproducts/sa_jaffle_orders_x"
+    write(f"{other}/dataproduct.yaml", product_yaml(name="jaffle_orders_x", extra="outputs: [sa_jaffle_orders_x]\n"))
+    write(f"{other}/outputs/sa_jaffle_orders_x/port.yaml", OUTPUT_PORT)
+    assert has_problem(tmp_path, f"{other}/dataproduct.yaml", 5, "port name 'sa_jaffle_orders_x' is already used")
 
 
 def test_conventions_are_skipped_when_the_root_file_is_invalid(tmp_path: Path, write: Writer):

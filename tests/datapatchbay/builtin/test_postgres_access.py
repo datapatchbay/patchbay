@@ -16,10 +16,10 @@ from datapatchbay.errors import DatapatchbayError
 
 
 @pytest.fixture
-def repo(lab_repo: Path) -> Path:
-    (lab_repo / PORT).write_text(PORT_FILE)
-    (lab_repo / ORDERS).write_text(ORDERS_FILE)
-    return lab_repo
+def repo(jaffle_repo: Path) -> Path:
+    (jaffle_repo / PORT).write_text(PORT_FILE)
+    (jaffle_repo / ORDERS).write_text(ORDERS_FILE)
+    return jaffle_repo
 
 
 def test_the_apply_is_one_task_with_a_stable_id_and_the_same_sql_for_the_same_input(repo: Path):
@@ -34,12 +34,12 @@ def test_a_data_product_without_output_ports_applies_nothing(repo: Path):
 
 def test_the_sql_names_roles_through_the_role_template_and_never_grants_on_the_private_schema(repo: Path):
     text = apply_sql(repo)
-    assert '"dp_agg_lab_turnaround"' in text
-    assert not re.search(r"GRANT[^;]*sa_ilab_orders_private", text)
+    assert '"dp_agg_order_turnaround"' in text
+    assert not re.search(r"GRANT[^;]*sa_jaffle_orders_private", text)
 
 
 def test_an_identifier_with_a_quote_is_escaped(repo: Path):
-    (repo / PORT).write_text(PORT_FILE.replace("grp-lab-reporting", 'we"ird'))
+    (repo / PORT).write_text(PORT_FILE.replace("grp-shop-reporting", 'we"ird'))
     assert '"we""ird"' in apply_sql(repo)
 
 
@@ -49,6 +49,6 @@ def test_a_dollar_quote_tag_never_occurs_in_the_text_it_wraps():
 
 
 def test_a_product_reader_that_is_not_a_data_product_is_an_error(repo: Path):
-    (repo / PORT).write_text(PORT_FILE.replace("agg_lab_turnaround", "nope"))
+    (repo / PORT).write_text(PORT_FILE.replace("agg_order_turnaround", "nope"))
     with pytest.raises(DatapatchbayError, match="nope"):
         apply_sql(repo)

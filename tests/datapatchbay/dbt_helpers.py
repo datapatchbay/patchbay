@@ -4,9 +4,9 @@ from pathlib import Path
 
 from datapatchbay.validation import load_and_validate, validate_repo
 
-DP = "dataproducts/agg_lab_turnaround"
-TABLE = f"{DP}/outputs/agg_lab_turnaround/turnaround.yaml"
-MODEL = f"{DP}/models/agg_lab_turnaround__turnaround.sql"
+DP = "dataproducts/agg_order_turnaround"
+TABLE = f"{DP}/outputs/agg_order_turnaround/turnaround.yaml"
+MODEL = f"{DP}/models/agg_order_turnaround__turnaround.sql"
 TABLE_YAML = "schema_version: 1\nname: turnaround\ncolumns:\n  - name: days\n    type: numeric\n"
 
 

@@ -96,17 +96,17 @@ jobs:
       - name: Load the DAGs with a DagBag and fail on any import error
         run: |
           "$RUNNER_TEMP/airflow-venv/bin/python" tests/airflow/check_dags.py "$RUNNER_TEMP/dags" \
-            sa_ilab_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
-            agg_lab_turnaround apply_access,build_turnaround,publish_outputs \
-            agg_lab_weekly apply_access,build_weekly_raw,build_weekly,build_weekly_pod,build_dbt,publish_outputs
+            sa_jaffle_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
+            agg_order_turnaround apply_access,build_turnaround,publish_outputs \
+            agg_weekly_orders apply_access,build_weekly_raw,build_weekly,build_weekly_pod,build_dbt,publish_outputs
 
       - name: Generate and load the DAGs of the example repo
-        working-directory: examples/lab
+        working-directory: examples/jaffle_shop
         run: |
           uv run --locked --project ../.. dpb generate --output "$RUNNER_TEMP/example-dags"
           "$RUNNER_TEMP/airflow-venv/bin/python" ../../tests/airflow/check_dags.py "$RUNNER_TEMP/example-dags" \
-            sa_ilab_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
-            agg_lab_turnaround apply_access,build_dbt,publish_outputs
+            sa_jaffle_orders apply_access,audit_orders,build_ingested_orders,build_orders,publish_outputs \
+            agg_order_turnaround apply_access,build_dbt,publish_outputs
 
   example:
     name: example repo runs end to end
@@ -136,12 +136,12 @@ jobs:
       # dbt is installed from the project's `dbt` dependency group, in the project environment, because its pins conflict
       # with Airflow's. Only the `dbt` command is used from there: the `build_dbt` task finds it through the PATH.
       - name: Generate the DAGs of the example repo
-        working-directory: examples/lab
+        working-directory: examples/jaffle_shop
         run: uv run --locked --group dbt --project ../.. dpb generate --output "$RUNNER_TEMP/dags"
 
       # `dpb validate` reads the dbt manifest to check what the dbt model reads, so `dbt parse` comes first.
       - name: Parse the dbt project of the example repo and validate it
-        working-directory: examples/lab
+        working-directory: examples/jaffle_shop
         run: |
           uv run --locked --group dbt --project ../.. dbt parse --project-dir . --profiles-dir .
           uv run --locked --group dbt --project ../.. dpb validate
@@ -178,4 +178,4 @@ jobs:
       - name: Parse the generated dbt properties and tests
         env:
           DPB_REQUIRE_DBT: "1"  # a missing dbt fails the test instead of skipping it
-        run: uv run --locked --group dbt pytest -m "dbt and not integration"
+        run: uv run --locked --group dbt pytest -m dbt
