@@ -14,6 +14,7 @@ from datapatchbay.rendering import check_generation
 from datapatchbay.repo import ROOT_FILE
 from datapatchbay.repomodel import Repo
 from datapatchbay.settings import InvalidSettingsError, load_settings
+from datapatchbay.staleoutput import check_stale_output
 from datapatchbay.yamlio import load_mapping
 
 
@@ -54,5 +55,9 @@ def validate_repo(root: Path) -> Report:
     if not report.ok:
         return report
     settings = load_settings(root)
-    problems = [*check_dbt_files(repo, settings), *check_generation(repo, settings, root)]
+    problems = [
+        *check_dbt_files(repo, settings),
+        *check_generation(repo, settings, root),
+        *check_stale_output(repo, settings),
+    ]
     return Report(dataproducts_checked=report.dataproducts_checked, problems=problems)

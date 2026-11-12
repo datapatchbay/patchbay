@@ -12,7 +12,8 @@ from ruamel.yaml.comments import CommentedSeq
 
 from datapatchbay.dbt import MODELS_FOLDER
 from datapatchbay.dbt_project import DBT_PROJECT_FILE, DbtProjectError, model_paths, synced_dbt_project
-from datapatchbay.dbt_properties import GENERATED_PREFIX, GROUP_FILE, generate_dbt_properties
+from datapatchbay.dbt_properties import GROUP_FILE, generate_dbt_properties
+from datapatchbay.genheader import generated_from
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import GeneratedFile
 from datapatchbay.problems import Problem
@@ -77,17 +78,9 @@ def orphaned_dbt_properties(repo: Repo, generated: Sequence[GeneratedFile]) -> l
             continue
         for path in [*directory.rglob("*.yml"), *directory.rglob("*.yaml")]:
             relative = PurePosixPath(path.relative_to(repo.root).as_posix())
-            if relative not in wanted and _is_generated(path):
+            if relative not in wanted and generated_from(path) is not None:
                 orphans.append(relative)
     return sorted(orphans)
-
-
-def _is_generated(path: Path) -> bool:
-    try:
-        with path.open(encoding="utf-8") as stream:
-            return stream.readline().startswith(GENERATED_PREFIX)
-    except (OSError, UnicodeDecodeError):
-        return False
 
 
 def _duplicates(repo: Repo, settings: EffectiveSettings, generated: Sequence[GeneratedFile]) -> list[Problem]:
