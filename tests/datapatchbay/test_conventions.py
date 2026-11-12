@@ -179,4 +179,3 @@ def test_every_naming_template_is_checked_for_unknown_placeholders(tmp_path: Pat
     write("datapatchbay.yaml", f'schema_version: 1\nconventions:\n  names:\n    {key}: "{{bogus}}_{{name}}"\n')
     write(f"{DP}/dataproduct.yaml", product_yaml())
     assert has_problem(tmp_path, "datapatchbay.yaml", 4, f"conventions.names.{key}: naming template")
-

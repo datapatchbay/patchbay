@@ -24,6 +24,8 @@
 - `freshness` is optional on an output port. When given, it is a duration such as `30m`, `24h` or `7d`. `schedule` is a five-field cron expression.
 - Every table file matches the schema: columns, `pii`, quality rules on columns (`not_null`, `unique`, `accepted_values`) and on the table (`primary_key`, `row_count`, `sql`), in short or long form, with severity `error`, `warning` or `none`. An unknown rule name fails.
 - Table names are unique within a data product.
+- An output port with `freshness` does not promise fresher data than its inputs deliver: its freshness is not shorter than the longest gap in the `schedule` of any source input port of the same data product, nor than the `freshness` of any output port the data product reads. The message names both ports and both values. An output port without `freshness` is not checked. The longest gap is computed from the cron expression alone, and `dpb` never looks at data.
+- `freshness_column` names a column of its table.
 - An input port's `from` names an existing output port of another data product.
 - A data product that reads an output port is listed in that port's readers as a `product:` entry.
 - In the `build` block, `executor` is `python`, `entrypoint` has the form `path.py:function` and the file exists inside the data product folder, `needs` names tables of the same data product, and `needs` contains no cycle.
@@ -32,7 +34,6 @@
 - Data product, port, table and column names are snake_case.
 - Derived data product names and port names are unique across the repo.
 - A naming template that uses an unknown placeholder fails, and the message lists the placeholders available.
-- An output port does not promise fresher data than its inputs deliver. This rule arrives with a later release.
 
 `dpb validate` looks for `datapatchbay.yaml` in the working directory and its parents, and fails with exit code 2 and a message when it finds none. It exits 0 when every file is valid and 1 when there are problems. Each problem is one line, `file:line: message`, on stderr.
 

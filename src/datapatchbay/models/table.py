@@ -4,8 +4,19 @@ import re
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, ValidationInfo, field_validator, model_validator
-from pydantic_core import PydanticCustomError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    GetJsonSchemaHandler,
+    Tag,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema, PydanticCustomError
 
 from datapatchbay.models.base import FileModel
 
@@ -95,6 +106,20 @@ def _rule_tag(value: Any) -> str | None:
     return None
 
 
+class _ShortFormSchema:
+    """Make the JSON Schema accept the bare rule name that `_Rule._expand_short_form` accepts.
+
+    Only rules without required keys of their own can be written bare, so only those names are listed.
+    """
+
+    def __init__(self, *names: str) -> None:
+        self._names = names
+
+    def __get_pydantic_json_schema__(self, core_schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
+        long_form = handler(core_schema)
+        return {"anyOf": [long_form, {"type": "string", "enum": list(self._names)}]}
+
+
 def _rule_union(rules: tuple[str, ...]) -> str:
     return ", ".join(f"'{rule}'" for rule in rules)
 
@@ -108,6 +133,7 @@ type ColumnRule = Annotated[
         custom_error_type="unknown_rule",
         custom_error_message=f"unknown column rule; expected one of {_rule_union(COLUMN_RULES)}",
     ),
+    _ShortFormSchema("not_null", "unique"),
 ]
 type TableRule = Annotated[
     Annotated[PrimaryKeyRule, Tag("primary_key")]

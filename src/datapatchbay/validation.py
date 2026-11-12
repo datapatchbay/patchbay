@@ -4,6 +4,7 @@ from pathlib import Path
 
 from datapatchbay.conventions import check_conventions
 from datapatchbay.crosschecks import check_repo
+from datapatchbay.freshness import check_freshness
 from datapatchbay.loading import load_repo
 from datapatchbay.problems import Report
 from datapatchbay.repo import ROOT_FILE
@@ -25,4 +26,5 @@ def validate_repo(root: Path) -> Report:
         pass  # `load_repo` reported `datapatchbay.yaml`; without settings no convention can be checked.
     else:
         problems.extend(check_conventions(repo, settings, load_mapping(root / ROOT_FILE)))
+    problems.extend(check_freshness(repo))
     return Report(dataproducts_checked=repo.dataproduct_dirs, problems=problems)

@@ -170,12 +170,14 @@ def test_freshness_must_be_a_duration(runner: CliRunner, product: None, write_fi
 @pytest.mark.parametrize("value", ["30m", "24h", "7d"])
 def test_freshness_accepts_minutes_hours_days(runner: CliRunner, product: None, write_file: Writer, value: str):
     write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("24h", value))
+    write_file(f"{PRIVATE}/port.yaml", SOURCE_PORT.replace("0 5 * * *", "* * * * *"))  # delivers every minute
     assert problems_of(runner) == []
 
 
 @pytest.mark.parametrize("cron", ["0 5 * * *", "*/15 0-6 1,15 jan-mar mon", "0 0 * * 7"])
 def test_schedule_accepts_five_field_cron(runner: CliRunner, product: None, write_file: Writer, cron: str):
     write_file(f"{PRIVATE}/port.yaml", SOURCE_PORT.replace("0 5 * * *", cron))
+    write_file(f"{OUT}/port.yaml", OUTPUT_PORT.replace("freshness: 24h\n", ""))  # syntax only: no freshness promise
     assert problems_of(runner) == []
 
 

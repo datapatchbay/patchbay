@@ -161,3 +161,13 @@ build:
 ## JSON Schema
 
 `dpb schema` prints the JSON Schema of the four kinds of file, so an editor or an agent can validate a file before writing it.
+
+```sh
+dpb schema root         # datapatchbay.yaml
+dpb schema dataproduct  # dataproduct.yaml
+dpb schema port         # port.yaml, in its three forms
+dpb schema table        # a table file
+dpb schema              # all four, as one JSON object keyed by kind
+```
+
+The schema is generated from the same models `dpb validate` uses. It accepts the short form of a column rule, a bare `not_null` or `unique`. The schema checks the shape of a file; the cross-file checks of `dpb validate` (names, folders, readers, freshness) are not in it. See the README for how to point an editor at the schema.
