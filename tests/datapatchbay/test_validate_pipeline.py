@@ -8,8 +8,9 @@ from dbt_helpers import write
 
 from datapatchbay import planning
 from datapatchbay.generate import generate_repo
+from datapatchbay.planning import PlannedRepo
 from datapatchbay.problems import Report
-from datapatchbay.validation import PlannedRepo, plan_repo, validate_repo
+from datapatchbay.validation import plan_repo, validate_repo
 
 MANIFEST = '{"metadata": {}, "nodes": {}, "sources": {}}'
 
