@@ -7,7 +7,7 @@ from datapatchbay.cascade import resolve_setting
 from datapatchbay.generate import GenerationError, generate_repo
 from datapatchbay.loading import load_repo
 from datapatchbay.settings import load_settings
-from datapatchbay.validation import validate_repo
+from datapatchbay.validation import load_and_validate, validate_repo
 
 DP = "dataproducts/agg_lab_turnaround"
 TABLE = f"{DP}/outputs/agg_lab_turnaround/turnaround.yaml"
@@ -17,6 +17,11 @@ TABLE_YAML = "schema_version: 1\nname: turnaround\ncolumns:\n  - name: days\n   
 
 def rendered(repo: Path) -> list[str]:
     return [problem.render() for problem in validate_repo(repo).problems]
+
+
+def checked(repo: Path) -> list[str]:
+    """The problems of the files themselves, before `validate_repo` compares the generated dbt files."""
+    return [problem.render() for problem in load_and_validate(repo)[1].problems]
 
 
 def write(repo: Path, relative: str, text: str) -> None:
@@ -36,7 +41,7 @@ def dbt_repo(lab_repo: Path) -> Path:
 
 
 def test_a_table_built_by_dbt_needs_no_build_block_and_its_model(dbt_repo: Path):
-    assert rendered(dbt_repo) == []
+    assert checked(dbt_repo) == []
 
 
 @pytest.mark.parametrize("level", ["root", "dataproduct", "port", "table"])
@@ -51,13 +56,13 @@ def test_executor_dbt_is_accepted_at_every_level(tmp_path: Path, level: str):
     write(tmp_path, "dataproducts/agg_x/outputs/agg_x/port.yaml", port)
     write(tmp_path, "dataproducts/agg_x/outputs/agg_x/t.yaml", table.replace("turnaround", "t"))
     write(tmp_path, "dataproducts/agg_x/models/agg_x__t.sql", "select 1\n")
-    assert rendered(tmp_path) == []
+    assert checked(tmp_path) == []
 
 
 def test_the_nearest_executor_wins(dbt_repo: Path):
     write(dbt_repo, TABLE, TABLE_YAML + "build:\n  executor: python\n  entrypoint: src/turnaround.py:build\n")
     (dbt_repo / MODEL).unlink()
-    assert rendered(dbt_repo) == []
+    assert checked(dbt_repo) == []
     repo, _ = load_repo(dbt_repo)
     product = next(p for p in repo.dataproducts if p.folder == "agg_lab_turnaround")
     resolved = resolve_setting(
