@@ -16,6 +16,8 @@ dpb = "datapatchbay.cli:main"
 
 [project.entry-points."datapatchbay.orchestrators"]
 airflow = "datapatchbay.builtin.airflow:AirflowOrchestrator"
+dagster = "datapatchbay.builtin.dagster:DagsterOrchestrator"
+local = "datapatchbay.builtin.local:LocalOrchestrator"
 
 [project.entry-points."datapatchbay.executors"]
 python = "datapatchbay.builtin.python_executor:PythonExecutor"
@@ -35,6 +37,10 @@ requires = ["uv_build>=0.10.4,<0.11"]
 build-backend = "uv_build"
 
 [dependency-groups]
+dagster = [
+    "dagster>=1.13",
+    "dagster-duckdb",
+]
 dbt = [
     "dbt-postgres>=1.10",
 ]

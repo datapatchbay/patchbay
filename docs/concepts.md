@@ -95,8 +95,8 @@ Rules run as generated audit tasks in the orchestrator, after the table's build 
 
 `dpb` reads YAML and writes files. It holds no credentials and ships no database driver.
 
-- The **orchestrator** (Airflow) triggers builds on a schedule, and runs the generated audits, views and grants through a connection that already exists there.
-- The **runtime** is where build code runs: on the Airflow worker, or in a Docker or Kubernetes container.
+- The **orchestrator** (Airflow, Dagster or a generated local script) triggers builds on a schedule, and runs the generated audits, views and grants through a connection that already exists there.
+- The **runtime** is where build code runs: on the orchestrator's worker, or in a Docker or Kubernetes container.
 - Build code connects by itself. On the worker it can use the orchestrator's connection. In a container it reads what the team put in the container's environment.
 
 A change to access takes effect on the next run of the data product's DAG, not at merge time.

@@ -48,7 +48,7 @@ def test_an_output_port_name_that_is_not_an_airflow_id_is_refused(jaffle_repo: P
         AirflowOrchestrator().generate(plan, context_of(jaffle_repo))
 
 
-def test_the_worker_runtime_only_renders_for_airflow(jaffle_repo: Path):
+def test_the_worker_runtime_refuses_an_orchestrator_it_does_not_know(jaffle_repo: Path):
     plan = plan_of(jaffle_repo, "sa_jaffle_orders")
     table = plan.tables[0]
     task = BuildTask("build_x", table, PythonExecutor().call(table))
