@@ -116,6 +116,8 @@ Generated files are build output of CD and are not committed, with one exception
 
 `dpb generate` validates the repo first, exactly like `dpb validate`. When anything is wrong it prints the problems on stderr, writes nothing and exits 1. Otherwise it writes one file per data product into the folder of the `output_dir` setting (`generated` by default, relative to the repo root) and lists the files. `--output <folder>` (`-o`) writes into another folder, relative to the working directory. Files from an earlier run that no longer have a data product are not removed. A failure while generating, such as a table name Airflow cannot use as an id, exits 2 with a message that names the data product, and nothing is written.
 
+When a table is built by dbt, `dpb generate` also updates the `model-paths` key of the `dbt_project.yml` at the repo root, and only that key. This file is committed, so `--output` does not move it. A repo without such a table needs no `dbt_project.yml`; with one, a missing `dbt_project.yml` fails the run (exit 2) with a message saying it is expected at the repo root, and nothing is written.
+
 ```sh
 dpb generate
 dpb generate --output build/dags

@@ -32,7 +32,7 @@ dataproducts/
     models/
       agg_lab_turnaround__turnaround.sql
       agg_lab_turnaround__turnaround.yml   # generated, committed
-dbt_project.yml                            # only for dbt
+dbt_project.yml                            # only for dbt; `dpb generate` keeps its `model-paths` in step
 ```
 
 There are four kinds of file:
@@ -174,6 +174,16 @@ build:
 - Table names are unique within a data product.
 
 A table built by dbt has the same contract and no `build` block when `executor: dbt` is set on its data product or higher (or `build: {executor: dbt}` on the table itself). `entrypoint`, `params` and `needs` fail on it, because dbt takes the order from the model's `ref()` calls. Its SQL is the dbt model `models/<dbt_model>.sql` in the data product's folder, named by the `dbt_model` naming template in `conventions.names`, by default `{dataproduct}__{table}`; a missing model file fails, and so does a `.py` file anywhere in a `models/` folder, because dbt would read it as a dbt Python model. A table rule (`primary_key`, `row_count`, `sql`) fails on it with "not supported for dbt yet", until the mapping of table rules to dbt is decided. Any other table needs a `build.entrypoint`. `dpb generate` writes the model's dbt properties from the table file; nobody writes them by hand.
+
+The generated properties put each model in its data product's private schema with `config: {schema: <private port name>}`. By default dbt does not use that name as written: it builds `<target schema>_<custom schema>`. For models to land in the private schema as written, the team's dbt project must override the `generate_schema_name` macro, for example in `macros/generate_schema_name.sql`:
+
+```sql
+{% macro generate_schema_name(custom_schema_name, node) -%}
+    {{ custom_schema_name | trim if custom_schema_name is not none else target.schema }}
+{%- endmacro %}
+```
+
+`dpb generate` does not write or check this macro, because it never reads the macros of the dbt project (the folder is also not a `model-paths` entry). Without it, tables are created in a schema such as `<target schema>_<private port name>` and the grants and masking views, which name the private port, do not find them.
 
 ## JSON Schema
 
