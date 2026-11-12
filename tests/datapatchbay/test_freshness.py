@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from datapatchbay.freshness import duration_minutes, longest_gap_minutes
+from datapatchbay.freshness import longest_gap_minutes
+from datapatchbay.schedule import duration_minutes
 from datapatchbay.validation import validate_repo
 
 
