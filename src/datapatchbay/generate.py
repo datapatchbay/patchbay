@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
+from datapatchbay.dbt_properties import generate_dbt_properties
 from datapatchbay.errors import DatapatchbayError
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import (
@@ -49,6 +50,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
 
     When tables are built by dbt, the `model-paths` of `dbt_project.yml` at the repo root (not in `output_dir`, because
     the file is committed) are also brought in step, after all other files are written, and only if that is needed.
+    The dbt properties files, also committed, are written just before it, next to the models.
 
     Args:
         root: The repo root.
@@ -67,12 +69,16 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     settings = load_settings(root)
     target = (output_dir or root / settings.values.output_dir).resolve()
 
+    plans = plan_dataproducts(repo, settings)
     files: dict[PurePosixPath, str] = {}
-    for plan in plan_dataproducts(repo, settings):
+    for plan in plans:
         for generated in _generate(plan, root, target, settings):
             if generated.path in files:
                 raise GenerationError(f"data product '{plan.folder}': file {generated.path} is generated twice")
             files[generated.path] = generated.content
+
+    # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
+    properties = generate_dbt_properties(plans, settings)
 
     try:
         dbt_project = synced_dbt_project(repo, settings)
@@ -83,6 +89,10 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
         destination = target / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(content.encode("utf-8"))
+    for generated in properties:
+        destination = root / generated.path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(generated.content.encode("utf-8"))
     if dbt_project is not None:  # last, so a failed write above leaves the committed file as it was
         dbt_project[0].write_bytes(dbt_project[1].encode("utf-8"))
     return GenerateResult(report, target, tuple(sorted(files)))

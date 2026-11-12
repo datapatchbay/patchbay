@@ -180,3 +180,19 @@ jobs:
         run: |
           PATH="$RUNNER_TEMP/airflow-venv/bin:$PATH" python tests/airflow/run_example.py "$RUNNER_TEMP/dags" \
             postgresql://postgres:postgres@localhost:5432/postgres
+
+  dbt:
+    name: dbt parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      # dbt is installed for this test only. It is never a dependency of the package.
+      - name: Parse the generated dbt properties
+        env:
+          DPB_REQUIRE_DBT: "1"  # a missing dbt fails the test instead of skipping it
+        run: uv run --locked --group dbt pytest -m dbt
