@@ -15,7 +15,7 @@ from datapatchbay.plugins import (
     Warehouse,
 )
 from datapatchbay.problems import Problem
-from datapatchbay.registry import load_plugin
+from datapatchbay.registry import PluginNotFoundError, load_plugin
 from datapatchbay.repomodel import Repo
 from datapatchbay.settings import EffectiveSettings
 
@@ -83,6 +83,11 @@ def check_generation(repo: Repo, settings: EffectiveSettings, root: Path) -> lis
             generated = render_dataproduct(plan, root, target, settings)
         except GenerationError as exc:
             problems.append(Problem(plan.source.file.path, None, str(exc)))
+            continue
+        except PluginNotFoundError:
+            continue  # `check_plugins` reports a plugin that is not installed; there is nothing to render without it
+        except DatapatchbayError as exc:  # a plugin that refuses with its own error
+            problems.append(Problem(plan.source.file.path, None, f"data product '{plan.folder}': {exc}"))
             continue
         for file in generated:
             if file.path in seen:
