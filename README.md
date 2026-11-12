@@ -9,9 +9,21 @@ Data products as code. Declare owners, ports and freshness in YAML, then scaffol
 
 Documentation: [datapatchbay.dev](https://datapatchbay.dev)
 
+## Development
+
+The project is managed with [uv](https://docs.astral.sh/uv/). `uv sync` creates `.venv` with the package and the dev tools; tests use pytest only and ty checks the types:
+
+```sh
+uv sync
+uv run pytest     # tests
+uv run ty check   # type check
+```
+
+Tests mirror the package: the tests for `src/datapatchbay/x.py` live in `tests/datapatchbay/test_x.py`. See [CODING_STANDARDS.md](CODING_STANDARDS.md) for the rest. Every pull request runs the tests on Python 3.12, 3.13 and 3.14, and runs ty.
+
 ## Building the docs
 
-The docs are Sphinx with the Furo theme, managed with [uv](https://docs.astral.sh/uv/):
+The docs are Sphinx with the Furo theme:
 
 ```sh
 uv run --group docs sphinx-build -b html docs docs/_build/html

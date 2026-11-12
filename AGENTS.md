@@ -2,6 +2,10 @@
 
 Data products as code. Declare owners, ports and freshness in YAML, then scaffold, validate and generate from one lightweight CLI.
 
+## Coding standards
+
+Python code and tests follow `CODING_STANDARDS.md`. Before pushing, run `uv run pytest` and `uv run ty check`.
+
 ## Agent skills
 
 ### Issue tracker
