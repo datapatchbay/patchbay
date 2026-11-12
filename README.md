@@ -5,7 +5,7 @@
   </picture>
 </h1>
 
-Data products as code. Declare owners, ports and freshness in YAML, then scaffold, check and deploy from one lightweight CLI.
+Data products as code. Declare owners, ports and freshness in YAML, then scaffold, validate and generate from one lightweight CLI.
 
 Documentation: [datapatchbay.dev](https://datapatchbay.dev)
 

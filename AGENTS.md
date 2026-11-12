@@ -1,6 +1,6 @@
 # patchbay
 
-Data products as code. Declare owners, ports and freshness in YAML, then scaffold, check and deploy from one lightweight CLI.
+Data products as code. Declare owners, ports and freshness in YAML, then scaffold, validate and generate from one lightweight CLI.
 
 ## Agent skills
 

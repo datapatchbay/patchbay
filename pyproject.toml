@@ -1,7 +1,7 @@
 [project]
 name = "datapatchbay"
 version = "0.0.0"
-description = "Data products as code. Declare owners, ports and freshness in YAML, then scaffold, check and deploy from one lightweight CLI."
+description = "Data products as code. Declare owners, ports and freshness in YAML, then scaffold, validate and generate from one lightweight CLI."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12"

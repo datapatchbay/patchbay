@@ -1,9 +1,24 @@
 name: docs
 
+# Runs only when something the site is built from changes. ADRs and agent
+# notes live under docs/ but are not part of the site.
 on:
   push:
     branches: [main]
+    paths: &docs-paths
+      - "docs/**"
+      - "!docs/adr/**"
+      - "!docs/agents/**"
+      - "GLOSSARY.md"
+      - "assets/logo/**"
+      - "assets/icon/favicon.svg"
+      - "assets/fonts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - ".github/workflows/docs.yml"
   pull_request:
+    paths: *docs-paths
   workflow_dispatch:
 
 permissions:

@@ -10,8 +10,10 @@ myst_heading_anchors = 3
 
 source_suffix = {".md": "markdown"}
 root_doc = "index"
-# docs/agents and docs/adr are internal notes for coding agents, not site pages.
+# docs/agents and docs/adr are repo notes, not site pages (and don't trigger a deploy).
 exclude_patterns = ["_build", "agents", "adr", "README.md"]
+# GLOSSARY.md starts at a heading level that suits its own file.
+suppress_warnings = ["myst.header"]
 
 html_theme = "furo"
 html_title = "datapatchbay"
@@ -29,7 +31,7 @@ html_theme_options = {
     "light_logo": "datapatchbay-logo-light.svg",
     "dark_logo": "datapatchbay-logo-dark.svg",
     "sidebar_hide_name": True,
-    "announcement": "Design stage: nothing is released yet. These pages describe the planned design.",
+    "announcement": "Design agreed, nothing released yet. These pages describe milestone 1 as designed.",
     "source_repository": "https://github.com/datapatchbay/patchbay/",
     "source_branch": "main",
     "source_directory": "docs/",
