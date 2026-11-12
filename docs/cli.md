@@ -28,6 +28,22 @@
 - An output port does not promise fresher data than its inputs deliver. Its freshness is compared with the schedule of its source input ports and the freshness of the output ports it reads.
 - `executor` is `python`. Other executors arrive as plugins.
 
+`dpb validate` looks for `datapatchbay.yaml` in the working directory and its parents, and fails with exit code 2 and a message when it finds none. It exits 0 when every file is valid and 1 when there are problems. Each problem is one line, `file:line: message`, on stderr.
+
+With `--json`, stdout holds only this document:
+
+```json
+{
+  "ok": false,
+  "dataproducts_checked": 1,
+  "problems": [
+    {"file": "dataproducts/sa_ilab_orders/dataproduct.yaml", "line": 5, "message": "unknown key 'ownr'; ..."}
+  ]
+}
+```
+
+A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
+
 `dpb validate` can only test what the files state. Anything that needs real data, such as quality rules, runs as a generated task.
 
 ## `dpb generate`
