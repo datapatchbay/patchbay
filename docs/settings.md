@@ -36,7 +36,7 @@ build:
   image: registry.example.com/orders:2   # this table only
 ```
 
-`executor: dbt` makes a table a dbt model instead of a Python function; see the table file in `docs/files.md`. `executor` and `runtime` name plugins, so the files accept any name. `dpb validate` and `dpb generate` check that a plugin of that name is installed, and name the data product and table when it is not.
+`executor: dbt` makes a table a dbt model instead of a Python function; see the [table file](files.md#table-file) and [Build a table with dbt](howto/dbt.md). `executor` and `runtime` name plugins, so the files accept any name. `dpb validate` and `dpb generate` check that a plugin of that name is installed, and name the data product and table when it is not.
 
 `container` is a map that dpb hands to the Docker or Kubernetes task as written, without reading it, so a team can set environment variables, secrets, a namespace or resource limits. The nearest `container` wins as a whole; maps at different levels are not merged. The arguments are written sorted by name, so the generated file does not depend on their order in YAML. Values must be plain YAML values. dpb refuses a key that it sets itself (`task_id`, `image`, `entrypoint` and `command` for Docker; `task_id`, `name`, `image`, `cmds` and `arguments` for Kubernetes). dpb passes no credentials: Airflow renders templates in `environment` and `env_vars`, so `PGPASSWORD: "{{ conn.warehouse.password }}"` reads the orchestrator's connection.
 
@@ -51,7 +51,7 @@ build:
     mem_limit: 1g
 ```
 
-A runtime that runs an image needs one: `dpb validate` fails when `runtime` is `docker` or `kubernetes` and no level sets `image`.
+A runtime that runs an image needs one: `dpb validate` fails when `runtime` is `docker` or `kubernetes` and no level sets `image`. [Run build code in a container](howto/containers.md) shows the steps.
 
 `orchestrator` can be set at root or data product level only, because one data product is one DAG. On a port or a table, `dpb validate` fails.
 
@@ -59,7 +59,7 @@ A runtime that runs an image needs one: `dpb validate` fails when `runtime` is `
 
 ## dbt on the worker
 
-A data product with tables built by dbt gets one task in its DAG, `build_dbt`, which runs `dbt build --select path:<its models folder>` on the Airflow worker. It runs after the data product's Python tables, so the dbt models can read their output, and before the views and grants. dbt builds the models and runs their data tests in dependency order, so a broken rule with severity `error` fails the task, and dpb generates no audit task for these tables. dpb uses the dbt profile the team already has and manages no connection (ADR-0001).
+A data product with tables built by dbt gets one task in its DAG, `build_dbt`, which runs `dbt build --select path:<its models folder>` on the Airflow worker. It runs after the data product's Python tables, so the dbt models can read their output, and before the views and grants. dbt builds the models and runs their data tests in dependency order, so a broken rule with severity `error` fails the task, and dpb generates no audit task for these tables. dpb uses the dbt profile the team already has and manages no connection ([ADR-0001](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0001-dpb-never-connects-to-the-warehouse.md)).
 
 Two settings, in `datapatchbay.yaml` only, say where dbt is on the worker:
 
