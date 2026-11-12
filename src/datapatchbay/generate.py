@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from datapatchbay.dbt_project import DbtProjectError, synced_dbt_project
-from datapatchbay.dbt_properties import generate_dbt_properties
+from datapatchbay.dbt_sources import generate_dbt_files
 from datapatchbay.dbt_sync import orphaned_dbt_properties
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.problems import Report
@@ -51,7 +51,7 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     the file is committed) are also brought in step, only if that is needed, and only that key changes. Once any table
     is built by dbt, `dpb generate` owns the whole key: a hand-set entry is replaced. When no table is built by dbt any
     more, only the entries that point at the `models/` folder of a data product are removed.
-    The dbt properties files, also committed, are written next to the models. A properties file that carries the
+    The dbt properties and sources files, also committed, are written next to the models. A file that carries the
     generated header but is no longer produced (its table is gone or no longer built by dbt) is deleted.
 
     Args:
@@ -74,19 +74,19 @@ def generate_repo(root: Path, *, output_dir: Path | None = None) -> GenerateResu
     plans = plan_dataproducts(repo, settings)
     files = render_dataproducts(plans, root, target, settings)
 
-    # The dbt properties are committed source files of the repo, not build output, so they go next to the models.
-    properties = generate_dbt_properties(plans, settings)
-    orphans = orphaned_dbt_properties(repo, properties)
+    # The dbt properties and sources are committed source files, not build output, so they go next to the models.
+    dbt_files = generate_dbt_files(plans, settings)
+    orphans = orphaned_dbt_properties(repo, dbt_files)
 
     try:
         dbt_project = synced_dbt_project(repo, settings)
     except DbtProjectError as exc:
         raise GenerationError(str(exc)) from exc
 
-    committed = [generated.path for generated in properties]
+    committed = [generated.path for generated in dbt_files]
     for path, content in files.items():
         _write(target / path, content)
-    for generated in properties:
+    for generated in dbt_files:
         _write(root / generated.path, generated.content)
     for path in orphans:
         try:

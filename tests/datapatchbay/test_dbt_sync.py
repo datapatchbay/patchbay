@@ -9,6 +9,7 @@ from datapatchbay.generate import generate_repo
 PROJECT = "dbt_project.yml"
 PROPERTIES = f"{DP}/models/agg_lab_turnaround__turnaround.yml"
 GROUP = f"{DP}/models/_group.yml"
+SOURCES = f"{DP}/models/_sources.yml"
 
 
 @pytest.fixture
@@ -133,7 +134,7 @@ def test_generate_deletes_orphaned_generated_properties_and_stale_model_paths(sy
     assert not (synced_repo / PROPERTIES).exists()
     assert not (synced_repo / GROUP).exists()
     assert (synced_repo / DP / "models/extra.yml").exists()  # hand-written, so left alone
-    assert sorted(path.as_posix() for path in result.removed) == [GROUP, PROPERTIES]
+    assert sorted(path.as_posix() for path in result.removed) == [GROUP, SOURCES, PROPERTIES]
     assert "model-paths" not in (synced_repo / PROJECT).read_text()
     assert rendered(synced_repo) == []
 
@@ -142,6 +143,7 @@ def test_stale_model_paths_of_data_products_fail_when_no_table_is_built_by_dbt(s
     _remove_the_dbt_table(synced_repo)
     (synced_repo / PROPERTIES).unlink()
     (synced_repo / GROUP).unlink()
+    (synced_repo / SOURCES).unlink()
     problems = rendered(synced_repo)
     assert len(problems) == 1
     assert problems[0].startswith(f"{PROJECT}: ")
@@ -159,4 +161,4 @@ def test_generate_lists_the_repo_files_it_wrote(synced_repo: Path):
     (synced_repo / PROPERTIES).write_text("stale\n")
     (synced_repo / PROJECT).write_text("name: lab\nversion: '1.0'\nprofile: lab\n")
     result = generate_repo(synced_repo)
-    assert [path.as_posix() for path in result.committed] == [GROUP, PROPERTIES, PROJECT]
+    assert [path.as_posix() for path in result.committed] == [GROUP, SOURCES, PROPERTIES, PROJECT]

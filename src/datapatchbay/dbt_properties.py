@@ -43,11 +43,11 @@ def generate_dbt_properties(plans: Sequence[DataProductPlan], settings: Effectiv
         if not tables:
             continue
         models = plan.source.file.path.parent / MODELS_FOLDER
-        files.append(GeneratedFile(models / GROUP_FILE, _header(plan.source.file.path) + _dump(_group(plan))))
+        files.append(GeneratedFile(models / GROUP_FILE, header(plan.source.file.path) + dump_yaml(_group(plan))))
         for table in tables:
             name = model_name(settings, plan.source, table.source)
             assert name is not None, "dpb validate guarantees a model name for a table built by dbt"
-            content = _header(table.source.file.path) + _dump({"models": [_model(plan, table, name)]})
+            content = header(table.source.file.path) + dump_yaml({"models": [_model(plan, table, name)]})
             files.append(GeneratedFile(models / f"{name}.yml", content))
     return sorted(files, key=lambda file: file.path)
 
@@ -102,11 +102,11 @@ def _sql_literal(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def _header(source: PurePosixPath) -> str:
+def header(source: str | PurePosixPath) -> str:
     return generated_header(source)
 
 
-def _dump(document: dict[str, Any]) -> str:
+def dump_yaml(document: dict[str, Any]) -> str:
     yaml = YAML()
     yaml.default_flow_style = False
     yaml.width = 10_000

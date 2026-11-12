@@ -20,3 +20,4 @@ The generated dbt properties are committed, unlike the generated DAG files, beca
 - The enforced dbt model contract makes dbt itself check at build time that the model produces the declared columns and types.
 - For a table built by dbt, the quality rules run as dbt data tests during the dbt build, not as separate generated audit tasks. This narrows ADR-0010 to executors without their own tests.
 - A table built by dbt needs no `needs` list: the order comes from the model's `ref()` calls.
+- Table rules are generated as singular data tests, not as properties (ADR-0019). A model reads another data product through a generated source (ADR-0018).
