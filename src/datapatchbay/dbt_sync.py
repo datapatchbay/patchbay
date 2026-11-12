@@ -12,7 +12,7 @@ from ruamel.yaml.comments import CommentedSeq
 
 from datapatchbay.dbt import MODELS_FOLDER
 from datapatchbay.dbt_project import DBT_PROJECT_FILE, DbtProjectError, model_paths, synced_dbt_project
-from datapatchbay.dbt_properties import GROUP_FILE, generate_dbt_properties
+from datapatchbay.dbt_properties import GENERATED_PREFIX, GROUP_FILE, generate_dbt_properties
 from datapatchbay.planning import plan_dataproducts
 from datapatchbay.plugins import GeneratedFile
 from datapatchbay.problems import Problem
@@ -52,8 +52,42 @@ def check_dbt_files(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
             )
     except DbtProjectError as exc:
         problems.append(Problem(project, None, str(exc)))
+    problems.extend(
+        Problem(path, None, "dbt properties file is no longer generated from a table file; delete it")
+        for path in orphaned_dbt_properties(repo, generated)
+    )
     problems.extend(_duplicates(repo, settings, generated))
     return problems
+
+
+def orphaned_dbt_properties(repo: Repo, generated: Sequence[GeneratedFile]) -> list[PurePosixPath]:
+    """Find the files that carry the generated header in a `models/` folder but are not in `generated`.
+
+    These are left behind when a table is no longer built by dbt, or removed. A file without the header is
+    hand-written and never an orphan.
+
+    Returns:
+        The paths relative to the repo root, sorted.
+    """
+    wanted = {file.path for file in generated}
+    orphans = []
+    for dataproduct in repo.dataproducts:
+        directory = dataproduct.directory / MODELS_FOLDER
+        if not directory.is_dir():
+            continue
+        for path in [*directory.rglob("*.yml"), *directory.rglob("*.yaml")]:
+            relative = PurePosixPath(path.relative_to(repo.root).as_posix())
+            if relative not in wanted and _is_generated(path):
+                orphans.append(relative)
+    return sorted(orphans)
+
+
+def _is_generated(path: Path) -> bool:
+    try:
+        with path.open(encoding="utf-8") as stream:
+            return stream.readline().startswith(GENERATED_PREFIX)
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 def _duplicates(repo: Repo, settings: EffectiveSettings, generated: Sequence[GeneratedFile]) -> list[Problem]:

@@ -358,3 +358,23 @@ def test_the_dag_with_a_dbt_task_is_byte_identical_and_does_not_import_datapatch
     generate_repo(lab_dbt_repo)
     assert dag == generated(lab_dbt_repo, "agg_lab_weekly.py")
     assert not {m for m in _imported_modules(dag) if m.split(".")[0] == "datapatchbay"}
+
+
+def test_a_failed_write_is_a_generation_error_and_leaves_no_temporary_file(
+    lab_repo: Path, monkeypatch: pytest.MonkeyPatch
+):
+    def refuse(src: object, dst: object) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr("os.replace", refuse)
+    with pytest.raises(GenerationError, match=r"cannot write .*Permission denied"):
+        generate_repo(lab_repo)
+    assert [path.name for path in (lab_repo / "generated").iterdir()] == []
+
+
+def test_a_file_is_replaced_whole_so_an_older_one_stays_until_the_new_one_is_ready(lab_repo: Path):
+    generate_repo(lab_repo)
+    before = (lab_repo / "generated/sa_ilab_orders.py").read_text()
+    generate_repo(lab_repo)
+    assert (lab_repo / "generated/sa_ilab_orders.py").read_text() == before
+    assert not [path for path in (lab_repo / "generated").iterdir() if path.name.startswith(".")]
