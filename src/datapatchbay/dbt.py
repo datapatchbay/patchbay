@@ -29,6 +29,11 @@ def model_name(settings: EffectiveSettings, dataproduct: DataProduct, table: Tab
 
     The name is also the file name of the model, `models/<name>.sql`, in the data product folder.
 
+    Args:
+        settings: The effective settings, which hold the naming templates and kinds.
+        dataproduct: The data product that holds the table.
+        table: The table the model builds.
+
     Returns:
         The name, or `None` when the template or the data product's kind is invalid, which other checks report.
     """
@@ -55,6 +60,13 @@ def check_dbt(repo: Repo, settings: EffectiveSettings) -> list[Problem]:
     - A table built by dbt has no `entrypoint`, `params` or `needs`, and its model file exists.
     - Any other table needs a `build.entrypoint`, because the python executor calls it.
     - No `.py` file sits in the `models/` folder of a data product, because dbt reads it as a dbt Python model.
+
+    Args:
+        repo: The loaded repository.
+        settings: The effective settings, over which the executor of each table is resolved.
+
+    Returns:
+        The problems found, empty when the executors fit the table files.
     """
     problems: list[Problem] = []
     for dataproduct in repo.dataproducts:

@@ -73,7 +73,7 @@ With `--json`, stdout holds only this document:
 
 A missing `schema_version`, or one newer than the installed `dpb` knows, is reported as such.
 
-With the dbt executor, planned for milestone 2, `dpb validate` will also check that:
+For tables built by dbt, `dpb validate` already checks that the model file exists (see the executor settings). Planned for milestone 2, it will also check that:
 
 - Build code reads another data product only through an output port that it has an input port on and is a reader of. For dbt this is checked against the `ref()` and `source()` calls in the dbt manifest, so CI runs `dbt parse` first (ADR-0014).
 - The generated dbt properties match the table files, and no hand-written dbt properties exist for a model that a table file builds (ADR-0013).
