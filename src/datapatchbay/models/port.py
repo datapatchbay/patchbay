@@ -7,8 +7,6 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from datapatchbay.models.base import FileModel
 
-PORT_KINDS = ("schema", "table")
-
 _DURATION = re.compile(r"[1-9][0-9]*[mhd]")
 
 _NAMES = {
@@ -118,7 +116,10 @@ class OutputPortFile(FileModel):
     kind: Literal["schema", "table"] = Field(
         description="Port kind. A `schema` port holds any number of table files; a `table` port holds exactly one."
     )
-    freshness: Duration = Field(description="How old the newest data in this output port may be.")
+    freshness: Duration | None = Field(
+        default=None,
+        description="How old the newest data in this output port may be. Without it, the port is not checked.",
+    )
     access: Access = Field(default_factory=Access, description="Who may read this output port.")
 
 

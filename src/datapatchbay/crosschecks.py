@@ -54,7 +54,7 @@ def _check_table_counts(dataproduct: DataProduct) -> Iterator[Problem]:
         if isinstance(model, DataProductInputPortFile):
             for path in port.table_files:
                 yield Problem(
-                    path, None, f"input port '{port.name}' reads another data product and has no table files; remove it"
+                    path, 1, f"input port '{port.name}' reads another data product and has no table files; remove it"
                 )
         elif model.kind == "table" and len(port.table_files) != 1:
             yield Problem(

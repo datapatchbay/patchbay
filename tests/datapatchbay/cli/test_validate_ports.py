@@ -144,9 +144,10 @@ def test_from_port_with_other_keys_fails(runner: CliRunner, product: None, write
     expect_problem(runner, f"{PRIVATE}/port.yaml", 3, "'kind' belongs to")
 
 
-def test_output_port_requires_freshness(runner: CliRunner, product: None, write_file: Writer):
+def test_output_port_without_freshness_is_valid(runner: CliRunner, product: None, write_file: Writer):
     write_file(f"{OUT}/port.yaml", "schema_version: 1\nkind: schema\n")
-    expect_problem(runner, f"{OUT}/port.yaml", 1, "missing required key 'freshness'")
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code == 0, result.output
 
 
 def test_source_input_port_requires_source_and_schedule(runner: CliRunner, product: None, write_file: Writer):
@@ -238,7 +239,7 @@ def test_table_port_with_one_table_file_passes(runner: CliRunner, product: None,
 def test_input_port_reading_a_product_with_table_file_fails(runner: CliRunner, reader: None, write_file: Writer):
     table = f"{READER_DP}/inputs/sa_ilab_orders/t.yaml"
     write_file(table, ORDERS)
-    expect_problem(runner, table, None, "no table files")
+    expect_problem(runner, table, 1, "no table files")
 
 
 # --- from and readers -------------------------------------------------------------------------------------------

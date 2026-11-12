@@ -21,7 +21,7 @@
 - The port lists in `dataproduct.yaml` match the folders under `inputs/` and `outputs/`, in both directions.
 - Every `port.yaml` is one of three forms: an output port, an input port fed by a source, or an input port that reads another data product's output port. A key that belongs to another form fails, and the message says which form it belongs to.
 - A port of kind `table` has exactly one table file. An input port that reads another data product has none.
-- `freshness` is a duration such as `30m`, `24h` or `7d`. `schedule` is a five-field cron expression.
+- `freshness` is optional on an output port. When given, it is a duration such as `30m`, `24h` or `7d`. `schedule` is a five-field cron expression.
 - Every table file matches the schema: columns, `pii`, quality rules on columns (`not_null`, `unique`, `accepted_values`) and on the table (`primary_key`, `row_count`, `sql`), in short or long form, with severity `error`, `warning` or `none`. An unknown rule name fails.
 - Table names are unique within a data product.
 - An input port's `from` names an existing output port of another data product.

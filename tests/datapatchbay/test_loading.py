@@ -37,11 +37,12 @@ def test_load_repo_leaves_out_files_that_failed_and_reports_them(tmp_path: Path)
     _write(tmp_path, "datapatchbay.yaml", "schema_version: 1\n")
     base = "dataproducts/sa_x"
     _write(tmp_path, f"{base}/dataproduct.yaml", "schema_version: 1\nname: x\nkind: k\nowner: o\noutputs: [sa_x]\n")
-    _write(tmp_path, f"{base}/outputs/sa_x/port.yaml", "schema_version: 1\nkind: schema\n")
+    _write(tmp_path, f"{base}/outputs/sa_x/port.yaml", "schema_version: 1\nkind: nope\n")
 
     repo, problems = load_repo(tmp_path)
 
-    assert [p.message for p in problems] == ["missing required key 'freshness'"]
+    assert len(problems) == 1
+    assert "kind" in problems[0].message
     [product] = repo.dataproducts
     assert product.outputs == ()
     assert product.port_folders["outputs"] == ("sa_x",)

@@ -86,7 +86,7 @@ An output port:
 ```yaml
 schema_version: 1
 kind: schema               # schema | table
-freshness: 24h
+freshness: 24h             # optional; without it the port makes no freshness promise
 access:
   readers:
     - grp-lab-reporting

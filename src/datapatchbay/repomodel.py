@@ -89,7 +89,6 @@ class DataProduct:
         inputs: The input ports that passed validation, sorted by name.
         outputs: The output ports that passed validation, sorted by name.
         port_folders: Every port folder on disk, by direction, sorted.
-        unreadable_ports: Names of port folders whose `port.yaml` is missing or failed validation.
     """
 
     folder: str
@@ -98,7 +97,6 @@ class DataProduct:
     inputs: tuple[Port, ...]
     outputs: tuple[Port, ...]
     port_folders: dict[str, tuple[str, ...]]
-    unreadable_ports: frozenset[str]
 
     @property
     def ports(self) -> tuple[Port, ...]:
@@ -131,11 +129,3 @@ class Repo:
     dataproducts: list[DataProduct] = field(default_factory=list)
     unloaded_output_ports: frozenset[str] = frozenset()
     dataproduct_dirs: int = 0
-
-    def find_output_port(self, name: str) -> tuple[DataProduct, Port] | None:
-        """Find a loaded output port by name across the repo."""
-        for dataproduct in self.dataproducts:
-            for port in dataproduct.outputs:
-                if port.name == name:
-                    return dataproduct, port
-        return None

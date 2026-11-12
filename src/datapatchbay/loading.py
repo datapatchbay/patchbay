@@ -28,7 +28,8 @@ from datapatchbay.repomodel import DataProduct, LoadedFile, Port, Repo, Table
 from datapatchbay.yamlio import YamlLoadError, line_of, load_mapping, resolve_location
 
 PORT_FILE = "port.yaml"
-DIRECTIONS: tuple[Literal["inputs"], Literal["outputs"]] = ("inputs", "outputs")
+type Direction = Literal["inputs", "outputs"]
+DIRECTIONS: tuple[Direction, ...] = ("inputs", "outputs")
 
 type KeyHint = Callable[[Mapping[str, object], str], str | None]
 
@@ -108,13 +109,13 @@ def load_root_file(root: Path) -> list[Problem]:
     return problems
 
 
-def _port_model(direction: str, data: Mapping[str, object]) -> type[PortFile]:
+def _port_model(direction: Direction, data: Mapping[str, object]) -> type[PortFile]:
     if direction == "outputs":
         return OutputPortFile
     return DataProductInputPortFile if "from" in data else SourceInputPortFile
 
 
-def _port_key_hint(direction: str) -> KeyHint:
+def _port_key_hint(direction: Direction) -> KeyHint:
     def hint(data: Mapping[str, object], key: str) -> str | None:
         this = _port_model(direction, data)
         this_name = next(name for name, form in PORT_FORMS.items() if form is this)
@@ -130,9 +131,7 @@ def _has_field(model: type[BaseModel], key: str) -> bool:
     return any(key in (name, field.alias) for name, field in model.model_fields.items())
 
 
-def _load_port(
-    directory: Path, direction: Literal["inputs", "outputs"], root: Path
-) -> tuple[Port | None, list[Problem]]:
+def _load_port(directory: Path, direction: Direction, root: Path) -> tuple[Port | None, list[Problem]]:
     port_path = directory / PORT_FILE
     if not port_path.is_file():
         missing = Problem(relative(port_path, root), None, f"port folder '{directory.name}' has no {PORT_FILE}")
@@ -170,7 +169,6 @@ def _load_dataproduct(path: Path, root: Path) -> tuple[DataProduct | None, froze
 
     folders: dict[str, tuple[str, ...]] = {}
     ports: dict[str, list[Port]] = {"inputs": [], "outputs": []}
-    unreadable: set[str] = set()
     for direction in DIRECTIONS:
         base = directory / direction
         port_dirs = sorted(p for p in base.iterdir() if p.is_dir()) if base.is_dir() else []
@@ -178,9 +176,7 @@ def _load_dataproduct(path: Path, root: Path) -> tuple[DataProduct | None, froze
         for port_dir in port_dirs:
             port, port_problems = _load_port(port_dir, direction, root)
             problems.extend(port_problems)
-            if port is None:
-                unreadable.add(port_dir.name)
-            else:
+            if port is not None:
                 ports[direction].append(port)
 
     if dataproduct_file is None:
@@ -192,7 +188,6 @@ def _load_dataproduct(path: Path, root: Path) -> tuple[DataProduct | None, froze
         inputs=tuple(ports["inputs"]),
         outputs=tuple(ports["outputs"]),
         port_folders=folders,
-        unreadable_ports=frozenset(unreadable),
     )
     return product, frozenset(), problems
 
