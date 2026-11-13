@@ -12,13 +12,18 @@ An executor may also offer **capabilities**: small `runtime_checkable` protocols
 `isinstance` on the executor plugin. The core never asks which executor it is. A capability is optional; an executor
 that lacks it is simply not asked.
 
+Any of the four may also declare its own **settings** (`DeclaresSettings`, ADR-0025): a root-level section of
+`datapatchbay.yaml` named after the plugin, and naming templates under `conventions.names`.
+
 The interface is not stable in milestone 1.
 """
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
+
+from pydantic import BaseModel
 
 from datapatchbay.files.repomodel import DataProduct, Repo, Table
 from datapatchbay.plugins.plan import DataProductPlan, NewTable, PlannedRepo, TablePlan
@@ -32,7 +37,9 @@ from datapatchbay.plugins.tasks import (
     SqlTask,
 )
 from datapatchbay.problems import Problem
-from datapatchbay.settings.effective import EffectiveSettings
+
+if TYPE_CHECKING:
+    from datapatchbay.settings.effective import EffectiveSettings
 
 __all__ = [
     "BatchesBuilds",
@@ -40,8 +47,11 @@ __all__ = [
     "ChecksPlans",
     "ChecksTables",
     "CommittedOutput",
+    "DeclaredSettings",
+    "DeclaresSettings",
     "Executor",
     "GenerationContext",
+    "NamingTemplate",
     "Orchestrator",
     "OwnsQualityRules",
     "Runtime",
@@ -50,6 +60,56 @@ __all__ = [
     "Warehouse",
     "WritesCommittedFiles",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class NamingTemplate:
+    """A naming template that a plugin adds under `conventions.names` (ADR-0006, ADR-0025).
+
+    Attributes:
+        default: The template when the repo sets none.
+        description: What the name is for; it is the description in the JSON Schema.
+        placeholders: The placeholders the template may use besides the usual `{name}`, `{kind.prefix}` and
+            `{kind.name}`, such as `("dataproduct", "table")`.
+    """
+
+    default: str
+    description: str
+    placeholders: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class DeclaredSettings:
+    """What a plugin adds to the settings: a root-level section and naming templates (ADR-0025).
+
+    Attributes:
+        section: The model of the section, which `datapatchbay.yaml` holds under the plugin's name. It rejects
+            unknown keys, gives every field a description and defaults every field to `None`: a field that is `None`
+            takes its value from `defaults`. `None` when the plugin has no section.
+        description: Describes the section in the JSON Schema.
+        defaults: The default value of each field of the section; a plain YAML value per key.
+        naming_templates: The naming templates, by name, that the plugin adds under `conventions.names`.
+    """
+
+    section: type[BaseModel] | None = None
+    description: str = ""
+    defaults: Mapping[str, Any] = field(default_factory=dict)
+    naming_templates: Mapping[str, NamingTemplate] = field(default_factory=dict)
+
+
+@runtime_checkable
+class DeclaresSettings(Protocol):
+    """Capability of any plugin: it declares settings of its own, which the core reads without knowing the plugin.
+
+    The section is named after the plugin's entry point name and is read at the root only, with no cascade. The
+    core refuses a plugin whose section or template would collide with a core setting or with another plugin.
+    The resolved section, an instance of `section`, is on the plans in `plugin_settings`, by plugin name.
+
+    Attributes:
+        declared_settings: The section and naming templates of this plugin.
+    """
+
+    declared_settings: DeclaredSettings
 
 
 class UnsupportedCombinationError(Exception):
@@ -139,7 +199,7 @@ class ChecksTables(Protocol):
     order. One plugin object serves a whole validation, so it may keep what it saw (names used so far).
     """
 
-    def check_table(self, settings: EffectiveSettings, dataproduct: DataProduct, table: Table) -> Sequence[Problem]:
+    def check_table(self, settings: "EffectiveSettings", dataproduct: DataProduct, table: Table) -> Sequence[Problem]:
         """Return the problems with one table file."""
         ...
 

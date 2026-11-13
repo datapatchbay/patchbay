@@ -91,7 +91,7 @@ runtime: worker            # worker | docker | kubernetes
 severity: error            # default severity of quality rules
 connection: warehouse      # the orchestrator's connection to the warehouse
 output_dir: generated      # where `dpb generate` writes, relative to the repo root
-dbt:
+dbt:                       # declared by the dbt plugin (ADR-0025)
   project_dir: .           # the dbt project on the worker; relative to the repo root as deployed with the DAG files
   profiles_dir: ~/.dbt     # the folder with profiles.yml on the worker
   manifest: target/manifest.json  # made by `dbt parse`; `dpb validate` reads it, relative to the repo root
@@ -106,7 +106,7 @@ conventions:
     output_port: "{kind.prefix}_{name}"
     private_port: "{kind.prefix}_{name}_private"
     role: "dp_{kind.prefix}_{name}"
-    dbt_model: "{dataproduct}__{table}"
+    dbt_model: "{dataproduct}__{table}"   # declared by the dbt plugin
 ```
 
 ### dataproduct.yaml
@@ -259,7 +259,7 @@ Defaults ship inside the package in one file with the same shape as `datapatchba
 
 ## Plugins
 
-Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt, Postgres and DuckDB support is written against the same interfaces. The support for one technology lives in one folder, `src/datapatchbay/integrations/<technology>/` (ADR-0024). The interface is not declared stable yet.
+Four extension points: orchestrator, executor, runtime and warehouse. Plugins are found through Python entry points. The built-in Airflow, Python, dbt, Postgres and DuckDB support is written against the same interfaces. The support for one technology lives in one folder, `src/datapatchbay/integrations/<technology>/` (ADR-0024). A plugin may declare its own settings section and naming templates (ADR-0025). The interface is not declared stable yet.
 
 ## Roadmap
 

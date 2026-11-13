@@ -59,7 +59,7 @@ runtime: worker            # worker | docker | kubernetes
 severity: error            # default severity of quality rules
 connection: warehouse      # the orchestrator's connection to the warehouse
 output_dir: generated      # where `dpb generate` writes, relative to the repo root
-dbt:
+dbt:                       # declared by the dbt plugin (see "Settings that a plugin declares" in settings.md)
   project_dir: .           # the dbt project on the worker; relative to the repo root as deployed with the DAG files
   profiles_dir: ~/.dbt     # the folder with profiles.yml on the worker
   manifest: target/manifest.json  # made by `dbt parse`; `dpb validate` reads it, relative to the repo root
@@ -74,12 +74,12 @@ conventions:
     output_port: "{kind.prefix}_{name}"
     private_port: "{kind.prefix}_{name}_private"
     role: "dp_{kind.prefix}_{name}"
-    dbt_model: "{dataproduct}__{table}"
+    dbt_model: "{dataproduct}__{table}"   # declared by the dbt plugin
 ```
 
 A naming template may use `{name}` (the data product's bare name), `{kind.prefix}` and `{kind.name}`. The `dbt_model` template also has `{dataproduct}` (the data product's derived name) and `{table}`, because dbt model names must be unique across a dbt project. `dpb validate` compares the folder name, the default output port name and the private port name with what the templates produce, so changing a prefix or a template changes what it expects.
 
-[Settings](settings.md) explains how these values merge with the defaults and with settings lower down, and which plugins the names stand for.
+The `dbt:` block and the `dbt_model` template are declared by the `dbt` plugin, not by datapatchbay itself: a root section named after an installed plugin is valid only if that plugin declares it, and `dpb validate` fails on any other with "no installed plugin declares a settings section". See [Settings](settings.md) for how these values merge with the defaults and with settings lower down.
 
 ## `dataproduct.yaml`
 

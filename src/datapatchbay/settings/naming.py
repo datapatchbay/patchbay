@@ -11,9 +11,6 @@ from datapatchbay.settings.effective import ResolvedConventions
 PLACEHOLDERS = ("name", "kind.prefix", "kind.name")
 """The placeholders a naming template may use."""
 
-DBT_MODEL_PLACEHOLDERS = ("dataproduct", "table")
-"""The placeholders that the `dbt_model` template may use besides `PLACEHOLDERS`."""
-
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 _SNAKE_CASE = re.compile(r"[a-z][a-z0-9]*(_[a-z0-9]+)*")
 
@@ -71,7 +68,7 @@ def render_name(
         name: The data product's bare name, for example `"jaffle_orders"`.
         kind_name: The name of the data product's kind, for example `"source-aligned"`.
         kind: The convention of that kind, which holds its prefix.
-        extra: Values of further placeholders, such as `{"table": "orders"}` for the `dbt_model` template.
+        extra: Values of further placeholders, such as `{"table": "orders"}` for a template that a plugin declares.
 
     Returns:
         The rendered name.

@@ -21,6 +21,7 @@ from typing import Any
 
 from datapatchbay.files.repomodel import DataProduct, Repo
 from datapatchbay.integrations.dbt.output import model_paths
+from datapatchbay.integrations.dbt.settings import dbt_settings
 from datapatchbay.plugins import PlannedRepo
 from datapatchbay.problems import Problem
 
@@ -69,7 +70,7 @@ def check_dbt_reads(planned: PlannedRepo) -> list[Problem]:
     repo, settings = planned.repo, planned.settings
     if not model_paths(planned.plans):
         return []
-    setting = settings.values.dbt.manifest
+    setting = dbt_settings(settings.plugins).manifest
     location = PurePosixPath(Path(setting).as_posix())
     path = Path(setting) if Path(setting).is_absolute() else repo.root / setting
     if not path.is_file():

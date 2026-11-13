@@ -4,7 +4,8 @@ from typing import Any, Literal
 
 from pydantic import TypeAdapter
 
-from datapatchbay.models import DataProductFile, PortFile, RootFile, TableFile
+from datapatchbay.models import DataProductFile, PortFile, TableFile
+from datapatchbay.settings.pluginsettings import installed_declarations, root_model
 
 Kind = Literal["root", "dataproduct", "port", "table"]
 """A kind of file whose schema `dpb schema` prints."""
@@ -15,7 +16,6 @@ KINDS: tuple[Kind, ...] = ("root", "dataproduct", "port", "table")
 _DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 _ADAPTERS: dict[Kind, TypeAdapter[Any]] = {
-    "root": TypeAdapter(RootFile),
     "dataproduct": TypeAdapter(DataProductFile),
     "port": TypeAdapter(PortFile),
     "table": TypeAdapter(TableFile),
@@ -35,7 +35,9 @@ def json_schema(kind: Kind) -> dict[str, Any]:
         kind: The kind of file: `root`, `dataproduct`, `port` or `table`.
 
     Returns:
-        The schema, with `$schema` and a `title` added.
+        The schema, with `$schema` and a `title` added. The schema of `root` includes the sections and naming
+        templates that installed plugins declare (ADR-0025).
     """
-    schema = _ADAPTERS[kind].json_schema()
+    adapter = TypeAdapter(root_model(installed_declarations())) if kind == "root" else _ADAPTERS[kind]
+    schema = adapter.json_schema()
     return {"$schema": _DIALECT, "title": _TITLES[kind], **schema}

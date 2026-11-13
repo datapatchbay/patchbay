@@ -111,7 +111,7 @@ With `--json`, stdout holds one object with the same content:
 
 ## `dpb config`
 
-`dpb config` prints the effective settings: the packaged defaults with `datapatchbay.yaml` merged over them. Each line holds a setting, its value and where the value comes from, `(defaults)` or `(datapatchbay.yaml)`. Maps are listed leaf by leaf, with dotted names such as `conventions.kinds.aggregate.prefix`.
+`dpb config` prints the effective settings: the packaged defaults with `datapatchbay.yaml` merged over them. Each line holds a setting, its value and where the value comes from: `(defaults)`, `(datapatchbay.yaml)`, or `(defaults of plugin <name>)` for a setting that an installed plugin declares and `datapatchbay.yaml` does not set, such as `dbt.manifest` of the `dbt` plugin. Maps are listed leaf by leaf, with dotted names such as `conventions.kinds.aggregate.prefix`.
 
 ```text
 warehouse                            postgres        (defaults)
@@ -119,7 +119,7 @@ runtime                              docker          (datapatchbay.yaml)
 conventions.domains                  []              (defaults)
 ```
 
-With `--json`, stdout holds one object from setting name to `{"value": ..., "origin": "defaults" | "datapatchbay.yaml"}`. An invalid `datapatchbay.yaml` is reported as `file:line: message` and exits with code 2.
+With `--json`, stdout holds one object from setting name to `{"value": ..., "origin": "defaults" | "datapatchbay.yaml" | "defaults of plugin <name>"}`. The settings of installed plugins are listed too. An invalid `datapatchbay.yaml` is reported as `file:line: message` and exits with code 2.
 
 ## `dpb schema`
 

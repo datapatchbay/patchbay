@@ -22,11 +22,6 @@ class NamesConvention(_Strict):
     output_port: str | None = Field(default=None, description="Naming template of an output port name.")
     private_port: str | None = Field(default=None, description="Naming template of a private input port name.")
     role: str | None = Field(default=None, description="Naming template of the warehouse role of a data product.")
-    dbt_model: str | None = Field(
-        default=None,
-        description="Naming template of the name of a dbt model, which is also its file name in `models/`. "
-        "Besides the usual placeholders it has `{dataproduct}` and `{table}`.",
-    )
 
 
 class Conventions(_Strict):
@@ -41,28 +36,8 @@ class Conventions(_Strict):
     names: NamesConvention | None = Field(default=None, description="Naming templates for derived names.")
 
 
-class DbtSettings(_Strict):
-    """Where dbt finds its project and its profile on the worker, and the manifest `dpb validate` reads."""
-
-    project_dir: str | None = Field(
-        default=None,
-        min_length=1,
-        description="The dbt project on the worker. A relative path is relative to the repo root as deployed with the "
-        "DAG files.",
-    )
-    profiles_dir: str | None = Field(
-        default=None,
-        min_length=1,
-        description="The folder with the dbt `profiles.yml` on the worker. `~` is the worker user's home; a relative "
-        "path is relative to the dbt project.",
-    )
-    manifest: str | None = Field(
-        default=None,
-        min_length=1,
-        description="The dbt manifest that `dpb validate` reads, made by `dbt parse`. Relative to the repo root.",
-    )
-
-
+# A plugin adds a section named after itself and naming templates under `conventions.names` (ADR-0025). The model that
+# validates the file with them is `datapatchbay.settings.pluginsettings.root_model`.
 class RootFile(FileModel, CascadingSettings):
     """The repo's `datapatchbay.yaml`: settings that apply to all data products.
 
@@ -78,6 +53,3 @@ class RootFile(FileModel, CascadingSettings):
         description="Folder that `dpb generate` writes to, relative to the repo root. `--output` overrides it.",
     )
     conventions: Conventions | None = Field(default=None, description="Platform-wide conventions.")
-    dbt: DbtSettings | None = Field(
-        default=None, description="Where the dbt project and profile are on the worker, for tables built by dbt."
-    )

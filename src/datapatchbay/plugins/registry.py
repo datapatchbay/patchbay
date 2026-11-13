@@ -48,3 +48,25 @@ def load_plugin(kind: PluginKind, name: str) -> Any:
     if len(matches) > 1:
         raise PluginNotFoundError(f"{kind} plugin '{name}' is registered more than once")
     return matches[0].load()()
+
+
+def installed_plugins() -> list[tuple[PluginKind, str, Any]]:
+    """Create every installed plugin, for the core to ask what each one declares (ADR-0025).
+
+    Returns:
+        One `(kind, name, plugin)` per registered name and extension point, in a fixed order: the order of
+        `PLUGIN_KINDS`, then by name. A name that two entry points register is created from the first.
+
+    Raises:
+        PluginNotFoundError: If an installed plugin cannot be imported or created; the message names it.
+    """
+    found: list[tuple[PluginKind, str, Any]] = []
+    for kind in PLUGIN_KINDS:
+        entries = {entry.name: entry for entry in reversed(list(entry_points(group=GROUPS[kind])))}
+        for name in sorted(entries):
+            try:
+                plugin = entries[name].load()()
+            except Exception as exc:  # a broken third-party plugin must name itself, not end in a traceback
+                raise PluginNotFoundError(f"{kind} plugin '{name}' cannot be loaded: {exc}") from exc
+            found.append((kind, name, plugin))
+    return found

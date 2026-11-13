@@ -4,7 +4,7 @@ A plugin adds support for one technology: an orchestrator, an executor, a runtim
 
 ## The four extension points
 
-Each extension point is a `Protocol` in `datapatchbay.plugins`. A plugin is any object that has the same methods.
+Each extension point is a `Protocol` in `datapatchbay.plugins`. A plugin is any object that has the same methods. Any of them may also [declare settings of its own](#declare-settings-and-naming-templates).
 
 | Extension point | Entry-point group | What it does |
 | --- | --- | --- |
@@ -32,9 +32,68 @@ The orchestrator composes the file of a data product from what the other three c
 
 An orchestrator declares the kind of build code it needs, `render_kind`: `task` (an Airflow task) or `function` (a plain Python function with no arguments). A runtime declares the kinds it supports, `render_kinds`, and receives the kind in `render_build_task`. `dpb generate` and `dpb validate` refuse a table whose runtime does not support the kind of its orchestrator. A new orchestrator of kind `function` works with the `worker` runtime without changing it.
 
+## Declare settings and naming templates
+
+Any plugin, of any of the four extension points, can declare settings of its own. It adds the class attribute `declared_settings`, a `DeclaredSettings` (the `DeclaresSettings` capability protocol in `datapatchbay.plugins`), and the core does the rest ([ADR-0025](https://github.com/datapatchbay/patchbay/blob/main/docs/adr/0025-plugins-declare-their-own-settings.md)):
+
+`section`, `description`, `defaults`
+: The model of a root-level section of `datapatchbay.yaml`, named after the plugin's entry point name. It is a pydantic model that rejects unknown keys, gives every field a description (the JSON Schema shows them) and defaults every field to `None`. `defaults` holds the value each field takes when the file does not set it. The section is read at the root only; there is no cascade.
+
+`naming_templates`
+: A `NamingTemplate` per template, with its default, its description and the placeholders it may use besides `{name}`, `{kind.prefix}` and `{kind.name}`. Each is a key under `conventions.names`.
+
+The core validates `datapatchbay.yaml` with what the installed plugins declare, shows the values in `dpb config` (origin `defaults of plugin <name>`), includes them in `dpb schema root`, and fails an undeclared root section as an unknown key. It refuses a plugin whose name is a core setting or whose section or template collides with another plugin's. A plugin reads its resolved section from `plan.plugin_settings[<name>]` (on a `DataProductPlan` and on a `TablePlan`), an instance of its `section` model, and the resolved templates from `conventions.plugin_names` (`NewTable.conventions`, `EffectiveSettings.values.conventions`). This warehouse keeps a retry count and the name of its schemas:
+
+```python
+from collections.abc import Sequence
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from datapatchbay.plugins import DataProductPlan, DeclaredSettings, NamingTemplate, SqlTask
+
+
+class MyWarehouseSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    retries: int | None = Field(default=None, ge=0, description="How many times a statement is retried.")
+
+
+class MyConfigurableWarehouse:
+    """A warehouse with a `mywarehouse:` section and a `mywarehouse_schema` naming template."""
+
+    declared_settings = DeclaredSettings(
+        section=MyWarehouseSection,
+        description="Settings of my warehouse.",
+        defaults={"retries": 3},
+        naming_templates={
+            "mywarehouse_schema": NamingTemplate(
+                default="mw_{name}", description="Naming template of a schema of my warehouse."
+            )
+        },
+    )
+
+    def apply_tasks(self, dataproduct: DataProductPlan) -> Sequence[SqlTask]:
+        retries = dataproduct.plugin_settings["mywarehouse"].model_dump()["retries"]
+        return [SqlTask("apply_retries", f"-- retry {retries} times")]
+```
+
+With the plugin registered as `mywarehouse`, this is valid in `datapatchbay.yaml`, and `dpb config` lists `mywarehouse.retries 3 (defaults of plugin mywarehouse)`:
+
+```yaml
+schema_version: 1
+warehouse: mywarehouse
+mywarehouse:
+  retries: 5
+conventions:
+  names:
+    mywarehouse_schema: "mw_{kind.prefix}_{name}"
+```
+
+The built-in `dbt` executor declares the `dbt:` block and the `dbt_model` template this way.
+
 ## Executor capabilities
 
-An executor can do more than say what to call. The core asks for each extra with `isinstance` on the executor plugin and never asks which executor it is, so an executor has exactly the capabilities it implements. Each is a `runtime_checkable` `Protocol` in `datapatchbay.plugins`, and each is optional. The built-in `dbt` executor implements all of them; `python` implements `ChecksTables` and `ScaffoldsTables`.
+An executor can do more than say what to call. The core asks for each extra with `isinstance` on the executor plugin and never asks which executor it is, so an executor has exactly the capabilities it implements. Each is a `runtime_checkable` `Protocol` in `datapatchbay.plugins`, and each is optional. The built-in `dbt` executor implements all of them (and `DeclaresSettings`, see above); `python` implements `ChecksTables` and `ScaffoldsTables`.
 
 | Capability | Method or attribute | Contract |
 | --- | --- | --- |

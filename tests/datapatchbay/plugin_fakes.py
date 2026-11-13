@@ -5,11 +5,14 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
+from pydantic import BaseModel, ConfigDict, Field
 
 from datapatchbay.plugins import (
     DataProductPlan,
+    DeclaredSettings,
     GeneratedFile,
     GenerationContext,
+    NamingTemplate,
     RenderKind,
     SqlTask,
     TablePlan,
@@ -109,3 +112,38 @@ class ThirdPartyOrchestrator:
             lines.extend([*rendered.imports, *rendered.helpers, *rendered.lines])
         text = "DATAPRODUCT_DIR = None\n" + "\n".join(lines) + "\n"
         return [GeneratedFile(PurePosixPath(f"{plan.folder}.py"), text)]
+
+
+class AcmeSection(BaseModel):
+    """The section of the `acme` warehouse in datapatchbay.yaml."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: str | None = Field(default=None, min_length=1, description="URL of the Acme endpoint.")
+    retries: int | None = Field(default=None, ge=0, description="How many times a statement is retried.")
+
+
+class AcmeWarehouse(FakeWarehouse):
+    """A third-party warehouse that declares a settings section and a naming template of its own."""
+
+    declared_settings = DeclaredSettings(
+        section=AcmeSection,
+        description="Settings of the Acme warehouse.",
+        defaults={"endpoint": "https://acme.invalid", "retries": 3},
+        naming_templates={
+            "acme_schema": NamingTemplate(
+                default="acme_{name}", description="Naming template of an Acme schema.", placeholders=("region",)
+            )
+        },
+    )
+
+    def apply_tasks(self, dataproduct: DataProductPlan) -> Sequence[SqlTask]:
+        """Write the endpoint from the plugin's own section into the SQL, as the plan hands it over."""
+        section = dataproduct.plugin_settings["acme"]
+        return [SqlTask("apply_grants", f"-- {section.model_dump()['endpoint']}")]
+
+
+class RuntimeNamedWarehouse(FakeWarehouse):
+    """A warehouse whose plugin name is `runtime`, which is a core setting, so its section cannot be added."""
+
+    declared_settings = DeclaredSettings(section=AcmeSection, description="Collides with `runtime`.")

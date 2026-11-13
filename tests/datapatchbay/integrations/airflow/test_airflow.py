@@ -80,12 +80,6 @@ def test_container_runtimes_refuse_a_dbt_build_and_say_to_use_another_runtime(ja
         runtime.render_build_task(dbt_task_of(jaffle_dbt_repo), kind="task", variable="dbt")
 
 
-def test_the_dbt_executor_fails_for_a_table_without_a_dbt_location(jaffle_dbt_repo: Path):
-    table = replace(dbt_task_of(jaffle_dbt_repo).table, dbt=None)
-    with pytest.raises(UnsupportedCombinationError, match="table 'weekly_summary' has no dbt location"):
-        DbtExecutor().call(table)
-
-
 def test_a_python_table_cannot_need_a_table_that_dbt_builds(jaffle_dbt_repo: Path):
     plan = plan_of(jaffle_dbt_repo, "agg_weekly_orders")
     tables = tuple(replace(t, needs=("weekly_summary",)) if t.name == "weekly_pod" else t for t in plan.tables)

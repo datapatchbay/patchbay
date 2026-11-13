@@ -23,6 +23,7 @@ from datapatchbay.files.genheader import generated_from
 from datapatchbay.files.yamlio import YamlLoadError, load_mapping
 from datapatchbay.integrations.dbt.layout import DBT_EXECUTOR
 from datapatchbay.integrations.dbt.properties import SEVERITY
+from datapatchbay.integrations.dbt.settings import dbt_model_template
 from datapatchbay.models.base import Severity
 from datapatchbay.settings.effective import ResolvedConventions
 from datapatchbay.settings.naming import derive_names, is_snake_case, render_name
@@ -157,7 +158,7 @@ class DbtImport:
 
 def _model_name(conventions: ResolvedConventions, new: NewDataProduct, dataproduct: str, model: str) -> str:
     return render_name(
-        conventions.names.dbt_model,
+        dbt_model_template(conventions),
         name=new.name,
         kind_name=new.kind,
         kind=conventions.kinds[new.kind],

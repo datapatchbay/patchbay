@@ -36,3 +36,14 @@ def test_a_name_registered_twice_is_an_error(monkeypatch: pytest.MonkeyPatch):
     only(monkeypatch, FakeEntryPoint("x", object), FakeEntryPoint("x", object))
     with pytest.raises(PluginNotFoundError, match="registered more than once"):
         registry.load_plugin("runtime", "x")
+
+
+def test_a_plugin_that_cannot_be_loaded_is_named_in_the_error(monkeypatch: pytest.MonkeyPatch):
+    def broken() -> None:
+        raise ImportError("No module named 'snowflake'")
+
+    only(monkeypatch, FakeEntryPoint("snow", broken))
+    with pytest.raises(
+        PluginNotFoundError, match=r"runtime plugin 'snow' cannot be loaded: No module named 'snowflake'"
+    ):
+        registry.installed_plugins()
