@@ -84,7 +84,10 @@ DBT_DECLARED_SETTINGS = DeclaredSettings(
 
 def dbt_settings(plugin_settings: Mapping[str, BaseModel]) -> ResolvedDbt:
     """Return the resolved `dbt:` block from the resolved sections of the plugins (`plan.plugin_settings`)."""
-    return ResolvedDbt.model_validate(plugin_settings[DBT_SECTION].model_dump())
+    section = plugin_settings.get(DBT_SECTION)
+    if section is None:  # the dbt plugin declares the section, so it is resolved whenever dbt is installed
+        raise RuntimeError(f"no resolved `{DBT_SECTION}:` section; the dbt plugin's settings were not resolved")
+    return ResolvedDbt.model_validate(section.model_dump())
 
 
 def dbt_model_template(conventions: ResolvedConventions) -> str:

@@ -56,9 +56,17 @@ def installed_plugins() -> list[tuple[PluginKind, str, Any]]:
     Returns:
         One `(kind, name, plugin)` per registered name and extension point, in a fixed order: the order of
         `PLUGIN_KINDS`, then by name. A name that two entry points register is created from the first.
+
+    Raises:
+        PluginNotFoundError: If an installed plugin cannot be imported or created; the message names it.
     """
     found: list[tuple[PluginKind, str, Any]] = []
     for kind in PLUGIN_KINDS:
         entries = {entry.name: entry for entry in reversed(list(entry_points(group=GROUPS[kind])))}
-        found.extend((kind, name, entries[name].load()()) for name in sorted(entries))
+        for name in sorted(entries):
+            try:
+                plugin = entries[name].load()()
+            except Exception as exc:  # a broken third-party plugin must name itself, not end in a traceback
+                raise PluginNotFoundError(f"{kind} plugin '{name}' cannot be loaded: {exc}") from exc
+            found.append((kind, name, plugin))
     return found
